@@ -51,6 +51,16 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   reducedMotion: false,
   showRegionSymbols: false,
   autoMarkX: true,
+  controlMode: 'tap-confirm',
+  gameMode: 'classic',
+  highlightRowCol: true,
+  highlightNeighbors: true,
+  highlightRegion: true,
+  highlightCompletedRegions: true,
+  fadeCompletedRegions: false,
+  showCandidates: true,
+  highContrast: false,
+  largeText: false,
 };
 
 export const DEFAULT_ACHIEVEMENTS: PlayerAchievements = {
@@ -174,6 +184,9 @@ export function loadPersistedState(): PersistedGameData {
         ? Math.floor(parsed.unlockedLevelId)
         : 1;
 
+    const validControlModes = new Set(['tap-confirm', 'double-tap', 'long-press']);
+    const validGameModes = new Set(['classic', 'practice']);
+
     const settings: PlayerSettings = {
       soundEnabled:
         typeof parsed.settings?.soundEnabled === 'boolean'
@@ -199,6 +212,48 @@ export function loadPersistedState(): PersistedGameData {
         typeof parsed.settings?.autoMarkX === 'boolean'
           ? parsed.settings.autoMarkX
           : DEFAULT_SETTINGS.autoMarkX,
+      controlMode:
+        typeof parsed.settings?.controlMode === 'string' &&
+        validControlModes.has(parsed.settings.controlMode)
+          ? parsed.settings.controlMode
+          : DEFAULT_SETTINGS.controlMode,
+      gameMode:
+        typeof parsed.settings?.gameMode === 'string' &&
+        validGameModes.has(parsed.settings.gameMode)
+          ? parsed.settings.gameMode
+          : DEFAULT_SETTINGS.gameMode,
+      highlightRowCol:
+        typeof parsed.settings?.highlightRowCol === 'boolean'
+          ? parsed.settings.highlightRowCol
+          : DEFAULT_SETTINGS.highlightRowCol,
+      highlightNeighbors:
+        typeof parsed.settings?.highlightNeighbors === 'boolean'
+          ? parsed.settings.highlightNeighbors
+          : DEFAULT_SETTINGS.highlightNeighbors,
+      highlightRegion:
+        typeof parsed.settings?.highlightRegion === 'boolean'
+          ? parsed.settings.highlightRegion
+          : DEFAULT_SETTINGS.highlightRegion,
+      highlightCompletedRegions:
+        typeof parsed.settings?.highlightCompletedRegions === 'boolean'
+          ? parsed.settings.highlightCompletedRegions
+          : DEFAULT_SETTINGS.highlightCompletedRegions,
+      fadeCompletedRegions:
+        typeof parsed.settings?.fadeCompletedRegions === 'boolean'
+          ? parsed.settings.fadeCompletedRegions
+          : DEFAULT_SETTINGS.fadeCompletedRegions,
+      showCandidates:
+        typeof parsed.settings?.showCandidates === 'boolean'
+          ? parsed.settings.showCandidates
+          : DEFAULT_SETTINGS.showCandidates,
+      highContrast:
+        typeof parsed.settings?.highContrast === 'boolean'
+          ? parsed.settings.highContrast
+          : DEFAULT_SETTINGS.highContrast,
+      largeText:
+        typeof parsed.settings?.largeText === 'boolean'
+          ? parsed.settings.largeText
+          : DEFAULT_SETTINGS.largeText,
     };
 
     const validDifficulties = new Set(['all', 'easy', 'medium', 'hard']);
@@ -230,9 +285,25 @@ export function loadPersistedState(): PersistedGameData {
       typeof parsed.activePuzzle.levelId === 'number' &&
       isValidBoard(parsed.activePuzzle.board)
     ) {
+      const rawManualX = Array.isArray(parsed.activePuzzle.manualXKeys)
+        ? parsed.activePuzzle.manualXKeys.filter((k): k is string => typeof k === 'string')
+        : undefined;
+      const rawCandidates: Record<string, 'possible' | 'priority'> = {};
+      if (
+        parsed.activePuzzle.candidateMarks &&
+        typeof parsed.activePuzzle.candidateMarks === 'object'
+      ) {
+        for (const [ck, cv] of Object.entries(parsed.activePuzzle.candidateMarks)) {
+          if (cv === 'possible' || cv === 'priority') {
+            rawCandidates[ck] = cv;
+          }
+        }
+      }
       activePuzzle = {
         levelId: parsed.activePuzzle.levelId,
         board: parsed.activePuzzle.board,
+        manualXKeys: rawManualX,
+        candidateMarks: rawCandidates,
         elapsedSec:
           typeof parsed.activePuzzle.elapsedSec === 'number'
             ? Math.max(0, parsed.activePuzzle.elapsedSec)
@@ -241,6 +312,19 @@ export function loadPersistedState(): PersistedGameData {
           typeof parsed.activePuzzle.hintsUsed === 'number'
             ? Math.max(0, parsed.activePuzzle.hintsUsed)
             : 0,
+        mistakesCount:
+          typeof parsed.activePuzzle.mistakesCount === 'number'
+            ? Math.max(0, Math.floor(parsed.activePuzzle.mistakesCount))
+            : 0,
+        hearts:
+          typeof parsed.activePuzzle.hearts === 'number'
+            ? Math.max(0, Math.min(3, Math.floor(parsed.activePuzzle.hearts)))
+            : 3,
+        gameMode:
+          typeof parsed.activePuzzle.gameMode === 'string' &&
+          validGameModes.has(parsed.activePuzzle.gameMode)
+            ? parsed.activePuzzle.gameMode
+            : settings.gameMode,
       };
     }
 

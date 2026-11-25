@@ -1,14 +1,51 @@
 export type GridSize = 6 | 8;
 
+/** Legacy 3-tier difficulty retained for economy & campaign compatibility */
 export type Difficulty = 'easy' | 'medium' | 'hard';
+
+/** True mathematical 5-tier difficulty derived from human logical analysis */
+export type DifficultyTier = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert';
 
 export type CellValue = 'empty' | 'cat' | 'x';
 
-export type RuleViolationType = 'region' | 'rowCol' | 'adjacent';
+export type CandidateMark = 'possible' | 'priority';
+
+export type ControlMode = 'tap-confirm' | 'double-tap' | 'long-press';
+
+export type GameMode = 'classic' | 'practice';
+
+export type PencilSubMode = 'x' | 'candidate';
+
+export type RuleViolationType = 'region' | 'rowCol' | 'adjacent' | 'unsolvable';
+
+export const MAX_CLASSIC_HEARTS = 3;
 
 export interface CellCoord {
   row: number;
   col: number;
+}
+
+export type LogicalTechnique =
+  | 'naked_region_single'
+  | 'naked_row_single'
+  | 'naked_col_single'
+  | 'region_line_intersection'
+  | 'line_region_intersection'
+  | 'region_adjacency_exclusion'
+  | 'naked_pair_regions'
+  | 'oracle_fallback';
+
+export interface DifficultyAnalysis {
+  tier: DifficultyTier;
+  complexityScore: number; // 0..100
+  initialCandidateCount: number;
+  immediatelyForcedMoves: number;
+  deductionSteps: number;
+  maxChainDepth: number;
+  avgCandidatesPerRegion: number;
+  startingClues: number;
+  techniquesUsed: LogicalTechnique[];
+  solvableByHumanLogic: boolean;
 }
 
 export interface PuzzleDefinition {
@@ -24,8 +61,12 @@ export interface PuzzleDefinition {
   initialCats: CellCoord[];
   /** Target time (seconds) for 3 stars */
   parTimeSec: number;
-  /** Present when this puzzle is a Daily Challenge (YYYY-MM-DD) */
+  /** Present when this puzzle is a Daily Challenge (YYYY-MM-DD) or Event */
   dailyDateKey?: string;
+  /** True if handcrafted/curated rather than procedurally generated */
+  isCurated?: boolean;
+  /** Optional precomputed logical difficulty analysis */
+  analysis?: DifficultyAnalysis;
 }
 
 export type BoardGrid = CellValue[][];
@@ -51,20 +92,44 @@ export interface ValidationResult {
   primaryMessage: string | null;
 }
 
+export type HintStage = 1 | 2 | 3 | 4;
+
 export interface HintResult {
   type: 'fix-conflict' | 'remove-wrong-cat' | 'place-cat' | 'eliminate-cell';
+  stage: HintStage;
+  technique?: LogicalTechnique;
   targetCell: CellCoord;
+  /** Cells highlighted softly for Stage 1 & 2 (e.g., an entire region, row, or column) */
+  areaCells: CellCoord[];
+  /** Supporting / blocking cells involved in the logical deduction */
   relatedCells: CellCoord[];
   title: string;
   message: string;
-  /** If true, the player can tap "Place Cat" or "Apply" directly */
+  /** Whether the exact target cell should be spotlighted on the board (Stages 3 & 4 or fix) */
+  revealTargetCell: boolean;
+  /** If true, the player can confirm applying the move directly */
   canApply: boolean;
   applyValue: CellValue;
+  /** True if Stage 1/2/3 can be escalated to a more detailed stage */
+  canEscalate: boolean;
 }
+
+export type MoveActionType =
+  | 'place-cat'
+  | 'remove-cat'
+  | 'toggle-x'
+  | 'drag-x'
+  | 'toggle-candidate'
+  | 'clear-marks'
+  | 'hint'
+  | 'booster';
 
 export interface MoveSnapshot {
   board: BoardGrid;
+  manualXKeys: string[];
+  candidateMarks: Record<string, CandidateMark>;
   selectedCell: CellCoord | null;
+  actionType?: MoveActionType;
 }
 
 export interface LevelProgress {
@@ -82,18 +147,34 @@ export interface PlayerSettings {
   reducedMotion: boolean;
   showRegionSymbols: boolean;
   autoMarkX: boolean;
+  // Enhanced Controls, Visuals & Accessibility (Phase 6, 7, 8, 9)
+  controlMode: ControlMode;
+  gameMode: GameMode;
+  highlightRowCol: boolean;
+  highlightNeighbors: boolean;
+  highlightRegion: boolean;
+  highlightCompletedRegions: boolean;
+  fadeCompletedRegions: boolean;
+  showCandidates: boolean;
+  highContrast: boolean;
+  largeText: boolean;
 }
 
 export interface ActivePuzzleSave {
   levelId: number;
   board: BoardGrid;
+  manualXKeys?: string[];
+  candidateMarks?: Record<string, CandidateMark>;
   elapsedSec: number;
   hintsUsed: number;
+  mistakesCount?: number;
+  hearts?: number;
+  gameMode?: GameMode;
 }
 
 export interface PlayerAchievements {
   totalCatsFound: number;
-  perfectLevels: number; // solved with 0 hints
+  perfectLevels: number; // solved with 0 hints in Classic mode
   currentStreak: number;
   bestStreak: number;
 }

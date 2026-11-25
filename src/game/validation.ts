@@ -7,10 +7,12 @@ import {
   RuleViolationType,
   ValidationResult,
   cellKey,
+  coordsEqual,
 } from './gameTypes';
 
 /**
- * Checks whether two cells are adjacent (including diagonals).
+ * Checks whether two cells are adjacent (including horizontal, vertical, and diagonal neighbors).
+ * Formally: abs(r1 - r2) <= 1 && abs(c1 - c2) <= 1 for two distinct cells.
  */
 export function areCellsTouching(a: CellCoord, b: CellCoord): boolean {
   if (a.row === b.row && a.col === b.col) return false;
@@ -36,15 +38,18 @@ export function getPlacedCats(board: BoardGrid): CellCoord[] {
 
 /**
  * Validates the current board state against all three Meowdoku rules:
- * 1. One cat per colored region
- * 2. One cat per row and column
- * 3. Cats cannot touch (including diagonally)
+ * 1. Exactly one cat per colored region (using explicit region IDs)
+ * 2. Exactly one cat per horizontal row and vertical column
+ * 3. Cats cannot touch (horizontal, vertical, or diagonal neighbors)
+ *
+ * Completion is only declared when all rules hold, every row/col/region has 1 cat,
+ * exactly N cats are placed, and (when provided) the solution matches the puzzle's valid configuration.
  */
 export function validateBoard(
-  puzzle: Pick<PuzzleDefinition, 'size' | 'regions'>,
+  puzzle: Pick<PuzzleDefinition, 'size' | 'regions'> & { solution?: CellCoord[] },
   board: BoardGrid
 ): ValidationResult {
-  const { size, regions } = puzzle;
+  const { size, regions, solution } = puzzle;
   const placedCats = getPlacedCats(board);
   const conflicts: ConflictDetail[] = [];
   const conflictingCellKeys = new Set<string>();
@@ -110,7 +115,7 @@ export function validateBoard(
     }
   }
 
-  // Rule 3: No touching cats (8-directional adjacency)
+  // Rule 3: No touching cats (8-directional adjacency including diagonals)
   for (let i = 0; i < placedCats.length; i++) {
     for (let j = i + 1; j < placedCats.length; j++) {
       const a = placedCats[i]!;
@@ -141,12 +146,20 @@ export function validateBoard(
   }
 
   const isValid = conflicts.length === 0;
+  let matchesIntendedSolution = true;
+  if (solution && solution.length === size && placedCats.length === size) {
+    matchesIntendedSolution = solution.every((solCat) =>
+      placedCats.some((p) => coordsEqual(p, solCat))
+    );
+  }
+
   const isSolved =
     isValid &&
     placedCats.length === size &&
     catsByRow.size === size &&
     catsByCol.size === size &&
-    catsByRegion.size === size;
+    catsByRegion.size === size &&
+    matchesIntendedSolution;
 
   const primaryMessage = conflicts[0]?.message ?? null;
 
@@ -183,6 +196,93 @@ export function isPlacementSafe(
     if (areCellsTouching(cat, target)) return false;
   }
   return true;
+}
+
+export interface PlacementEvaluation {
+  valid: boolean;
+  rule?: RuleViolationType;
+  conflictCells: CellCoord[];
+  message?: string;
+}
+
+/**
+ * Evaluates a candidate cat placement BEFORE committing it permanently to the board.
+ * Detects:
+ * 1. Touching cats (horizontal, vertical, or diagonal)
+ * 2. Duplicate cat in same colored region
+ * 3. Duplicate cat in same row or column
+ * 4. Placement that contradicts the unique solution (makes the puzzle impossible to complete)
+ */
+export function evaluateCatPlacement(
+  puzzle: Pick<PuzzleDefinition, 'size' | 'regions' | 'solution'>,
+  board: BoardGrid,
+  target: CellCoord
+): PlacementEvaluation {
+  const targetRegion = puzzle.regions[target.row]?.[target.col];
+  if (targetRegion === undefined) {
+    return { valid: false, conflictCells: [target] };
+  }
+
+  const existingCats = getPlacedCats(board).filter((c) => !coordsEqual(c, target));
+
+  // Check Rule 3: Touching neighbors (horizontal, vertical, diagonal)
+  const touching = existingCats.filter((c) => areCellsTouching(c, target));
+  if (touching.length > 0) {
+    return {
+      valid: false,
+      rule: 'adjacent',
+      conflictCells: [target, ...touching],
+      message: i18n.t('validation.adjacentConflict'),
+    };
+  }
+
+  // Check Rule 1: Same colored region
+  const sameRegion = existingCats.filter(
+    (c) => puzzle.regions[c.row]?.[c.col] === targetRegion
+  );
+  if (sameRegion.length > 0) {
+    return {
+      valid: false,
+      rule: 'region',
+      conflictCells: [target, ...sameRegion],
+      message: i18n.t('validation.regionConflict'),
+    };
+  }
+
+  // Check Rule 2: Same row
+  const sameRow = existingCats.filter((c) => c.row === target.row);
+  if (sameRow.length > 0) {
+    return {
+      valid: false,
+      rule: 'rowCol',
+      conflictCells: [target, ...sameRow],
+      message: i18n.t('validation.rowConflict', { row: target.row + 1 }),
+    };
+  }
+
+  // Check Rule 2: Same column
+  const sameCol = existingCats.filter((c) => c.col === target.col);
+  if (sameCol.length > 0) {
+    return {
+      valid: false,
+      rule: 'rowCol',
+      conflictCells: [target, ...sameCol],
+      message: i18n.t('validation.colConflict', { col: target.col + 1 }),
+    };
+  }
+
+  // Check Uniqueness / Solvability: does this placement contradict the unique solution?
+  const inUniqueSolution = puzzle.solution.some((s) => coordsEqual(s, target));
+  if (!inUniqueSolution) {
+    return {
+      valid: false,
+      rule: 'unsolvable',
+      conflictCells: [target],
+      message: i18n.t('validation.unsolvableConflict'),
+    };
+  }
+
+  return { valid: true, conflictCells: [] };
 }
 
 export interface StarThresholds {

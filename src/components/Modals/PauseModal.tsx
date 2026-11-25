@@ -28,6 +28,8 @@ export const PauseModal: React.FC<PauseModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const elapsedSec = useGameStore((s) => (open ? s.elapsedSec : 0));
+  const gameMode = useGameStore((s) => s.gameMode);
+  const setGameMode = useGameStore((s) => s.setGameMode);
 
   const subtitle =
     levelId <= 0
@@ -44,9 +46,37 @@ export const PauseModal: React.FC<PauseModalProps> = ({
         <h2 className="text-[22px] font-black text-[#3A312C] tracking-tight">
           {t('pause.title')}
         </h2>
-        <p className="text-[12.5px] font-bold text-[#8A7B70] mt-0.5 mb-5">
+        <p className="text-[12.5px] font-bold text-[#8A7B70] mt-0.5 mb-3">
           {subtitle}
         </p>
+
+        {/* Quick Classic vs Practice Mode Switcher */}
+        <div className="w-full grid grid-cols-2 gap-1.5 bg-[#EFE6D8] p-1 rounded-2xl mb-4">
+          <button
+            id="btn-pause-mode-classic"
+            type="button"
+            onClick={() => setGameMode('classic')}
+            className={`py-1.5 rounded-xl text-[12px] font-extrabold transition-all cursor-pointer ${
+              gameMode === 'classic'
+                ? 'bg-white text-[#3A312C] shadow-xs'
+                : 'text-[#7E7067]'
+            }`}
+          >
+            ♥ {t('settings.modeClassic')}
+          </button>
+          <button
+            id="btn-pause-mode-practice"
+            type="button"
+            onClick={() => setGameMode('practice')}
+            className={`py-1.5 rounded-xl text-[12px] font-extrabold transition-all cursor-pointer ${
+              gameMode === 'practice'
+                ? 'bg-white text-[#2D754E] shadow-xs'
+                : 'text-[#7E7067]'
+            }`}
+          >
+            ✦ {t('settings.modePractice')}
+          </button>
+        </div>
 
         <div className="w-full flex flex-col gap-2.5">
           <TactileButton

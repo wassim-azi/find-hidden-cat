@@ -254,3 +254,58 @@
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+
+/* Progressive hint Stage 1-2 area pulse */
+@keyframes hintAreaPulse {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.anim-hint-area {
+  animation: hintAreaPulse 1.5s ease-in-out infinite;
+}
+
+/* Long-press feedback ring */
+@keyframes longPressFill {
+  0% {
+    transform: scale(0.76);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1.06);
+    opacity: 0.25;
+  }
+}
+
+.anim-longpress-ring {
+  animation: longPressFill 360ms ease-out forwards;
+}
+
+/* High-contrast accessibility mode */
+.high-contrast {
+  --text-primary: #14100E;
+  --text-secondary: #3A312C;
+  --text-muted: #5A4E47;
+}
+
+.high-contrast .meow-card,
+.high-contrast .meow-toolbar,
+.high-contrast .meow-board-frame {
+  border-color: #3A312C !important;
+  border-width: 2px !important;
+}
+
+/* Scalable text preference */
+.large-text {
+  font-size: 112%;
+}
+
+.large-text button,
+.large-text p {
+  letter-spacing: 0.01em;
+}
+

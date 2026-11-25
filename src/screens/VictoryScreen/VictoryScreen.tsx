@@ -82,6 +82,12 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                 {t('victory.title')}
               </h2>
 
+              {summary.isPracticeMode && (
+                <p className="text-[11px] font-extrabold text-[#2D754E] bg-[#E8F7EE] border border-[#BBE2CB] rounded-xl px-2.5 py-1 mt-1.5 inline-block">
+                  {t('victory.practiceNotice')}
+                </p>
+              )}
+
               <div className="flex items-center justify-center gap-2 my-2.5">
                 {[1, 2, 3].map((starIndex) => {
                   const earned = starIndex <= summary.stars;

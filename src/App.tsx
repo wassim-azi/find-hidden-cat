@@ -42,6 +42,8 @@ export const App: React.FC = () => {
       <div
         className={`app-backdrop w-full h-[100dvh] flex items-center justify-center sm:p-4 overflow-hidden ${
           settings.reducedMotion ? 'reduced-motion' : ''
+        } ${settings.highContrast ? 'high-contrast' : ''} ${
+          settings.largeText ? 'large-text' : ''
         }`}
       >
         <div

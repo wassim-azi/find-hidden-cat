@@ -1,5 +1,7 @@
 import { CellCoord, Difficulty, GridSize, PuzzleDefinition } from './gameTypes';
 import { areRegionsContiguous, solvePuzzle } from './puzzleEngine';
+import { analyzePuzzleDifficulty } from './logicalSolver';
+import { getCuratedFallbackPuzzle } from './curatedPuzzles';
 import { areCellsTouching } from './validation';
 
 /**
@@ -373,7 +375,7 @@ export function generateValidatedPuzzle(
             ? 125
             : 165;
 
-      return {
+      const candidatePuzzle: PuzzleDefinition = {
         id,
         title,
         difficulty,
@@ -383,10 +385,13 @@ export function generateValidatedPuzzle(
         initialCats,
         parTimeSec,
       };
+      candidatePuzzle.analysis = analyzePuzzleDifficulty(candidatePuzzle);
+      return candidatePuzzle;
     }
   }
 
-  throw new Error(
-    `Failed to generate unique-solution puzzle for seed=${seed}, size=${size}, difficulty=${difficulty}`
-  );
+  // Safe validated curated fallback — never publish an invalid puzzle!
+  const fallback = getCuratedFallbackPuzzle(size, { id, title, difficulty });
+  fallback.analysis = analyzePuzzleDifficulty(fallback);
+  return fallback;
 }

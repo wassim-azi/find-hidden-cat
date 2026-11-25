@@ -2,26 +2,45 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import i18n from '../../i18n';
 import {
   BoardGrid,
+  CandidateMark,
   CellCoord,
+  ControlMode,
   HintResult,
+  PencilSubMode,
   PuzzleDefinition,
   ValidationResult,
   cellKey,
   coordsEqual,
 } from '../../game/gameTypes';
+import { MistakeFlash } from '../../store/gameStore';
 import { GameCell } from '../GameCell/GameCell';
 
 interface GameBoardProps {
   puzzle: PuzzleDefinition;
   board: BoardGrid;
+  manualXKeys: string[];
+  autoXKeys: string[];
+  candidateMarks: Record<string, CandidateMark>;
   validation: ValidationResult;
   selectedCell: CellCoord | null;
   activeHint: HintResult | null;
+  mistakeFlash: MistakeFlash | null;
   pencilMode: boolean;
+  pencilSubMode: PencilSubMode;
+  controlMode: ControlMode;
   isCelebrating: boolean;
   showRegionSymbols: boolean;
+  showCandidates: boolean;
+  highlightRowCol: boolean;
+  highlightNeighbors: boolean;
+  highlightRegion: boolean;
+  highlightCompletedRegions: boolean;
+  fadeCompletedRegions: boolean;
+  highContrast: boolean;
   shakeNonce: number;
   onTapCell: (coord: CellCoord) => void;
+  onDoubleTapCell: (coord: CellCoord) => void;
+  onLongPressCell: (coord: CellCoord) => void;
   onDirectAction: (coord: CellCoord, mode: 'cat' | 'x') => void;
   onSelectCell: (coord: CellCoord) => void;
   onBeginDragMark: (coord: CellCoord) => void;
@@ -33,14 +52,29 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
   ({
     puzzle,
     board,
+    manualXKeys,
+    autoXKeys,
+    candidateMarks,
     validation,
     selectedCell,
     activeHint,
+    mistakeFlash,
     pencilMode,
+    pencilSubMode,
+    controlMode,
     isCelebrating,
     showRegionSymbols,
+    showCandidates,
+    highlightRowCol,
+    highlightNeighbors,
+    highlightRegion,
+    highlightCompletedRegions,
+    fadeCompletedRegions,
+    highContrast,
     shakeNonce,
     onTapCell,
+    onDoubleTapCell,
+    onLongPressCell,
     onDirectAction,
     onSelectCell,
     onBeginDragMark,
@@ -51,12 +85,30 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
     const isDraggingRef = useRef(false);
     const lastDragKeyRef = useRef<string | null>(null);
 
-    // Precompute locked-cell lookup and region border bitmasks ONCE per puzzle
     const lockedSet = useMemo(() => {
       const set = new Set<string>();
       for (const c of initialCats) set.add(cellKey(c.row, c.col));
       return set;
     }, [initialCats]);
+
+    const manualXSet = useMemo(() => new Set(manualXKeys), [manualXKeys]);
+    const autoXSet = useMemo(() => new Set(autoXKeys), [autoXKeys]);
+
+    const hintAreaSet = useMemo(() => {
+      const set = new Set<string>();
+      if (activeHint) {
+        for (const c of activeHint.areaCells) set.add(cellKey(c.row, c.col));
+      }
+      return set;
+    }, [activeHint]);
+
+    const mistakeFlashSet = useMemo(() => {
+      const set = new Set<string>();
+      if (mistakeFlash) {
+        for (const c of mistakeFlash.cells) set.add(cellKey(c.row, c.col));
+      }
+      return set;
+    }, [mistakeFlash]);
 
     const borderMasks = useMemo(() => {
       const masks: number[][] = [];
@@ -76,11 +128,28 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
       return masks;
     }, [size, regions]);
 
+    const selectedRegionId =
+      selectedCell !== null ? regions[selectedCell.row]?.[selectedCell.col] : undefined;
+
     const handleCellTap = useCallback(
       (row: number, col: number) => {
         onTapCell({ row, col });
       },
       [onTapCell]
+    );
+
+    const handleCellDoubleTap = useCallback(
+      (row: number, col: number) => {
+        onDoubleTapCell({ row, col });
+      },
+      [onDoubleTapCell]
+    );
+
+    const handleCellLongPress = useCallback(
+      (row: number, col: number) => {
+        onLongPressCell({ row, col });
+      },
+      [onLongPressCell]
     );
 
     const handleCellPointerDown = useCallback(
@@ -94,7 +163,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
 
     const handleGridPointerMove = useCallback(
       (e: React.PointerEvent<HTMLDivElement>) => {
-        if (!isDraggingRef.current || !pencilMode) return;
+        if (!isDraggingRef.current || !pencilMode || pencilSubMode !== 'x') return;
         const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
         const cellEl = target?.closest<HTMLElement>('[data-row][data-col]');
         if (!cellEl) return;
@@ -108,7 +177,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
         lastDragKeyRef.current = k;
         onDragMarkCell({ row: r, col: c });
       },
-      [pencilMode, onDragMarkCell]
+      [pencilMode, pencilSubMode, onDragMarkCell]
     );
 
     const finishDrag = useCallback(() => {
@@ -119,7 +188,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
       }
     }, [onEndDragMark]);
 
-    // Ensure drag finishes even if finger lifts outside board
     useEffect(() => {
       window.addEventListener('pointerup', finishDrag);
       window.addEventListener('pointercancel', finishDrag);
@@ -129,7 +197,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
       };
     }, [finishDrag]);
 
-    // Keyboard navigation support
+    // Keyboard accessibility navigation
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -150,7 +218,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
           onSelectCell({ row: curr.row, col: (curr.col + 1) % size });
         } else if ((e.key === 'Enter' || e.key === ' ') && selectedCell) {
           e.preventDefault();
-          onTapCell(selectedCell);
+          onDirectAction(selectedCell, pencilMode ? 'x' : 'cat');
         } else if ((e.key === 'x' || e.key === 'X') && selectedCell) {
           e.preventDefault();
           onDirectAction(selectedCell, 'x');
@@ -158,14 +226,14 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedCell, size, onTapCell, onDirectAction, onSelectCell]);
+    }, [selectedCell, size, pencilMode, onDirectAction, onSelectCell]);
 
     const gapClass = size === 8 ? 'gap-[4px] sm:gap-[5px]' : 'gap-[6px] sm:gap-[7px]';
     const paddingClass = size === 8 ? 'p-2 sm:p-2.5' : 'p-2.5 sm:p-3';
 
     return (
       <div
-        className="w-full h-full px-3.5 py-1 flex items-center justify-center"
+        className="w-full h-full px-3.5 py-0.5 flex items-center justify-center"
         style={{ containerType: 'size' }}
       >
         <div
@@ -173,9 +241,9 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
           aria-label={i18n.t('game.boardAria', { size })}
           onPointerMove={handleGridPointerMove}
           style={{
-            width: 'min(calc(100cqw - 28px), calc(100cqh - 8px), 392px)',
-            height: 'min(calc(100cqw - 28px), calc(100cqh - 8px), 392px)',
-            touchAction: pencilMode ? 'none' : 'manipulation',
+            width: 'min(calc(100cqw - 28px), calc(100cqh - 4px), 388px)',
+            height: 'min(calc(100cqw - 28px), calc(100cqh - 4px), 388px)',
+            touchAction: pencilMode && pencilSubMode === 'x' ? 'none' : 'manipulation',
           }}
           className={`meow-board-frame rounded-[24px] ${paddingClass}`}
         >
@@ -193,17 +261,32 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
                 const isSelected =
                   selectedCell !== null && selectedCell.row === r && selectedCell.col === c;
 
-                // Subtle luminous sightlines on row, col, and 8-neighbors of selected tile
+                const isRowOrColMatch =
+                  highlightRowCol &&
+                  selectedCell !== null &&
+                  (selectedCell.row === r || selectedCell.col === c);
+
+                const isNeighborMatch =
+                  highlightNeighbors &&
+                  selectedCell !== null &&
+                  Math.abs(selectedCell.row - r) <= 1 &&
+                  Math.abs(selectedCell.col - c) <= 1;
+
+                const isRegionMatch =
+                  highlightRegion &&
+                  selectedRegionId !== undefined &&
+                  regionId === selectedRegionId;
+
                 const isSightline =
                   !pencilMode &&
                   selectedCell !== null &&
                   !isSelected &&
-                  (selectedCell.row === r ||
-                    selectedCell.col === c ||
-                    (Math.abs(selectedCell.row - r) <= 1 && Math.abs(selectedCell.col - c) <= 1));
+                  (isRowOrColMatch || isNeighborMatch || isRegionMatch);
 
                 const isConflicting = validation.conflictingCellKeys.has(key);
-                const isHintTarget = activeHint
+                const isMistakeFlash = mistakeFlashSet.has(key);
+                const isHintArea = hintAreaSet.has(key);
+                const isHintTarget = activeHint?.revealTargetCell
                   ? coordsEqual(activeHint.targetCell, { row: r, col: c })
                   : false;
 
@@ -216,16 +299,30 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
                     regionId={regionId}
                     borderMask={borderMasks[r]![c]!}
                     value={value}
+                    isManualX={manualXSet.has(key)}
+                    isAutoX={autoXSet.has(key)}
+                    candidateMark={candidateMarks[key] ?? null}
+                    showCandidates={showCandidates}
                     isSelected={isSelected}
                     isSightline={isSightline}
+                    isRegionCompleted={validation.completedRegions.has(regionId)}
+                    highlightCompletedRegions={highlightCompletedRegions}
+                    fadeCompletedRegions={fadeCompletedRegions}
                     isConflicting={isConflicting}
+                    isMistakeFlash={isMistakeFlash}
+                    isHintArea={isHintArea}
                     isHintTarget={isHintTarget}
                     isLocked={lockedSet.has(key)}
                     isCelebrating={isCelebrating}
                     showSymbol={showRegionSymbols}
+                    highContrast={highContrast}
                     pencilMode={pencilMode}
+                    pencilSubMode={pencilSubMode}
+                    controlMode={controlMode}
                     shakeNonce={shakeNonce}
                     onCellTap={handleCellTap}
+                    onCellDoubleTap={handleCellDoubleTap}
+                    onCellLongPress={handleCellLongPress}
                     onCellPointerDown={handleCellPointerDown}
                   />
                 );

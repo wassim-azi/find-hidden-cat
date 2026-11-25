@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  CheckCircle2,
+  Contrast,
   Eye,
+  Gamepad2,
   Globe,
+  Grid,
+  Hand,
+  Heart,
+  Layers,
   Music,
   Smartphone,
   Sparkles,
+  Star,
   Trash2,
+  Type,
   Volume2,
   Wand2,
   X,
 } from 'lucide-react';
 import { ModalSheet } from '../../components/Modals/ModalSheet';
 import { TactileButton } from '../../components/Buttons/TactileButton';
-import { PlayerSettings } from '../../game/gameTypes';
+import { ControlMode, GameMode, PlayerSettings } from '../../game/gameTypes';
 import { AppLanguage, changeAppLanguage, getCurrentLanguage } from '../../i18n';
 import { soundManager } from '../../utils/sound';
 
@@ -54,14 +63,14 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
     className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-[#FAF5EC] hover:bg-[#F5EEE2] transition-colors text-left cursor-pointer"
   >
     <div className="flex items-center gap-3 min-w-0">
-      <div className="w-9 h-9 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#5A4E47] shrink-0">
+      <div className="w-8.5 h-8.5 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#5A4E47] shrink-0">
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-[13.5px] font-extrabold text-[#3A312C] leading-tight">
+        <div className="text-[13px] font-extrabold text-[#3A312C] leading-tight">
           {label}
         </div>
-        <div className="text-[11px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
+        <div className="text-[10.5px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
           {description}
         </div>
       </div>
@@ -77,9 +86,26 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
   </button>
 );
 
+const SectionLabel: React.FC<{ title: string }> = ({ title }) => (
+  <div className="text-[10.5px] font-black uppercase tracking-wider text-[#9A8B7E] px-1 pt-2.5 pb-1">
+    {title}
+  </div>
+);
+
 const LANGUAGE_OPTIONS: readonly { code: AppLanguage; flag: string; label: string }[] = [
   { code: 'en', flag: '🇬🇧', label: 'English' },
   { code: 'fr', flag: '🇫🇷', label: 'Français' },
+];
+
+const CONTROL_MODES: readonly { id: ControlMode; labelKey: string }[] = [
+  { id: 'tap-confirm', labelKey: 'settings.ctrlTapConfirm' },
+  { id: 'double-tap', labelKey: 'settings.ctrlDoubleTap' },
+  { id: 'long-press', labelKey: 'settings.ctrlLongPress' },
+];
+
+const GAME_MODES: readonly { id: GameMode; labelKey: string }[] = [
+  { id: 'classic', labelKey: 'settings.modeClassic' },
+  { id: 'practice', labelKey: 'settings.modePractice' },
 ];
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -106,7 +132,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   return (
     <ModalSheet open={open} onClose={handleClose} ariaLabel={t('settings.dialogAria')}>
       <div className="p-5 flex flex-col max-h-[86dvh] soft-scroll">
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-[20px] font-black text-[#3A312C] tracking-tight">
             {t('settings.title')}
           </h2>
@@ -120,14 +146,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </button>
         </div>
 
-        {/* Premium Tactile Language Selector */}
-        <div className="rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] p-3 mb-2.5">
+        {/* Language Selector */}
+        <div className="rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] p-3 mb-2">
           <div className="flex items-center gap-2.5 mb-2">
             <div className="w-8 h-8 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#8366CC] shrink-0">
               <Globe className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <div className="text-[13.5px] font-extrabold text-[#3A312C] leading-tight">
+              <div className="text-[13px] font-extrabold text-[#3A312C] leading-tight">
                 {t('settings.languageLabel')}
               </div>
               <div className="text-[10.5px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
@@ -146,7 +172,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="button"
                   aria-pressed={active}
                   onClick={() => handleSelectLanguage(opt.code)}
-                  className={`py-2 px-2.5 rounded-lg text-[13px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  className={`py-2 px-2.5 rounded-lg text-[12.5px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     active
                       ? 'bg-white text-[#3A312C] shadow-[0_2px_8px_rgba(92,69,52,0.12)] ring-1 ring-[#FF8585]/40'
                       : 'text-[#7E7067] hover:text-[#3A312C]'
@@ -160,44 +186,185 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        {/* Controls & Play Mode */}
+        <SectionLabel title={t('settings.sectionControls')} />
+
+        <div className="rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] p-3 mb-2">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#E86A7B] shrink-0">
+              <Hand className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-extrabold text-[#3A312C] leading-tight">
+                {t('settings.controlModeLabel')}
+              </div>
+              <div className="text-[10.5px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
+                {t('settings.controlModeDesc')}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-1 bg-[#EFE6D8]/90 p-1 rounded-xl">
+            {CONTROL_MODES.map((m) => {
+              const active = settings.controlMode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  id={`btn-ctrl-${m.id}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onUpdateSetting('controlMode', m.id)}
+                  className={`py-1.5 px-1 rounded-lg text-[10.5px] font-extrabold transition-all cursor-pointer leading-tight ${
+                    active
+                      ? 'bg-white text-[#3A312C] shadow-xs ring-1 ring-[#FF8585]/40'
+                      : 'text-[#7E7067]'
+                  }`}
+                >
+                  {t(m.labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] p-3 mb-2">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#F05A66] shrink-0">
+              <Heart className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-extrabold text-[#3A312C] leading-tight">
+                {t('settings.gameModeLabel')}
+              </div>
+              <div className="text-[10.5px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
+                {t('settings.gameModeDesc')}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 bg-[#EFE6D8]/90 p-1 rounded-xl">
+            {GAME_MODES.map((m) => {
+              const active = settings.gameMode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  id={`btn-mode-${m.id}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onUpdateSetting('gameMode', m.id)}
+                  className={`py-1.5 px-2 rounded-lg text-[11.5px] font-extrabold transition-all cursor-pointer ${
+                    active
+                      ? 'bg-white text-[#3A312C] shadow-xs ring-1 ring-[#6EB58E]/50'
+                      : 'text-[#7E7067]'
+                  }`}
+                >
+                  {t(m.labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Board Visuals & Marks */}
+        <SectionLabel title={t('settings.sectionVisuals')} />
+        <div className="flex flex-col gap-1.5">
           <ToggleRow
             id="toggle-auto-x"
-            icon={<Wand2 className="w-4.5 h-4.5 text-[#E59C1E]" />}
+            icon={<Wand2 className="w-4 h-4 text-[#E59C1E]" />}
             label={t('settings.autoXLabel')}
             description={t('settings.autoXDesc')}
             checked={settings.autoMarkX}
             onToggle={() => onUpdateSetting('autoMarkX', !settings.autoMarkX)}
           />
           <ToggleRow
-            id="toggle-sound"
-            icon={<Volume2 className="w-4.5 h-4.5" />}
-            label={t('settings.soundLabel')}
-            description={t('settings.soundDesc')}
-            checked={settings.soundEnabled}
-            onToggle={() => onUpdateSetting('soundEnabled', !settings.soundEnabled)}
+            id="toggle-candidates"
+            icon={<Star className="w-4 h-4 text-[#E59C1E]" />}
+            label={t('settings.showCandidatesLabel')}
+            description={t('settings.showCandidatesDesc')}
+            checked={settings.showCandidates}
+            onToggle={() => onUpdateSetting('showCandidates', !settings.showCandidates)}
           />
           <ToggleRow
-            id="toggle-music"
-            icon={<Music className="w-4.5 h-4.5" />}
-            label={t('settings.musicLabel')}
-            description={t('settings.musicDesc')}
-            checked={settings.musicEnabled}
-            onToggle={() => onUpdateSetting('musicEnabled', !settings.musicEnabled)}
+            id="toggle-highlight-rowcol"
+            icon={<Grid className="w-4 h-4" />}
+            label={t('settings.highlightRowColLabel')}
+            description={t('settings.highlightRowColDesc')}
+            checked={settings.highlightRowCol}
+            onToggle={() => onUpdateSetting('highlightRowCol', !settings.highlightRowCol)}
           />
           <ToggleRow
-            id="toggle-haptics"
-            icon={<Smartphone className="w-4.5 h-4.5" />}
-            label={t('settings.hapticsLabel')}
-            description={t('settings.hapticsDesc')}
-            checked={settings.hapticsEnabled}
+            id="toggle-highlight-neighbors"
+            icon={<Gamepad2 className="w-4 h-4" />}
+            label={t('settings.highlightNeighborsLabel')}
+            description={t('settings.highlightNeighborsDesc')}
+            checked={settings.highlightNeighbors}
             onToggle={() =>
-              onUpdateSetting('hapticsEnabled', !settings.hapticsEnabled)
+              onUpdateSetting('highlightNeighbors', !settings.highlightNeighbors)
             }
           />
           <ToggleRow
+            id="toggle-highlight-region"
+            icon={<Layers className="w-4 h-4" />}
+            label={t('settings.highlightRegionLabel')}
+            description={t('settings.highlightRegionDesc')}
+            checked={settings.highlightRegion}
+            onToggle={() => onUpdateSetting('highlightRegion', !settings.highlightRegion)}
+          />
+          <ToggleRow
+            id="toggle-highlight-completed"
+            icon={<CheckCircle2 className="w-4 h-4 text-[#4CA676]" />}
+            label={t('settings.highlightCompletedLabel')}
+            description={t('settings.highlightCompletedDesc')}
+            checked={settings.highlightCompletedRegions}
+            onToggle={() =>
+              onUpdateSetting(
+                'highlightCompletedRegions',
+                !settings.highlightCompletedRegions
+              )
+            }
+          />
+          <ToggleRow
+            id="toggle-fade-completed"
+            icon={<Eye className="w-4 h-4" />}
+            label={t('settings.fadeCompletedLabel')}
+            description={t('settings.fadeCompletedDesc')}
+            checked={settings.fadeCompletedRegions}
+            onToggle={() =>
+              onUpdateSetting('fadeCompletedRegions', !settings.fadeCompletedRegions)
+            }
+          />
+        </div>
+
+        {/* Accessibility & Audio */}
+        <SectionLabel title={t('settings.sectionAccessibility')} />
+        <div className="flex flex-col gap-1.5">
+          <ToggleRow
+            id="toggle-symbols"
+            icon={<Eye className="w-4 h-4" />}
+            label={t('settings.symbolsLabel')}
+            description={t('settings.symbolsDesc')}
+            checked={settings.showRegionSymbols}
+            onToggle={() =>
+              onUpdateSetting('showRegionSymbols', !settings.showRegionSymbols)
+            }
+          />
+          <ToggleRow
+            id="toggle-high-contrast"
+            icon={<Contrast className="w-4 h-4" />}
+            label={t('settings.highContrastLabel')}
+            description={t('settings.highContrastDesc')}
+            checked={settings.highContrast}
+            onToggle={() => onUpdateSetting('highContrast', !settings.highContrast)}
+          />
+          <ToggleRow
+            id="toggle-large-text"
+            icon={<Type className="w-4 h-4" />}
+            label={t('settings.largeTextLabel')}
+            description={t('settings.largeTextDesc')}
+            checked={settings.largeText}
+            onToggle={() => onUpdateSetting('largeText', !settings.largeText)}
+          />
+          <ToggleRow
             id="toggle-reduced-motion"
-            icon={<Sparkles className="w-4.5 h-4.5" />}
+            icon={<Sparkles className="w-4 h-4" />}
             label={t('settings.reducedMotionLabel')}
             description={t('settings.reducedMotionDesc')}
             checked={settings.reducedMotion}
@@ -206,13 +373,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             }
           />
           <ToggleRow
-            id="toggle-symbols"
-            icon={<Eye className="w-4.5 h-4.5" />}
-            label={t('settings.symbolsLabel')}
-            description={t('settings.symbolsDesc')}
-            checked={settings.showRegionSymbols}
+            id="toggle-sound"
+            icon={<Volume2 className="w-4 h-4" />}
+            label={t('settings.soundLabel')}
+            description={t('settings.soundDesc')}
+            checked={settings.soundEnabled}
+            onToggle={() => onUpdateSetting('soundEnabled', !settings.soundEnabled)}
+          />
+          <ToggleRow
+            id="toggle-music"
+            icon={<Music className="w-4 h-4" />}
+            label={t('settings.musicLabel')}
+            description={t('settings.musicDesc')}
+            checked={settings.musicEnabled}
+            onToggle={() => onUpdateSetting('musicEnabled', !settings.musicEnabled)}
+          />
+          <ToggleRow
+            id="toggle-haptics"
+            icon={<Smartphone className="w-4 h-4" />}
+            label={t('settings.hapticsLabel')}
+            description={t('settings.hapticsDesc')}
+            checked={settings.hapticsEnabled}
             onToggle={() =>
-              onUpdateSetting('showRegionSymbols', !settings.showRegionSymbols)
+              onUpdateSetting('hapticsEnabled', !settings.hapticsEnabled)
             }
           />
         </div>

@@ -2,17 +2,23 @@ import { create } from 'zustand';
 import i18n from '../i18n';
 import {
   BoardGrid,
+  CandidateMark,
   CellCoord,
   Difficulty,
+  GameMode,
   HintResult,
+  HintStage,
   LevelProgress,
+  MAX_CLASSIC_HEARTS,
+  MoveActionType,
   MoveSnapshot,
+  PencilSubMode,
   PlayerAchievements,
   PlayerSettings,
   PuzzleDefinition,
+  RuleViolationType,
   ValidationResult,
   cellKey,
-  coordsEqual,
 } from '../game/gameTypes';
 import {
   getDailyPuzzle,
@@ -25,10 +31,14 @@ import {
   createInitialBoard,
   getEliminatedCellsForCat,
   isLockedCell,
-  setCellValue,
 } from '../game/puzzleEngine';
-import { calculateStars, getPlacedCats, validateBoard } from '../game/validation';
-import { getNextHint } from '../game/hintEngine';
+import {
+  calculateStars,
+  evaluateCatPlacement,
+  getPlacedCats,
+  validateBoard,
+} from '../game/validation';
+import { getProgressiveHint } from '../game/hintEngine';
 import {
   BoosterId,
   BoosterInventory,
@@ -97,6 +107,13 @@ export type ScreenName =
   | 'profile'
   | 'game';
 
+export interface MistakeFlash {
+  cells: CellCoord[];
+  message: string;
+  rule: RuleViolationType;
+  nonce: number;
+}
+
 export interface VictorySummary {
   levelId: number;
   dailyDateKey?: string;
@@ -111,6 +128,7 @@ export interface VictorySummary {
   rewardBreakdown: LevelRewardBreakdown;
   unlockedNextWorld: WorldDefinition | null;
   newlyUnlockedCats: CollectibleCat[];
+  isPracticeMode?: boolean;
 }
 
 export interface ChestRevealModalData {
@@ -136,6 +154,8 @@ interface GameStoreState {
   isTutorialOpen: boolean;
   isCelebratingBoard: boolean;
   isDailyCalendarOpen: boolean;
+  outOfHearts: boolean;
+  pendingBoosterConfirm: BoosterId | null;
   rewardedAdPlacement: RewardedAdPlacement | null;
   lastAdFeedback: string | null;
   unlockedWorldModal: WorldDefinition | null;
@@ -168,12 +188,20 @@ interface GameStoreState {
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
   board: BoardGrid;
+  manualXKeys: string[];
+  autoXKeys: string[];
+  candidateMarks: Record<string, CandidateMark>;
   validation: ValidationResult;
   selectedCell: CellCoord | null;
   pencilMode: boolean;
+  pencilSubMode: PencilSubMode;
+  gameMode: GameMode;
+  hearts: number;
+  mistakeFlash: MistakeFlash | null;
   undoStack: MoveSnapshot[];
   redoStack: MoveSnapshot[];
   activeHint: HintResult | null;
+  hintStage: HintStage;
   elapsedSec: number;
   hintsUsed: number;
   mistakesCount: number;
@@ -191,16 +219,31 @@ interface GameStoreState {
   continueGame: () => void;
   startNextLevel: () => void;
 
-  // Gameplay Actions
+  // Gameplay & Control Actions
   tapCell: (coord: CellCoord) => void;
+  doubleTapCell: (coord: CellCoord) => void;
+  longPressCell: (coord: CellCoord) => void;
+  attemptPlaceCat: (coord: CellCoord) => boolean;
+  removeCatAt: (coord: CellCoord) => void;
+  toggleManualX: (coord: CellCoord) => void;
+  toggleCandidate: (coord: CellCoord) => void;
+  clearCellMarks: (coord: CellCoord) => void;
+  clearAllMarks: () => void;
   placeOrToggleDirect: (coord: CellCoord, mode: 'cat' | 'x') => void;
   beginDragMark: (coord: CellCoord) => void;
   dragMarkCell: (coord: CellCoord) => void;
   endDragMark: () => void;
   togglePencilMode: () => void;
+  setPencilSubMode: (sub: PencilSubMode) => void;
+  setGameMode: (mode: GameMode) => void;
+  continueInPracticeMode: () => void;
   undo: () => void;
   redo: () => void;
   requestHint: () => void;
+  escalateHint: () => void;
+  requestUseBooster: (boosterId: BoosterId) => void;
+  confirmUseBooster: () => boolean;
+  cancelUseBooster: () => void;
   useBooster: (boosterId: BoosterId) => boolean;
   applyActiveHint: () => void;
   dismissHint: () => void;
@@ -243,6 +286,8 @@ interface GameStoreState {
 let activeDragSession: DragPaintSession | null = null;
 let celebrationTimer: number | null = null;
 let toastTimer: number | null = null;
+let mistakeFlashTimer: number | null = null;
+let lastPurchaseTimestamp = 0;
 
 function clearCelebrationTimer(): void {
   if (celebrationTimer !== null && typeof window !== 'undefined') {
@@ -251,18 +296,137 @@ function clearCelebrationTimer(): void {
   }
 }
 
+function clearMistakeFlashTimer(): void {
+  if (mistakeFlashTimer !== null && typeof window !== 'undefined') {
+    window.clearTimeout(mistakeFlashTimer);
+    mistakeFlashTimer = null;
+  }
+}
+
+/**
+ * Computes auto-eliminated cell keys from all placed cats on `board` when `autoMarkX` is enabled,
+ * and returns a synchronized `BoardGrid` + `autoXKeys` WITHOUT ever modifying `manualXKeys` or `candidateMarks`.
+ */
+function syncBoardMarks(
+  puzzle: PuzzleDefinition,
+  rawBoard: BoardGrid,
+  manualXKeys: string[],
+  autoMarkX: boolean
+): { board: BoardGrid; autoXKeys: string[]; manualXKeys: string[] } {
+  const size = puzzle.size;
+  const catSet = new Set<string>();
+  const placedCats = getPlacedCats(rawBoard);
+  for (const c of placedCats) {
+    catSet.add(cellKey(c.row, c.col));
+  }
+
+  // Filter manual X keys so they never collide with placed cats
+  const cleanManualSet = new Set<string>();
+  for (const k of manualXKeys) {
+    if (!catSet.has(k)) cleanManualSet.add(k);
+  }
+
+  // Compute Auto-X keys purely from placed cats
+  const autoSet = new Set<string>();
+  if (autoMarkX) {
+    for (const cat of placedCats) {
+      const eliminated = getEliminatedCellsForCat(puzzle, cat);
+      for (const e of eliminated) {
+        const ek = cellKey(e.row, e.col);
+        if (!catSet.has(ek)) {
+          autoSet.add(ek);
+        }
+      }
+    }
+  }
+
+  const nextBoard: BoardGrid = Array.from({ length: size }, (_, r) =>
+    Array.from({ length: size }, (_, c) => {
+      const k = cellKey(r, c);
+      if (catSet.has(k)) return 'cat';
+      if (cleanManualSet.has(k) || autoSet.has(k)) return 'x';
+      return 'empty';
+    })
+  );
+
+  return {
+    board: nextBoard,
+    autoXKeys: Array.from(autoSet),
+    manualXKeys: Array.from(cleanManualSet),
+  };
+}
+
+/**
+ * Extracts manual X keys when migrating a legacy board that didn't store `manualXKeys` separately.
+ */
+function extractLegacyManualXKeys(
+  puzzle: PuzzleDefinition,
+  board: BoardGrid,
+  autoMarkX: boolean
+): string[] {
+  const autoSet = new Set<string>();
+  if (autoMarkX) {
+    for (const cat of getPlacedCats(board)) {
+      for (const e of getEliminatedCellsForCat(puzzle, cat)) {
+        autoSet.add(cellKey(e.row, e.col));
+      }
+    }
+  }
+  const manual: string[] = [];
+  for (let r = 0; r < board.length; r++) {
+    for (let c = 0; c < board[r]!.length; c++) {
+      const k = cellKey(r, c);
+      if (board[r]![c] === 'x' && !autoSet.has(k)) {
+        manual.push(k);
+      }
+    }
+  }
+  return manual;
+}
+
+function makeSnapshot(
+  state: Pick<GameStoreState, 'board' | 'manualXKeys' | 'candidateMarks' | 'selectedCell'>,
+  actionType: MoveActionType
+): MoveSnapshot {
+  return {
+    board: cloneBoard(state.board),
+    manualXKeys: [...state.manualXKeys],
+    candidateMarks: { ...state.candidateMarks },
+    selectedCell: state.selectedCell ? { ...state.selectedCell } : null,
+    actionType,
+  };
+}
+
 const persisted = loadPersistedState();
 const initialTodayKey = getTodayDateKey();
 const initialLevelId = Math.min(persisted.currentLevelId, TOTAL_LEVELS);
 const initialPuzzle = getLevelPuzzle(initialLevelId);
-const initialBoard =
+const hasMatchingSave =
   persisted.activePuzzle &&
   persisted.activePuzzle.levelId === initialLevelId &&
-  persisted.activePuzzle.board.length === initialPuzzle.size
-    ? cloneBoard(persisted.activePuzzle.board)
-    : createInitialBoard(initialPuzzle);
+  persisted.activePuzzle.board.length === initialPuzzle.size;
 
-const initialValidation = validateBoard(initialPuzzle, initialBoard);
+const rawInitialBoard = hasMatchingSave
+  ? cloneBoard(persisted.activePuzzle!.board)
+  : createInitialBoard(initialPuzzle);
+
+const initialManualX = hasMatchingSave
+  ? (persisted.activePuzzle!.manualXKeys ??
+    extractLegacyManualXKeys(initialPuzzle, rawInitialBoard, persisted.settings.autoMarkX))
+  : [];
+
+const initialSynced = syncBoardMarks(
+  initialPuzzle,
+  rawInitialBoard,
+  initialManualX,
+  persisted.settings.autoMarkX
+);
+
+const initialCandidates: Record<string, CandidateMark> = hasMatchingSave
+  ? { ...(persisted.activePuzzle!.candidateMarks ?? {}) }
+  : {};
+
+const initialValidation = validateBoard(initialPuzzle, initialSynced.board);
 const initialMissions = ensureTodaysMissions(persisted.dailyMissions, initialTodayKey);
 
 function persistFromState(state: GameStoreState): void {
@@ -280,8 +444,13 @@ function persistFromState(state: GameStoreState): void {
         : {
             levelId: state.currentLevelId,
             board: state.board,
+            manualXKeys: state.manualXKeys,
+            candidateMarks: state.candidateMarks,
             elapsedSec: state.elapsedSec,
             hintsUsed: state.hintsUsed,
+            mistakesCount: state.mistakesCount,
+            hearts: state.hearts,
+            gameMode: state.gameMode,
           },
     achievements: state.achievements,
     completedDailyDates: state.completedDailyDates,
@@ -300,45 +469,6 @@ function persistFromState(state: GameStoreState): void {
   });
 }
 
-function applyAutoXForCat(
-  puzzle: PuzzleDefinition,
-  board: BoardGrid,
-  catCoord: CellCoord
-): BoardGrid {
-  const next = cloneBoard(board);
-  const eliminated = getEliminatedCellsForCat(puzzle, catCoord);
-  for (const c of eliminated) {
-    if (next[c.row]?.[c.col] === 'empty') {
-      next[c.row]![c.col] = 'x';
-    }
-  }
-  return next;
-}
-
-function clearOrphanedAutoX(
-  puzzle: PuzzleDefinition,
-  board: BoardGrid,
-  removedCat: CellCoord
-): BoardGrid {
-  const next = cloneBoard(board);
-  const remainingCats = getPlacedCats(next);
-  const stillEliminated = new Set<string>();
-
-  for (const cat of remainingCats) {
-    for (const e of getEliminatedCellsForCat(puzzle, cat)) {
-      stillEliminated.add(`${e.row},${e.col}`);
-    }
-  }
-
-  for (const c of getEliminatedCellsForCat(puzzle, removedCat)) {
-    if (next[c.row]?.[c.col] === 'x' && !stillEliminated.has(`${c.row},${c.col}`)) {
-      next[c.row]![c.col] = 'empty';
-    }
-  }
-
-  return next;
-}
-
 function computeTotalStars(progress: Record<number, LevelProgress>): number {
   return Object.values(progress).reduce((sum, p) => sum + p.stars, 0);
 }
@@ -352,6 +482,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   isTutorialOpen: false,
   isCelebratingBoard: false,
   isDailyCalendarOpen: false,
+  outOfHearts: false,
+  pendingBoosterConfirm: null,
   rewardedAdPlacement: null,
   lastAdFeedback: null,
   unlockedWorldModal: null,
@@ -381,22 +513,28 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   totalStarsEarnedEver: persisted.totalStarsEarnedEver,
 
   puzzle: initialPuzzle,
-  board: initialBoard,
+  board: initialSynced.board,
+  manualXKeys: initialSynced.manualXKeys,
+  autoXKeys: initialSynced.autoXKeys,
+  candidateMarks: initialCandidates,
   validation: initialValidation,
   selectedCell: null,
   pencilMode: false,
+  pencilSubMode: 'x',
+  gameMode: hasMatchingSave
+    ? (persisted.activePuzzle!.gameMode ?? persisted.settings.gameMode)
+    : persisted.settings.gameMode,
+  hearts: hasMatchingSave
+    ? Math.max(1, persisted.activePuzzle!.hearts ?? MAX_CLASSIC_HEARTS)
+    : MAX_CLASSIC_HEARTS,
+  mistakeFlash: null,
   undoStack: [],
   redoStack: [],
   activeHint: null,
-  elapsedSec:
-    persisted.activePuzzle?.levelId === initialLevelId
-      ? persisted.activePuzzle.elapsedSec
-      : 0,
-  hintsUsed:
-    persisted.activePuzzle?.levelId === initialLevelId
-      ? persisted.activePuzzle.hintsUsed
-      : 0,
-  mistakesCount: 0,
+  hintStage: 1,
+  elapsedSec: hasMatchingSave ? persisted.activePuzzle!.elapsedSec : 0,
+  hintsUsed: hasMatchingSave ? persisted.activePuzzle!.hintsUsed : 0,
+  mistakesCount: hasMatchingSave ? (persisted.activePuzzle!.mistakesCount ?? 0) : 0,
   isMistakeShieldActive: false,
   shakeNonce: 0,
 
@@ -417,6 +555,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   goToScreen: (screen) => {
     clearCelebrationTimer();
+    clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
     soundManager.play('button', state.settings.soundEnabled);
@@ -429,6 +568,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       screen,
       dailyMissions: freshMissions,
       isPaused: false,
+      outOfHearts: false,
+      pendingBoosterConfirm: null,
+      mistakeFlash: null,
       isCelebratingBoard: false,
       victorySummary: screen === 'game' ? state.victorySummary : null,
     });
@@ -436,6 +578,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   startLevel: (levelId, resumeIfSaved = false) => {
     clearCelebrationTimer();
+    clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
     const clampedId = Math.max(1, Math.min(TOTAL_LEVELS, levelId));
@@ -458,10 +601,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       !state.puzzle.dailyDateKey &&
       state.currentLevelId === clampedId &&
       !state.validation.isSolved &&
+      !state.outOfHearts &&
       state.board.length === puzzle.size;
 
-    const board = canResume ? cloneBoard(state.board) : createInitialBoard(puzzle);
-    const validation = validateBoard(puzzle, board);
+    const baseBoard = canResume ? cloneBoard(state.board) : createInitialBoard(puzzle);
+    const baseManualX = canResume ? [...state.manualXKeys] : [];
+    const synced = syncBoardMarks(puzzle, baseBoard, baseManualX, state.settings.autoMarkX);
+    const validation = validateBoard(puzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     if (state.settings.musicEnabled) {
@@ -473,13 +619,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       previousScreen: state.screen,
       currentLevelId: clampedId,
       puzzle,
-      board,
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: canResume ? { ...state.candidateMarks } : {},
       validation,
       selectedCell: null,
       pencilMode: false,
+      pencilSubMode: 'x',
+      gameMode: canResume ? state.gameMode : state.settings.gameMode,
+      hearts: canResume ? state.hearts : MAX_CLASSIC_HEARTS,
+      outOfHearts: false,
+      mistakeFlash: null,
+      pendingBoosterConfirm: null,
       undoStack: canResume ? state.undoStack : [],
       redoStack: canResume ? state.redoStack : [],
       activeHint: null,
+      hintStage: 1,
       elapsedSec: canResume ? state.elapsedSec : 0,
       hintsUsed: canResume ? state.hintsUsed : 0,
       mistakesCount: canResume ? state.mistakesCount : 0,
@@ -495,12 +651,18 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   startDailyChallenge: () => {
     clearCelebrationTimer();
+    clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
     const todayKey = getTodayDateKey();
     const dailyPuzzle = getDailyPuzzle(todayKey);
-    const board = createInitialBoard(dailyPuzzle);
-    const validation = validateBoard(dailyPuzzle, board);
+    const synced = syncBoardMarks(
+      dailyPuzzle,
+      createInitialBoard(dailyPuzzle),
+      [],
+      state.settings.autoMarkX
+    );
+    const validation = validateBoard(dailyPuzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     if (state.settings.musicEnabled) {
@@ -511,13 +673,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       screen: 'game',
       previousScreen: state.screen,
       puzzle: dailyPuzzle,
-      board,
+      board: synced.board,
+      manualXKeys: [],
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: {},
       validation,
       selectedCell: null,
       pencilMode: false,
+      pencilSubMode: 'x',
+      gameMode: state.settings.gameMode,
+      hearts: MAX_CLASSIC_HEARTS,
+      outOfHearts: false,
+      mistakeFlash: null,
+      pendingBoosterConfirm: null,
       undoStack: [],
       redoStack: [],
       activeHint: null,
+      hintStage: 1,
       elapsedSec: 0,
       hintsUsed: 0,
       mistakesCount: 0,
@@ -530,24 +702,40 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   startGoldenCatTrial: () => {
     clearCelebrationTimer();
+    clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
     const goldenPuzzle = getGoldenCatPuzzle(getCurrentWeekKey());
-    const board = createInitialBoard(goldenPuzzle);
-    const validation = validateBoard(goldenPuzzle, board);
+    const synced = syncBoardMarks(
+      goldenPuzzle,
+      createInitialBoard(goldenPuzzle),
+      [],
+      state.settings.autoMarkX
+    );
+    const validation = validateBoard(goldenPuzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     set({
       screen: 'game',
       previousScreen: state.screen,
       puzzle: goldenPuzzle,
-      board,
+      board: synced.board,
+      manualXKeys: [],
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: {},
       validation,
       selectedCell: null,
       pencilMode: false,
+      pencilSubMode: 'x',
+      gameMode: state.settings.gameMode,
+      hearts: MAX_CLASSIC_HEARTS,
+      outOfHearts: false,
+      mistakeFlash: null,
+      pendingBoosterConfirm: null,
       undoStack: [],
       redoStack: [],
       activeHint: null,
+      hintStage: 1,
       elapsedSec: 0,
       hintsUsed: 0,
       mistakesCount: 0,
@@ -575,9 +763,41 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     state.startLevel(nextId, false);
   },
 
+  setGameMode: (mode) => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    const nextSettings: PlayerSettings = { ...state.settings, gameMode: mode };
+    set({
+      gameMode: mode,
+      settings: nextSettings,
+      outOfHearts: mode === 'practice' ? false : state.outOfHearts,
+      hearts: mode === 'classic' && state.hearts === 0 ? MAX_CLASSIC_HEARTS : state.hearts,
+    });
+    persistFromState(get());
+  },
+
+  continueInPracticeMode: () => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    set({
+      gameMode: 'practice',
+      outOfHearts: false,
+      mistakeFlash: null,
+    });
+    state.showToast(i18n.t('toasts.switchedPractice'));
+    persistFromState(get());
+  },
+
   beginDragMark: (coord) => {
     const state = get();
-    if (!state.pencilMode || state.isPaused || state.victorySummary || state.isCelebratingBoard) {
+    if (
+      !state.pencilMode ||
+      state.pencilSubMode !== 'x' ||
+      state.isPaused ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
       return;
     }
     if (isLockedCell(state.puzzle, coord)) return;
@@ -588,57 +808,98 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return;
     }
 
-    const targetValue: 'x' | 'empty' = currentVal === 'x' ? 'empty' : 'x';
+    const key = cellKey(coord.row, coord.col);
+    const hasManualX = state.manualXKeys.includes(key);
+    const targetValue: 'x' | 'empty' = hasManualX ? 'empty' : 'x';
+
     activeDragSession = {
       targetValue,
       snapshotTaken: true,
       stepCount: 0,
     };
 
-    const nextBoard = setCellValue(state.board, coord, targetValue);
-    const nextValidation = validateBoard(state.puzzle, nextBoard);
+    const nextManual =
+      targetValue === 'x'
+        ? Array.from(new Set([...state.manualXKeys, key]))
+        : state.manualXKeys.filter((k) => k !== key);
+
+    const synced = syncBoardMarks(
+      state.puzzle,
+      state.board,
+      nextManual,
+      state.settings.autoMarkX
+    );
+    const nextValidation = validateBoard(state.puzzle, synced.board);
 
     soundManager.playDragX(0, state.settings.soundEnabled);
     triggerHaptic('x', state.settings.hapticsEnabled);
 
     set({
-      board: nextBoard,
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
       validation: nextValidation,
       selectedCell: coord,
-      undoStack: [
-        ...state.undoStack.slice(-49),
-        { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-      ],
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'drag-x')],
       redoStack: [],
       activeHint: null,
+      hintStage: 1,
+      mistakeFlash: null,
     });
   },
 
   dragMarkCell: (coord) => {
     if (!activeDragSession) return;
     const state = get();
-    if (!state.pencilMode || state.isPaused || state.victorySummary || state.isCelebratingBoard) {
+    if (
+      !state.pencilMode ||
+      state.pencilSubMode !== 'x' ||
+      state.isPaused ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
       return;
     }
     if (isLockedCell(state.puzzle, coord)) return;
 
     const currentVal = state.board[coord.row]?.[coord.col];
-    if (!currentVal || currentVal === 'cat' || currentVal === activeDragSession.targetValue) {
+    if (!currentVal || currentVal === 'cat') return;
+
+    const key = cellKey(coord.row, coord.col);
+    const hasManualX = state.manualXKeys.includes(key);
+    if (
+      (activeDragSession.targetValue === 'x' && hasManualX) ||
+      (activeDragSession.targetValue === 'empty' && !hasManualX)
+    ) {
       return;
     }
 
     activeDragSession.stepCount += 1;
-    const nextBoard = setCellValue(state.board, coord, activeDragSession.targetValue);
-    const nextValidation = validateBoard(state.puzzle, nextBoard);
+    const nextManual =
+      activeDragSession.targetValue === 'x'
+        ? Array.from(new Set([...state.manualXKeys, key]))
+        : state.manualXKeys.filter((k) => k !== key);
+
+    const synced = syncBoardMarks(
+      state.puzzle,
+      state.board,
+      nextManual,
+      state.settings.autoMarkX
+    );
+    const nextValidation = validateBoard(state.puzzle, synced.board);
 
     soundManager.playDragX(activeDragSession.stepCount, state.settings.soundEnabled);
     triggerHaptic('select', state.settings.hapticsEnabled);
 
     set({
-      board: nextBoard,
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
       validation: nextValidation,
       selectedCell: coord,
       activeHint: null,
+      hintStage: 1,
     });
   },
 
@@ -649,114 +910,260 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
   },
 
-  tapCell: (coord) => {
+  toggleManualX: (coord) => {
     const state = get();
-    if (state.isPaused || state.victorySummary || state.isCelebratingBoard) return;
-    if (isLockedCell(state.puzzle, coord)) {
-      soundManager.play('select', state.settings.soundEnabled);
-      set({ selectedCell: coord });
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
+    if (isLockedCell(state.puzzle, coord)) return;
+    if (state.board[coord.row]?.[coord.col] === 'cat') return;
+
+    const key = cellKey(coord.row, coord.col);
+    const exists = state.manualXKeys.includes(key);
+    const nextManual = exists
+      ? state.manualXKeys.filter((k) => k !== key)
+      : [...state.manualXKeys, key];
+
+    const synced = syncBoardMarks(
+      state.puzzle,
+      state.board,
+      nextManual,
+      state.settings.autoMarkX
+    );
+
+    soundManager.play('markX', state.settings.soundEnabled);
+    triggerHaptic('x', state.settings.hapticsEnabled);
+
+    set({
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      validation: validateBoard(state.puzzle, synced.board),
+      selectedCell: coord,
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'toggle-x')],
+      redoStack: [],
+      mistakeFlash: null,
+    });
+    persistFromState(get());
+  },
+
+  toggleCandidate: (coord) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
+    if (isLockedCell(state.puzzle, coord)) return;
+    if (state.board[coord.row]?.[coord.col] === 'cat') return;
+
+    const key = cellKey(coord.row, coord.col);
+    const current = state.candidateMarks[key];
+    const nextCandidates = { ...state.candidateMarks };
+
+    if (!current) {
+      nextCandidates[key] = 'possible';
+    } else if (current === 'possible') {
+      nextCandidates[key] = 'priority';
+    } else {
+      delete nextCandidates[key];
+    }
+
+    soundManager.play('select', state.settings.soundEnabled);
+    triggerHaptic('select', state.settings.hapticsEnabled);
+
+    set({
+      candidateMarks: nextCandidates,
+      selectedCell: coord,
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'toggle-candidate')],
+      redoStack: [],
+      mistakeFlash: null,
+    });
+    persistFromState(get());
+  },
+
+  clearCellMarks: (coord) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
+    const key = cellKey(coord.row, coord.col);
+    const hadManual = state.manualXKeys.includes(key);
+    const hadCandidate = Boolean(state.candidateMarks[key]);
+    if (!hadManual && !hadCandidate) return;
+
+    const nextManual = state.manualXKeys.filter((k) => k !== key);
+    const nextCandidates = { ...state.candidateMarks };
+    delete nextCandidates[key];
+
+    const synced = syncBoardMarks(
+      state.puzzle,
+      state.board,
+      nextManual,
+      state.settings.autoMarkX
+    );
+
+    soundManager.play('button', state.settings.soundEnabled);
+    set({
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: nextCandidates,
+      validation: validateBoard(state.puzzle, synced.board),
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'clear-marks')],
+      redoStack: [],
+    });
+    persistFromState(get());
+  },
+
+  clearAllMarks: () => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
+    if (state.manualXKeys.length === 0 && Object.keys(state.candidateMarks).length === 0) {
+      state.showToast(i18n.t('toasts.noMarksToClear'));
       return;
     }
 
-    const currentVal = state.board[coord.row]?.[coord.col];
-    if (!currentVal) return;
+    const synced = syncBoardMarks(state.puzzle, state.board, [], state.settings.autoMarkX);
 
-    // Pencil mode single tap fallback
-    if (state.pencilMode) {
-      if (currentVal === 'cat') {
-        soundManager.play('select', state.settings.soundEnabled);
-        set({ selectedCell: coord });
-        return;
-      }
-      const nextVal = currentVal === 'x' ? 'empty' : 'x';
-      const nextBoard = setCellValue(state.board, coord, nextVal);
-      const nextValidation = validateBoard(state.puzzle, nextBoard);
+    soundManager.play('button', state.settings.soundEnabled);
+    triggerHaptic('select', state.settings.hapticsEnabled);
 
-      soundManager.play('markX', state.settings.soundEnabled);
-      triggerHaptic('x', state.settings.hapticsEnabled);
+    set({
+      board: synced.board,
+      manualXKeys: [],
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: {},
+      validation: validateBoard(state.puzzle, synced.board),
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'clear-marks')],
+      redoStack: [],
+    });
+    state.showToast(i18n.t('toasts.marksCleared'));
+    persistFromState(get());
+  },
 
-      set({
-        board: nextBoard,
-        validation: nextValidation,
-        selectedCell: coord,
-        undoStack: [
-          ...state.undoStack.slice(-49),
-          { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-        ],
-        redoStack: [],
-        activeHint: null,
-      });
-      persistFromState(get());
+  removeCatAt: (coord) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
       return;
     }
+    if (isLockedCell(state.puzzle, coord)) return;
+    if (state.board[coord.row]?.[coord.col] !== 'cat') return;
 
-    // Normal mode:
-    // 1. Tap occupied cat cell to remove it
-    if (currentVal === 'cat') {
-      let nextBoard = setCellValue(state.board, coord, 'empty');
-      if (state.settings.autoMarkX) {
-        nextBoard = clearOrphanedAutoX(state.puzzle, nextBoard, coord);
-      }
-      const nextValidation = validateBoard(state.puzzle, nextBoard);
+    const rawNext = cloneBoard(state.board);
+    rawNext[coord.row]![coord.col] = 'empty';
+    const synced = syncBoardMarks(
+      state.puzzle,
+      rawNext,
+      state.manualXKeys,
+      state.settings.autoMarkX
+    );
+    const nextValidation = validateBoard(state.puzzle, synced.board);
 
-      soundManager.play('removeCat', state.settings.soundEnabled);
-      triggerHaptic('select', state.settings.hapticsEnabled);
+    soundManager.play('removeCat', state.settings.soundEnabled);
+    triggerHaptic('select', state.settings.hapticsEnabled);
 
-      set({
-        board: nextBoard,
-        validation: nextValidation,
-        selectedCell: coord,
-        undoStack: [
-          ...state.undoStack.slice(-49),
-          { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-        ],
-        redoStack: [],
-        activeHint: null,
-      });
-      persistFromState(get());
-      return;
+    set({
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      validation: nextValidation,
+      selectedCell: coord,
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'remove-cat')],
+      redoStack: [],
+      activeHint: null,
+      hintStage: 1,
+      mistakeFlash: null,
+    });
+    persistFromState(get());
+  },
+
+  attemptPlaceCat: (coord) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return false;
     }
+    if (isLockedCell(state.puzzle, coord)) return false;
+    if (state.board[coord.row]?.[coord.col] === 'cat') return false;
 
-    // 2. Tap unselected cell to select
-    if (!coordsEqual(state.selectedCell, coord)) {
-      soundManager.play('select', state.settings.soundEnabled);
-      triggerHaptic('select', state.settings.hapticsEnabled);
-      set({ selectedCell: coord });
-      return;
-    }
+    const evaluation = evaluateCatPlacement(state.puzzle, state.board, coord);
 
-    // 3. Tap selected cell to place a cat!
-    let nextBoard = setCellValue(state.board, coord, 'cat');
-    let nextValidation = validateBoard(state.puzzle, nextBoard);
-
-    if (nextValidation.isValid && state.settings.autoMarkX) {
-      nextBoard = applyAutoXForCat(state.puzzle, nextBoard, coord);
-      nextValidation = validateBoard(state.puzzle, nextBoard);
-    }
-
-    const hasNewConflict = !nextValidation.isValid;
-    let nextMistakes = state.mistakesCount;
-    let nextShieldActive = state.isMistakeShieldActive;
-
-    if (hasNewConflict) {
-      if (nextShieldActive) {
-        // Mistake Shield absorbs the conflict penalty cleanly!
-        nextShieldActive = false;
+    if (!evaluation.valid) {
+      // Mistake Shield absorbs the error cleanly without losing a heart!
+      if (state.isMistakeShieldActive) {
         soundManager.play('hint', state.settings.soundEnabled);
         triggerHaptic('hint', state.settings.hapticsEnabled);
         state.showToast(i18n.t('toasts.shieldAbsorbed'));
-        // Automatically revert the conflicting cat so player stays clean
         set({
           isMistakeShieldActive: false,
           selectedCell: coord,
           shakeNonce: state.shakeNonce + 1,
         });
-        return;
+        persistFromState(get());
+        return false;
       }
-      nextMistakes += 1;
+
+      const nextNonce = state.shakeNonce + 1;
+      const flash: MistakeFlash = {
+        cells: evaluation.conflictCells,
+        message: evaluation.message ?? i18n.t('validation.unsolvableConflict'),
+        rule: evaluation.rule ?? 'unsolvable',
+        nonce: nextNonce,
+      };
+
       soundManager.play('error', state.settings.soundEnabled);
       triggerHaptic('error', state.settings.hapticsEnabled);
+
+      clearMistakeFlashTimer();
+      if (typeof window !== 'undefined') {
+        mistakeFlashTimer = window.setTimeout(() => {
+          mistakeFlashTimer = null;
+          set({ mistakeFlash: null });
+        }, 2800);
+      }
+
+      if (state.gameMode === 'classic') {
+        const nextHearts = Math.max(0, state.hearts - 1);
+        const nextMistakes = state.mistakesCount + 1;
+        set({
+          hearts: nextHearts,
+          mistakesCount: nextMistakes,
+          outOfHearts: nextHearts === 0,
+          selectedCell: coord,
+          shakeNonce: nextNonce,
+          mistakeFlash: flash,
+          activeHint: null,
+          hintStage: 1,
+        });
+        persistFromState(get());
+      } else {
+        // Practice Mode: teach gently without deducting hearts!
+        set({
+          selectedCell: coord,
+          shakeNonce: nextNonce,
+          mistakeFlash: flash,
+        });
+      }
+      return false;
     }
+
+    // Valid placement! Commit cat, clear any manualX/candidate on that exact tile only,
+    // and preserve ALL other manual marks & candidates cleanly.
+    const key = cellKey(coord.row, coord.col);
+    const rawNext = cloneBoard(state.board);
+    rawNext[coord.row]![coord.col] = 'cat';
+
+    const nextManualX = state.manualXKeys.filter((k) => k !== key);
+    const nextCandidates = { ...state.candidateMarks };
+    delete nextCandidates[key];
+
+    const synced = syncBoardMarks(
+      state.puzzle,
+      rawNext,
+      nextManualX,
+      state.settings.autoMarkX
+    );
+    const nextValidation = validateBoard(state.puzzle, synced.board);
 
     const regionId = state.puzzle.regions[coord.row]?.[coord.col] ?? 0;
     const theme = getRegionTheme(regionId);
@@ -764,11 +1171,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     // Update daily mission counter on valid cat placement
     const todayKey = getTodayDateKey();
     let updatedMissions = ensureTodaysMissions(state.dailyMissions, todayKey);
-    if (!hasNewConflict) {
-      updatedMissions = applyMissionEvent(updatedMissions, { type: 'cat_placed' });
-    }
+    updatedMissions = applyMissionEvent(updatedMissions, { type: 'cat_placed' });
 
-    if (!hasNewConflict && !nextValidation.isSolved) {
+    if (!nextValidation.isSolved) {
       soundManager.play('placeCat', state.settings.soundEnabled);
       triggerHaptic('cat', state.settings.hapticsEnabled);
       if (typeof document !== 'undefined') {
@@ -778,58 +1183,78 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           16
         );
       }
+
+      set({
+        board: synced.board,
+        manualXKeys: synced.manualXKeys,
+        autoXKeys: synced.autoXKeys,
+        candidateMarks: nextCandidates,
+        validation: nextValidation,
+        selectedCell: coord,
+        undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'place-cat')],
+        redoStack: [],
+        activeHint: null,
+        hintStage: 1,
+        mistakeFlash: null,
+        dailyMissions: updatedMissions,
+      });
+      persistFromState(get());
+      return true;
     }
 
     // Handle Victory!
-    if (nextValidation.isSolved) {
-      soundManager.play('victory', state.settings.soundEnabled);
-      triggerHaptic('victory', state.settings.hapticsEnabled);
-      if (typeof document !== 'undefined') {
-        particleBus.burstElement(
-          document.getElementById(`cell-${coord.row}-${coord.col}`),
-          theme.bg,
-          24
-        );
-      }
-      particleBus.victoryFountain();
-
-      const stars = calculateStars(
-        state.elapsedSec,
-        state.hintsUsed,
-        state.puzzle.parTimeSec,
-        nextMistakes
+    soundManager.play('victory', state.settings.soundEnabled);
+    triggerHaptic('victory', state.settings.hapticsEnabled);
+    if (typeof document !== 'undefined') {
+      particleBus.burstElement(
+        document.getElementById(`cell-${coord.row}-${coord.col}`),
+        theme.bg,
+        24
       );
+    }
+    particleBus.victoryFountain();
 
-      const isDailyOrEvent = Boolean(state.puzzle.dailyDateKey);
-      const isGoldenTrial = Boolean(state.puzzle.dailyDateKey?.startsWith('golden-'));
-      let updatedLevelProgress = state.levelProgress;
-      let nextUnlocked = state.unlockedLevelId;
-      let nextCurrentLevel = state.currentLevelId;
-      let isNewBestTime = true;
-      let bestTimeSec = state.elapsedSec;
-      let previousBestStars = 0;
-      let nextDailyDates = state.completedDailyDates;
-      let isFirstCompletion = true;
-      let unlockedNextWorld: WorldDefinition | null = null;
-      let worldMilestoneBonus = 0;
-      let specialNodeBonus = 0;
-      let nextSpecialCompleted = state.specialLevelsCompleted;
-      let nextBoosters = { ...state.boosters };
+    const isPractice = state.gameMode === 'practice';
+    const computedStars = isPractice
+      ? 1
+      : calculateStars(
+          state.elapsedSec,
+          state.hintsUsed,
+          state.puzzle.parTimeSec,
+          state.mistakesCount
+        );
 
-      if (isDailyOrEvent && state.puzzle.dailyDateKey) {
-        isFirstCompletion = !state.completedDailyDates.includes(state.puzzle.dailyDateKey);
-        if (isFirstCompletion) {
-          nextDailyDates = [...state.completedDailyDates, state.puzzle.dailyDateKey];
-          if (isGoldenTrial) {
-            specialNodeBonus = 35;
-            nextBoosters.superHint += 1;
-          }
+    const isDailyOrEvent = Boolean(state.puzzle.dailyDateKey);
+    const isGoldenTrial = Boolean(state.puzzle.dailyDateKey?.startsWith('golden-'));
+    let updatedLevelProgress = state.levelProgress;
+    let nextUnlocked = state.unlockedLevelId;
+    let nextCurrentLevel = state.currentLevelId;
+    let isNewBestTime = !isPractice;
+    let bestTimeSec = state.elapsedSec;
+    let previousBestStars = 0;
+    let nextDailyDates = state.completedDailyDates;
+    let isFirstCompletion = true;
+    let unlockedNextWorld: WorldDefinition | null = null;
+    let worldMilestoneBonus = 0;
+    let specialNodeBonus = 0;
+    let nextSpecialCompleted = state.specialLevelsCompleted;
+    let nextBoosters = { ...state.boosters };
+
+    if (isDailyOrEvent && state.puzzle.dailyDateKey) {
+      isFirstCompletion = !state.completedDailyDates.includes(state.puzzle.dailyDateKey);
+      if (isFirstCompletion && !isPractice) {
+        nextDailyDates = [...state.completedDailyDates, state.puzzle.dailyDateKey];
+        if (isGoldenTrial) {
+          specialNodeBonus = 35;
+          nextBoosters.superHint += 1;
         }
-      } else {
-        const prevProg = state.levelProgress[state.puzzle.id];
-        isFirstCompletion = !prevProg?.completed;
-        previousBestStars = prevProg?.stars ?? 0;
+      }
+    } else {
+      const prevProg = state.levelProgress[state.puzzle.id];
+      isFirstCompletion = !prevProg?.completed;
+      previousBestStars = prevProg?.stars ?? 0;
 
+      if (!isPractice) {
         isNewBestTime =
           !prevProg?.bestTimeSec || state.elapsedSec < prevProg.bestTimeSec;
         bestTimeSec = isNewBestTime
@@ -840,7 +1265,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           levelId: state.puzzle.id,
           completed: true,
           bestTimeSec,
-          stars: Math.max(previousBestStars, stars),
+          stars: Math.max(previousBestStars, computedStars),
           bestHintsUsed:
             prevProg?.bestHintsUsed === null || prevProg?.bestHintsUsed === undefined
               ? state.hintsUsed
@@ -876,188 +1301,296 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           worldMilestoneBonus = completedWorld.milestoneCoins;
           unlockedNextWorld = getNextWorldAfter(completedWorld.id);
         }
+      } else {
+        // Practice Mode still lets players unlock next level smoothly without awarding Classic perfect-score stats
+        isNewBestTime = false;
+        bestTimeSec = prevProg?.bestTimeSec ?? state.elapsedSec;
+        if (!prevProg?.completed) {
+          updatedLevelProgress = {
+            ...state.levelProgress,
+            [state.puzzle.id]: {
+              levelId: state.puzzle.id,
+              completed: true,
+              bestTimeSec: null,
+              stars: Math.max(previousBestStars, 1),
+              bestHintsUsed: null,
+            },
+          };
+          nextUnlocked = Math.min(
+            TOTAL_LEVELS,
+            Math.max(state.unlockedLevelId, state.puzzle.id + 1)
+          );
+          nextCurrentLevel = Math.min(TOTAL_LEVELS, Math.max(state.currentLevelId, nextUnlocked));
+        }
       }
+    }
 
-      const rewardBreakdown = calculateLevelCoinReward({
-        difficulty: state.puzzle.difficulty,
-        stars,
-        isFirstCompletion,
-        specialNodeBonus,
-        worldMilestoneBonus,
-        isDaily: isDailyOrEvent,
-      });
+    const rewardBreakdown = isPractice
+      ? {
+          baseCoins: 8,
+          firstClearBonus: 0,
+          starBonus: 0,
+          specialNodeBonus: 0,
+          worldMilestoneBonus: 0,
+          totalCoins: 8,
+        }
+      : calculateLevelCoinReward({
+          difficulty: state.puzzle.difficulty,
+          stars: computedStars,
+          isFirstCompletion,
+          specialNodeBonus,
+          worldMilestoneBonus,
+          isDaily: isDailyOrEvent,
+        });
 
-      const nextCoins = state.fishCoins + rewardBreakdown.totalCoins;
-      const nextZeroMistakes = state.zeroMistakeSolves + (nextMistakes === 0 ? 1 : 0);
-      const newStreak = state.achievements.currentStreak + 1;
-      const updatedAchievements: PlayerAchievements = {
-        totalCatsFound: state.achievements.totalCatsFound + state.puzzle.size,
-        perfectLevels:
-          state.achievements.perfectLevels + (state.hintsUsed === 0 ? 1 : 0),
-        currentStreak: newStreak,
-        bestStreak: Math.max(state.achievements.bestStreak, newStreak),
-      };
+    const nextCoins = state.fishCoins + rewardBreakdown.totalCoins;
+    // Never award competitive zero-mistake / no-hint perfect achievements in Practice Mode
+    const nextZeroMistakes =
+      state.zeroMistakeSolves + (!isPractice && state.mistakesCount === 0 ? 1 : 0);
+    const newStreak = isPractice
+      ? state.achievements.currentStreak
+      : state.achievements.currentStreak + 1;
 
-      const totalStarsNow = computeTotalStars(updatedLevelProgress);
-      const improvedBest = isNewBestTime || stars > previousBestStars;
+    const updatedAchievements: PlayerAchievements = {
+      totalCatsFound: state.achievements.totalCatsFound + state.puzzle.size,
+      perfectLevels:
+        state.achievements.perfectLevels + (!isPractice && state.hintsUsed === 0 ? 1 : 0),
+      currentStreak: newStreak,
+      bestStreak: Math.max(state.achievements.bestStreak, newStreak),
+    };
 
-      // Update Daily Missions from real level-completed event
+    const totalStarsNow = computeTotalStars(updatedLevelProgress);
+    const improvedBest = !isPractice && (isNewBestTime || computedStars > previousBestStars);
+
+    if (!isPractice) {
       updatedMissions = applyMissionEvent(updatedMissions, {
         type: 'level_completed',
-        starsEarned: stars,
+        starsEarned: computedStars,
         hintsUsed: state.hintsUsed,
-        mistakesCount: nextMistakes,
+        mistakesCount: state.mistakesCount,
         elapsedSec: state.elapsedSec,
         improvedBest,
       });
+    }
 
-      // Evaluate Achievements & Collectible Cats!
-      const dailyOnlyCount = nextDailyDates.filter((d) => !d.startsWith('golden-')).length;
-      const newlyUnlockedCats = getNewlyUnlockedCats(
-        {
-          levelProgress: updatedLevelProgress,
-          unlockedLevelId: nextUnlocked,
-          totalStars: totalStarsNow,
-          noHintSolves: updatedAchievements.perfectLevels,
-          completedDailyCount: dailyOnlyCount,
-          unlockedAchievementsCount: state.unlockedAchievementIds.length,
-        },
-        state.unlockedCatIds
-      );
-      const nextUnlockedCats = [
-        ...state.unlockedCatIds,
-        ...newlyUnlockedCats.map((c) => c.id),
-      ];
-
-      const newlyUnlockedAchs = getNewlyUnlockedAchievements(
-        {
-          levelProgress: updatedLevelProgress,
-          unlockedLevelId: nextUnlocked,
-          noHintSolves: updatedAchievements.perfectLevels,
-          zeroMistakeSolves: nextZeroMistakes,
-          specialLevelsCompleted: nextSpecialCompleted,
-          unlockedCatsCount: nextUnlockedCats.length,
-          completedDailyCount: dailyOnlyCount,
-          totalStars: totalStarsNow,
-        },
-        state.unlockedAchievementIds
-      );
-      const nextUnlockedAchs = [
-        ...state.unlockedAchievementIds,
-        ...newlyUnlockedAchs.map((a) => a.id),
-      ];
-
-      const summary: VictorySummary = {
-        levelId: state.puzzle.id,
-        dailyDateKey: state.puzzle.dailyDateKey,
-        elapsedSec: state.elapsedSec,
-        hintsUsed: state.hintsUsed,
-        mistakesCount: nextMistakes,
-        stars,
-        previousBestStars,
-        isNewBestTime,
-        bestTimeSec,
-        coinsAwarded: rewardBreakdown.totalCoins,
-        rewardBreakdown,
-        unlockedNextWorld,
-        newlyUnlockedCats,
-      };
-
-      set({
-        board: nextBoard,
-        validation: nextValidation,
-        selectedCell: null,
-        undoStack: [
-          ...state.undoStack.slice(-49),
-          { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-        ],
-        redoStack: [],
-        activeHint: null,
-        currentLevelId: nextCurrentLevel,
-        unlockedLevelId: nextUnlocked,
+    const dailyOnlyCount = nextDailyDates.filter((d) => !d.startsWith('golden-')).length;
+    const newlyUnlockedCats = getNewlyUnlockedCats(
+      {
         levelProgress: updatedLevelProgress,
-        completedDailyDates: nextDailyDates,
-        achievements: updatedAchievements,
-        fishCoins: nextCoins,
-        boosters: nextBoosters,
-        dailyMissions: updatedMissions,
-        unlockedAchievementIds: nextUnlockedAchs,
-        unlockedCatIds: nextUnlockedCats,
-        zeroMistakeSolves: nextZeroMistakes,
-        specialLevelsCompleted: nextSpecialCompleted,
-        totalStarsEarnedEver: state.totalStarsEarnedEver + stars,
-        mistakesCount: nextMistakes,
-        isMistakeShieldActive: false,
-        isCelebratingBoard: true,
-        victorySummary: null,
-      });
+        unlockedLevelId: nextUnlocked,
+        totalStars: totalStarsNow,
+        noHintSolves: updatedAchievements.perfectLevels,
+        completedDailyCount: dailyOnlyCount,
+        unlockedAchievementsCount: state.unlockedAchievementIds.length,
+      },
+      state.unlockedCatIds
+    );
+    const nextUnlockedCats = [
+      ...state.unlockedCatIds,
+      ...newlyUnlockedCats.map((c) => c.id),
+    ];
 
-      persistFromState(get());
+    const newlyUnlockedAchs = isPractice
+      ? []
+      : getNewlyUnlockedAchievements(
+          {
+            levelProgress: updatedLevelProgress,
+            unlockedLevelId: nextUnlocked,
+            noHintSolves: updatedAchievements.perfectLevels,
+            zeroMistakeSolves: nextZeroMistakes,
+            specialLevelsCompleted: nextSpecialCompleted,
+            unlockedCatsCount: nextUnlockedCats.length,
+            completedDailyCount: dailyOnlyCount,
+            totalStars: totalStarsNow,
+          },
+          state.unlockedAchievementIds
+        );
+    const nextUnlockedAchs = [
+      ...state.unlockedAchievementIds,
+      ...newlyUnlockedAchs.map((a) => a.id),
+    ];
 
-      const delayMs = state.settings.reducedMotion ? 120 : 620;
-      clearCelebrationTimer();
-      celebrationTimer = window.setTimeout(() => {
-        celebrationTimer = null;
-        set({ isCelebratingBoard: false, victorySummary: summary });
-        if (newlyUnlockedAchs.length > 0) {
-          const achTitle = i18n.t(`achievements.${newlyUnlockedAchs[0]!.id}.title`);
-          get().showToast(i18n.t('achievements.unlockedToast', { title: achTitle }));
-        }
-      }, delayMs);
+    const summary: VictorySummary = {
+      levelId: state.puzzle.id,
+      dailyDateKey: state.puzzle.dailyDateKey,
+      elapsedSec: state.elapsedSec,
+      hintsUsed: state.hintsUsed,
+      mistakesCount: state.mistakesCount,
+      stars: computedStars,
+      previousBestStars,
+      isNewBestTime,
+      bestTimeSec,
+      coinsAwarded: rewardBreakdown.totalCoins,
+      rewardBreakdown,
+      unlockedNextWorld,
+      newlyUnlockedCats,
+      isPracticeMode: isPractice,
+    };
 
+    set({
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: nextCandidates,
+      validation: nextValidation,
+      selectedCell: null,
+      undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'place-cat')],
+      redoStack: [],
+      activeHint: null,
+      hintStage: 1,
+      mistakeFlash: null,
+      currentLevelId: nextCurrentLevel,
+      unlockedLevelId: nextUnlocked,
+      levelProgress: updatedLevelProgress,
+      completedDailyDates: nextDailyDates,
+      achievements: updatedAchievements,
+      fishCoins: nextCoins,
+      boosters: nextBoosters,
+      dailyMissions: updatedMissions,
+      unlockedAchievementIds: nextUnlockedAchs,
+      unlockedCatIds: nextUnlockedCats,
+      zeroMistakeSolves: nextZeroMistakes,
+      specialLevelsCompleted: nextSpecialCompleted,
+      totalStarsEarnedEver: state.totalStarsEarnedEver + computedStars,
+      isMistakeShieldActive: false,
+      isCelebratingBoard: true,
+      victorySummary: null,
+    });
+
+    persistFromState(get());
+
+    const delayMs = state.settings.reducedMotion ? 120 : 620;
+    clearCelebrationTimer();
+    celebrationTimer = window.setTimeout(() => {
+      celebrationTimer = null;
+      set({ isCelebratingBoard: false, victorySummary: summary });
+      if (newlyUnlockedAchs.length > 0) {
+        const achTitle = i18n.t(`achievements.${newlyUnlockedAchs[0]!.id}.title`);
+        get().showToast(i18n.t('achievements.unlockedToast', { title: achTitle }));
+      }
+    }, delayMs);
+
+    return true;
+  },
+
+  tapCell: (coord) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
       return;
     }
 
-    set({
-      board: nextBoard,
-      validation: nextValidation,
-      selectedCell: coord,
-      undoStack: [
-        ...state.undoStack.slice(-49),
-        { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-      ],
-      redoStack: [],
-      activeHint: null,
-      mistakesCount: nextMistakes,
-      isMistakeShieldActive: nextShieldActive,
-      dailyMissions: updatedMissions,
-      shakeNonce: hasNewConflict ? state.shakeNonce + 1 : state.shakeNonce,
-    });
-    persistFromState(get());
+    if (isLockedCell(state.puzzle, coord)) {
+      soundManager.play('select', state.settings.soundEnabled);
+      set({ selectedCell: coord });
+      return;
+    }
+
+    const currentVal = state.board[coord.row]?.[coord.col];
+    if (!currentVal) return;
+
+    // Pencil mode: NEVER places a cat, NEVER costs a heart!
+    if (state.pencilMode) {
+      if (currentVal === 'cat') {
+        soundManager.play('select', state.settings.soundEnabled);
+        set({ selectedCell: coord });
+        return;
+      }
+      if (state.pencilSubMode === 'candidate') {
+        state.toggleCandidate(coord);
+      } else {
+        state.toggleManualX(coord);
+      }
+      return;
+    }
+
+    // Normal mode:
+    // Single tap ALWAYS selects cell cleanly without accidental placement!
+    soundManager.play('select', state.settings.soundEnabled);
+    triggerHaptic('select', state.settings.hapticsEnabled);
+    set({ selectedCell: coord, mistakeFlash: null });
   },
 
-  placeOrToggleDirect: (coord, mode) => {
+  doubleTapCell: (coord) => {
     const state = get();
-    if (state.isPaused || state.victorySummary || state.isCelebratingBoard) return;
+    if (
+      state.pencilMode ||
+      state.settings.controlMode !== 'double-tap' ||
+      state.isPaused ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
+      return;
+    }
     if (isLockedCell(state.puzzle, coord)) return;
 
     const currentVal = state.board[coord.row]?.[coord.col];
     if (!currentVal) return;
 
-    if (mode === 'x') {
-      if (currentVal === 'cat') return;
-      const nextVal = currentVal === 'x' ? 'empty' : 'x';
-      const nextBoard = setCellValue(state.board, coord, nextVal);
-      const nextValidation = validateBoard(state.puzzle, nextBoard);
-      soundManager.play('markX', state.settings.soundEnabled);
-      triggerHaptic('x', state.settings.hapticsEnabled);
-      set({
-        board: nextBoard,
-        validation: nextValidation,
-        selectedCell: coord,
-        undoStack: [
-          ...state.undoStack.slice(-49),
-          { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-        ],
-        redoStack: [],
-        activeHint: null,
-      });
-      persistFromState(get());
+    // Safeguard: NEVER unexpectedly place a cat when double-tapping an X-marked cell!
+    if (currentVal === 'x') {
+      soundManager.play('select', state.settings.soundEnabled);
+      state.showToast(i18n.t('toasts.doubleTapBlockedX'));
       return;
     }
 
-    set({ selectedCell: coord });
-    get().tapCell(coord);
+    if (currentVal === 'cat') {
+      state.removeCatAt(coord);
+      return;
+    }
+
+    state.attemptPlaceCat(coord);
+  },
+
+  longPressCell: (coord) => {
+    const state = get();
+    if (
+      state.pencilMode ||
+      state.settings.controlMode !== 'long-press' ||
+      state.isPaused ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
+      return;
+    }
+    if (isLockedCell(state.puzzle, coord)) return;
+
+    const currentVal = state.board[coord.row]?.[coord.col];
+    if (!currentVal) return;
+
+    if (currentVal === 'x') {
+      soundManager.play('select', state.settings.soundEnabled);
+      state.showToast(i18n.t('toasts.doubleTapBlockedX'));
+      return;
+    }
+
+    if (currentVal === 'cat') {
+      state.removeCatAt(coord);
+      return;
+    }
+
+    state.attemptPlaceCat(coord);
+  },
+
+  placeOrToggleDirect: (coord, mode) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
+    if (isLockedCell(state.puzzle, coord)) return;
+
+    if (mode === 'x') {
+      state.toggleManualX(coord);
+      return;
+    }
+
+    const currentVal = state.board[coord.row]?.[coord.col];
+    if (currentVal === 'cat') {
+      state.removeCatAt(coord);
+    } else {
+      state.attemptPlaceCat(coord);
+    }
   },
 
   togglePencilMode: () => {
@@ -1067,84 +1600,197 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({ pencilMode: !state.pencilMode });
   },
 
+  setPencilSubMode: (sub) => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    triggerHaptic('select', state.settings.hapticsEnabled);
+    set({ pencilMode: true, pencilSubMode: sub });
+  },
+
   undo: () => {
     const state = get();
-    if (state.undoStack.length === 0 || state.victorySummary || state.isCelebratingBoard) return;
+    if (
+      state.undoStack.length === 0 ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
+      return;
+    }
 
     const prev = state.undoStack[state.undoStack.length - 1]!;
     const nextUndo = state.undoStack.slice(0, -1);
-    const nextValidation = validateBoard(state.puzzle, prev.board);
+    const synced = syncBoardMarks(
+      state.puzzle,
+      prev.board,
+      prev.manualXKeys,
+      state.settings.autoMarkX
+    );
+    const nextValidation = validateBoard(state.puzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     triggerHaptic('select', state.settings.hapticsEnabled);
 
+    // Note: Hearts are NEVER silently refunded by pressing undo!
     set({
-      board: cloneBoard(prev.board),
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: { ...prev.candidateMarks },
       validation: nextValidation,
       selectedCell: prev.selectedCell,
       undoStack: nextUndo,
       redoStack: [
         ...state.redoStack.slice(-49),
-        { board: cloneBoard(state.board), selectedCell: state.selectedCell },
+        makeSnapshot(state, prev.actionType ?? 'place-cat'),
       ],
       activeHint: null,
+      hintStage: 1,
+      mistakeFlash: null,
     });
     persistFromState(get());
   },
 
   redo: () => {
     const state = get();
-    if (state.redoStack.length === 0 || state.victorySummary || state.isCelebratingBoard) return;
+    if (
+      state.redoStack.length === 0 ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
+      return;
+    }
 
     const nextSnap = state.redoStack[state.redoStack.length - 1]!;
     const nextRedo = state.redoStack.slice(0, -1);
-    const nextValidation = validateBoard(state.puzzle, nextSnap.board);
+    const synced = syncBoardMarks(
+      state.puzzle,
+      nextSnap.board,
+      nextSnap.manualXKeys,
+      state.settings.autoMarkX
+    );
+    const nextValidation = validateBoard(state.puzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     triggerHaptic('select', state.settings.hapticsEnabled);
 
     set({
-      board: cloneBoard(nextSnap.board),
+      board: synced.board,
+      manualXKeys: synced.manualXKeys,
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: { ...nextSnap.candidateMarks },
       validation: nextValidation,
       selectedCell: nextSnap.selectedCell,
       undoStack: [
         ...state.undoStack.slice(-49),
-        { board: cloneBoard(state.board), selectedCell: state.selectedCell },
+        makeSnapshot(state, nextSnap.actionType ?? 'place-cat'),
       ],
       redoStack: nextRedo,
       activeHint: null,
+      hintStage: 1,
+      mistakeFlash: null,
     });
     persistFromState(get());
   },
 
   requestHint: () => {
     const state = get();
-    if (state.isPaused || state.victorySummary || state.isCelebratingBoard) return;
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
 
-    const hint = getNextHint(state.puzzle, state.board);
+    // If a progressive hint is already active and can escalate, advance to the next stage!
+    if (state.activeHint && state.activeHint.canEscalate && state.hintStage < 4) {
+      state.escalateHint();
+      return;
+    }
+
+    const hint = getProgressiveHint(state.puzzle, state.board, 1);
     if (!hint) return;
 
     soundManager.play('hint', state.settings.soundEnabled);
     triggerHaptic('hint', state.settings.hapticsEnabled);
 
-    // Consume 1 hint token if owned; core hint still remains accessible so game never blocks!
-    const nextBoosters = { ...state.boosters };
-    if (nextBoosters.hint > 0) {
-      nextBoosters.hint -= 1;
-    }
-
+    // Stage 1 Gentle Nudge counts as a hint step cleanly
     set({
       activeHint: hint,
-      selectedCell: hint.targetCell,
+      hintStage: hint.stage,
+      selectedCell: hint.revealTargetCell ? hint.targetCell : state.selectedCell,
       hintsUsed: state.hintsUsed + 1,
-      boosters: nextBoosters,
+      mistakeFlash: null,
     });
     persistFromState(get());
   },
 
+  escalateHint: () => {
+    const state = get();
+    if (
+      !state.activeHint ||
+      !state.activeHint.canEscalate ||
+      state.isPaused ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
+      return;
+    }
+
+    const nextStage = Math.min(4, state.hintStage + 1) as HintStage;
+    const hint = getProgressiveHint(state.puzzle, state.board, nextStage);
+    if (!hint) return;
+
+    soundManager.play('hint', state.settings.soundEnabled);
+    triggerHaptic('hint', state.settings.hapticsEnabled);
+
+    set({
+      activeHint: hint,
+      hintStage: hint.stage,
+      selectedCell: hint.revealTargetCell ? hint.targetCell : state.selectedCell,
+    });
+  },
+
+  requestUseBooster: (boosterId) => {
+    const state = get();
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return;
+    }
+
+    if (state.boosters[boosterId] <= 0) {
+      const placementMap: Record<BoosterId, RewardedAdPlacement> = {
+        hint: 'free_hint',
+        superHint: 'challenge_retry',
+        revealCat: 'free_hint',
+        undoToken: 'extra_undo',
+        mistakeShield: 'booster_pack',
+        revealRegion: 'booster_pack',
+      };
+      set({ rewardedAdPlacement: placementMap[boosterId], lastAdFeedback: null });
+      return;
+    }
+
+    // Explicit confirmation before consuming a paid/limited booster
+    soundManager.play('button', state.settings.soundEnabled);
+    set({ pendingBoosterConfirm: boosterId });
+  },
+
+  confirmUseBooster: () => {
+    const state = get();
+    const id = state.pendingBoosterConfirm;
+    if (!id) return false;
+    set({ pendingBoosterConfirm: null });
+    return get().useBooster(id);
+  },
+
+  cancelUseBooster: () => {
+    set({ pendingBoosterConfirm: null });
+  },
+
   useBooster: (boosterId) => {
     const state = get();
-    if (state.isPaused || state.victorySummary || state.isCelebratingBoard) return false;
+    if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
+      return false;
+    }
 
     if (state.boosters[boosterId] <= 0) {
       const placementMap: Record<BoosterId, RewardedAdPlacement> = {
@@ -1165,7 +1811,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
 
     if (boosterId === 'hint') {
-      state.requestHint();
+      set({ boosters: consume() });
+      get().requestHint();
       return true;
     }
 
@@ -1186,7 +1833,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (boosterId === 'undoToken') {
-      // Rewind to the most recent clean (0-conflict) snapshot
       let cleanIdx = -1;
       for (let i = state.undoStack.length - 1; i >= 0; i--) {
         if (validateBoard(state.puzzle, state.undoStack[i]!.board).isValid) {
@@ -1199,15 +1845,25 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         return false;
       }
       const targetSnap = state.undoStack[cleanIdx]!;
+      const synced = syncBoardMarks(
+        state.puzzle,
+        targetSnap.board,
+        targetSnap.manualXKeys,
+        state.settings.autoMarkX
+      );
       soundManager.play('hint', state.settings.soundEnabled);
       set({
         boosters: consume(),
-        board: cloneBoard(targetSnap.board),
-        validation: validateBoard(state.puzzle, targetSnap.board),
+        board: synced.board,
+        manualXKeys: synced.manualXKeys,
+        autoXKeys: synced.autoXKeys,
+        candidateMarks: { ...targetSnap.candidateMarks },
+        validation: validateBoard(state.puzzle, synced.board),
         selectedCell: targetSnap.selectedCell,
         undoStack: state.undoStack.slice(0, cleanIdx),
         redoStack: [],
         activeHint: null,
+        hintStage: 1,
       });
       state.showToast(i18n.t('toasts.smartRewindDone'));
       persistFromState(get());
@@ -1215,29 +1871,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (boosterId === 'superHint') {
-      // Auto-mark X around all valid cats currently on board + highlight deduced spot!
-      let nextBoard = cloneBoard(state.board);
-      const validCats = getPlacedCats(nextBoard).filter(
-        (c) => !state.validation.conflictingCellKeys.has(cellKey(c.row, c.col))
-      );
-      for (const cat of validCats) {
-        nextBoard = applyAutoXForCat(state.puzzle, nextBoard, cat);
-      }
-      const hint = getNextHint(state.puzzle, nextBoard);
+      // Auto-mark X around all valid cats + spotlight Stage 3 deduced target!
+      const synced = syncBoardMarks(state.puzzle, state.board, state.manualXKeys, true);
+      const hint = getProgressiveHint(state.puzzle, synced.board, 3);
       if (!hint) return false;
       soundManager.play('hint', state.settings.soundEnabled);
       triggerHaptic('hint', state.settings.hapticsEnabled);
       set({
         boosters: consume(),
-        board: nextBoard,
-        validation: validateBoard(state.puzzle, nextBoard),
+        board: synced.board,
+        manualXKeys: synced.manualXKeys,
+        autoXKeys: synced.autoXKeys,
+        validation: validateBoard(state.puzzle, synced.board),
         activeHint: hint,
+        hintStage: 3,
         selectedCell: hint.targetCell,
         hintsUsed: state.hintsUsed + 1,
-        undoStack: [
-          ...state.undoStack.slice(-49),
-          { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-        ],
+        undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'booster')],
         redoStack: [],
       });
       persistFromState(get());
@@ -1245,39 +1895,45 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (boosterId === 'revealRegion') {
-      // Find first unsolved region and mark all non-solution cells in that region with X
       const unsolvedReg = Array.from({ length: state.puzzle.size }, (_, i) => i).find(
         (regId) => !state.validation.completedRegions.has(regId)
       );
       if (unsolvedReg === undefined) return false;
 
       const solSet = new Set(state.puzzle.solution.map((c) => cellKey(c.row, c.col)));
-      const nextBoard = cloneBoard(state.board);
+      const nextManual = new Set(state.manualXKeys);
       let targetCatCell: CellCoord | null = null;
       for (let r = 0; r < state.puzzle.size; r++) {
         for (let c = 0; c < state.puzzle.size; c++) {
           if (state.puzzle.regions[r]![c] === unsolvedReg) {
-            if (solSet.has(cellKey(r, c))) {
+            const k = cellKey(r, c);
+            if (solSet.has(k)) {
               targetCatCell = { row: r, col: c };
-            } else if (nextBoard[r]![c] !== 'cat') {
-              nextBoard[r]![c] = 'x';
+            } else if (state.board[r]![c] !== 'cat') {
+              nextManual.add(k);
             }
           }
         }
       }
+
+      const synced = syncBoardMarks(
+        state.puzzle,
+        state.board,
+        Array.from(nextManual),
+        state.settings.autoMarkX
+      );
 
       soundManager.play('hint', state.settings.soundEnabled);
       triggerHaptic('hint', state.settings.hapticsEnabled);
       const regionName = i18n.t(`regions.${Math.abs(unsolvedReg) % 8}`);
       set({
         boosters: consume(),
-        board: nextBoard,
-        validation: validateBoard(state.puzzle, nextBoard),
+        board: synced.board,
+        manualXKeys: synced.manualXKeys,
+        autoXKeys: synced.autoXKeys,
+        validation: validateBoard(state.puzzle, synced.board),
         selectedCell: targetCatCell,
-        undoStack: [
-          ...state.undoStack.slice(-49),
-          { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-        ],
+        undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'booster')],
         redoStack: [],
       });
       state.showToast(i18n.t('toasts.regionCleared', { region: regionName }));
@@ -1290,14 +1946,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const missing = state.puzzle.solution.find((s) => !placedSet.has(cellKey(s.row, s.col)));
       if (!missing) return false;
 
-      // Consume token, ensure normal mode, select & tap target to place cat + celebrate!
       set({
         boosters: consume(),
         pencilMode: false,
         selectedCell: missing,
         activeHint: null,
+        hintStage: 1,
       });
-      get().tapCell(missing);
+      get().attemptPlaceCat(missing);
       return true;
     }
 
@@ -1307,59 +1963,75 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   applyActiveHint: () => {
     const state = get();
     const hint = state.activeHint;
-    if (!hint || !hint.canApply || state.victorySummary || state.isCelebratingBoard) return;
-
-    if (hint.applyValue === 'cat') {
-      set({ pencilMode: false, selectedCell: hint.targetCell, activeHint: null });
-      get().tapCell(hint.targetCell);
+    if (
+      !hint ||
+      !hint.canApply ||
+      state.outOfHearts ||
+      state.victorySummary ||
+      state.isCelebratingBoard
+    ) {
       return;
     }
 
-    let nextBoard = setCellValue(state.board, hint.targetCell, hint.applyValue);
-    if (hint.applyValue === 'empty' && state.settings.autoMarkX) {
-      nextBoard = clearOrphanedAutoX(state.puzzle, nextBoard, hint.targetCell);
+    if (hint.applyValue === 'cat') {
+      // Consume 1 hint token if owned when confirming Stage 4 reveal
+      const nextBoosters = { ...state.boosters };
+      if (nextBoosters.hint > 0) {
+        nextBoosters.hint -= 1;
+      }
+      set({
+        boosters: nextBoosters,
+        pencilMode: false,
+        selectedCell: hint.targetCell,
+        activeHint: null,
+        hintStage: 1,
+      });
+      get().attemptPlaceCat(hint.targetCell);
+      return;
     }
-    const nextValidation = validateBoard(state.puzzle, nextBoard);
-    soundManager.play('removeCat', state.settings.soundEnabled);
-    triggerHaptic('select', state.settings.hapticsEnabled);
 
-    set({
-      board: nextBoard,
-      validation: nextValidation,
-      selectedCell: hint.targetCell,
-      undoStack: [
-        ...state.undoStack.slice(-49),
-        { board: cloneBoard(state.board), selectedCell: state.selectedCell },
-      ],
-      redoStack: [],
-      activeHint: null,
-    });
-    persistFromState(get());
+    // Remove wrong/conflicting cat
+    get().removeCatAt(hint.targetCell);
   },
 
   dismissHint: () => {
-    set({ activeHint: null });
+    set({ activeHint: null, hintStage: 1 });
   },
 
   restartLevel: () => {
     clearCelebrationTimer();
+    clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
-    const freshBoard = createInitialBoard(state.puzzle);
-    const freshValidation = validateBoard(state.puzzle, freshBoard);
+    const freshSynced = syncBoardMarks(
+      state.puzzle,
+      createInitialBoard(state.puzzle),
+      [],
+      state.settings.autoMarkX
+    );
+    const freshValidation = validateBoard(state.puzzle, freshSynced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     triggerHaptic('select', state.settings.hapticsEnabled);
 
     set({
       currentLevelId: state.puzzle.dailyDateKey ? state.currentLevelId : state.puzzle.id,
-      board: freshBoard,
+      board: freshSynced.board,
+      manualXKeys: [],
+      autoXKeys: freshSynced.autoXKeys,
+      candidateMarks: {},
       validation: freshValidation,
       selectedCell: null,
       pencilMode: false,
+      pencilSubMode: 'x',
+      hearts: MAX_CLASSIC_HEARTS,
+      outOfHearts: false,
+      mistakeFlash: null,
+      pendingBoosterConfirm: null,
       undoStack: [],
       redoStack: [],
       activeHint: null,
+      hintStage: 1,
       elapsedSec: 0,
       hintsUsed: 0,
       mistakesCount: 0,
@@ -1378,6 +2050,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       state.isPaused ||
       state.isSettingsOpen ||
       state.isTutorialOpen ||
+      state.outOfHearts ||
+      state.pendingBoosterConfirm !== null ||
       state.isCelebratingBoard ||
       state.victorySummary !== null ||
       state.rewardedAdPlacement !== null
@@ -1392,6 +2066,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   purchaseBooster: (boosterId) => {
+    // Double-tap idempotency guard: never deduct Fish Coins twice on rapid double tap!
+    const now = Date.now();
+    if (now - lastPurchaseTimestamp < 320) {
+      return false;
+    }
+    lastPurchaseTimestamp = now;
+
     const state = get();
     const item = getShopItem(boosterId);
     const localizedName = i18n.t(`shop.items.${boosterId}.name`);
@@ -1577,7 +2258,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   attemptWatchRewardedAd: async (placement) => {
     const result = await rewardedAdService.requestReward(placement);
-    // Strictly NEVER grant reward unless a real ad provider confirms completion!
     if (result.status === 'COMPLETED' && result.granted) {
       const state = get();
       const nextBoosters = { ...state.boosters };
@@ -1654,18 +2334,53 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       soundManager.play('button', nextSettings.soundEnabled);
     }
 
+    if (key === 'autoMarkX') {
+      // Immediately recompute autoX without ever losing manual X marks or candidates!
+      const synced = syncBoardMarks(
+        state.puzzle,
+        state.board,
+        state.manualXKeys,
+        Boolean(value)
+      );
+      set({
+        settings: nextSettings,
+        board: synced.board,
+        manualXKeys: synced.manualXKeys,
+        autoXKeys: synced.autoXKeys,
+        validation: validateBoard(state.puzzle, synced.board),
+      });
+      persistFromState(get());
+      return;
+    }
+
+    if (key === 'gameMode') {
+      set({
+        settings: nextSettings,
+        gameMode: value as GameMode,
+        outOfHearts: value === 'practice' ? false : state.outOfHearts,
+      });
+      persistFromState(get());
+      return;
+    }
+
     set({ settings: nextSettings });
     persistFromState(get());
   },
 
   resetAllProgress: () => {
     clearCelebrationTimer();
+    clearMistakeFlashTimer();
     activeDragSession = null;
     clearPersistedState();
     soundManager.setMusic(false);
     const level1 = getLevelPuzzle(1);
-    const board = createInitialBoard(level1);
-    const validation = validateBoard(level1, board);
+    const synced = syncBoardMarks(
+      level1,
+      createInitialBoard(level1),
+      [],
+      DEFAULT_SETTINGS.autoMarkX
+    );
+    const validation = validateBoard(level1, synced.board);
     const todayKey = getTodayDateKey();
 
     set({
@@ -1674,6 +2389,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       isSettingsOpen: false,
       isTutorialOpen: false,
       isDailyCalendarOpen: false,
+      outOfHearts: false,
+      pendingBoosterConfirm: null,
+      mistakeFlash: null,
       rewardedAdPlacement: null,
       lastAdFeedback: null,
       unlockedWorldModal: null,
@@ -1701,13 +2419,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       specialLevelsCompleted: 0,
       totalStarsEarnedEver: 0,
       puzzle: level1,
-      board,
+      board: synced.board,
+      manualXKeys: [],
+      autoXKeys: synced.autoXKeys,
+      candidateMarks: {},
       validation,
       selectedCell: null,
       pencilMode: false,
+      pencilSubMode: 'x',
+      gameMode: DEFAULT_SETTINGS.gameMode,
+      hearts: MAX_CLASSIC_HEARTS,
       undoStack: [],
       redoStack: [],
       activeHint: null,
+      hintStage: 1,
       elapsedSec: 0,
       hintsUsed: 0,
       mistakesCount: 0,
@@ -1735,7 +2460,9 @@ export function hasClaimableDailyOrMission(state: GameStoreState): {
 i18n.on('languageChanged', () => {
   const state = useGameStore.getState();
   const nextValidation = validateBoard(state.puzzle, state.board);
-  const nextHint = state.activeHint ? getNextHint(state.puzzle, state.board) : null;
+  const nextHint = state.activeHint
+    ? getProgressiveHint(state.puzzle, state.board, state.hintStage)
+    : null;
   useGameStore.setState({
     validation: nextValidation,
     activeHint: nextHint,
