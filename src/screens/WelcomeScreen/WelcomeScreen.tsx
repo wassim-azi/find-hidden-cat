@@ -33,22 +33,10 @@ export const WelcomeScreen: React.FC = () => {
   const todayKey = getTodayDateKey();
   const dailySolved = completedDailyDates.includes(todayKey);
 
-  const previewTiles = [
-    { bg: '#E8C158', content: 'x' },
-    { bg: '#E8C158', content: 'cat', breed: 'ginger' as const },
-    { bg: '#E87E8E', content: 'x' },
-    { bg: '#86B4D0', content: 'x' },
-    { bg: '#86B4D0', content: 'x' },
-    { bg: '#E87E8E', content: 'cat', breed: 'tuxedo' as const },
-    { bg: '#79AE8D', content: 'cat', breed: 'gray' as const },
-    { bg: '#9B86D4', content: 'x' },
-    { bg: '#9B86D4', content: 'x' },
-  ];
-
   return (
-    <div className="relative h-full w-full flex flex-col justify-between px-5 pt-4 pb-5 overflow-hidden">
+    <div className="relative h-full w-full flex flex-col justify-between px-5 pt-3.5 pb-5 overflow-hidden">
       {/* Top utility row */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between shrink-0">
         {completedCount > 0 ? (
           <div className="inline-flex items-center gap-2 bg-white/95 border border-[#EAE0D2] rounded-full px-3 py-1.5 shadow-[0_3px_10px_rgba(92,69,52,0.06)]">
             <Star className="w-4 h-4 text-[#F4B942] fill-[#F4B942]" />
@@ -75,72 +63,51 @@ export const WelcomeScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Hero Showcase */}
+      {/* Hero Showcase with Gemini Nano Banana Storybook Key Art & Animated Cinemagraph */}
       <div className="flex flex-col items-center text-center my-auto py-1">
-        <div className="relative mb-4">
+        <div className="relative w-full max-w-[330px] mb-3.5">
+          {/* Warm ambient halo */}
           <div
             aria-hidden="true"
-            className="absolute -inset-6 rounded-full bg-gradient-to-tr from-[#FFE2B8]/65 via-[#FFD4DC]/55 to-[#D9D0F5]/60 blur-2xl pointer-events-none"
+            className="absolute -inset-4 rounded-[36px] bg-gradient-to-tr from-[#FFE2B8]/70 via-[#FFD4DC]/55 to-[#D9D0F5]/60 blur-2xl pointer-events-none"
           />
 
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.94, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-            className="relative meow-board-frame w-[174px] h-[174px] sm:w-[186px] sm:h-[186px] rounded-[30px] p-3 grid grid-cols-3 grid-rows-3 gap-2"
+            transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+            className="relative meow-board-frame w-full aspect-[4/3] rounded-[28px] p-1.5 overflow-hidden"
           >
-            {previewTiles.map((tile, i) => (
-              <motion.div
-                key={i}
-                initial={{ scale: 0.72, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.035 * i, type: 'spring', stiffness: 440, damping: 22 }}
-                style={{ backgroundColor: tile.bg }}
-                className="rounded-[12px] tile-gloss flex items-center justify-center"
-              >
-                {tile.content === 'cat' && tile.breed ? (
-                  <motion.div
-                    animate={reducedMotion ? undefined : { y: [0, -2.5, 0] }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 2.3 + (i % 3) * 0.4,
-                      ease: 'easeInOut',
-                    }}
-                    className="w-[88%] h-[88%]"
-                  >
-                    <CatIllustration
-                      breed={tile.breed}
-                      mood="idle"
-                      blinkDelaySec={i * 0.7}
-                      className="w-full h-full"
-                    />
-                  </motion.div>
-                ) : (
-                  <svg viewBox="0 0 40 40" className="w-[50%] h-[50%] opacity-90">
-                    <path
-                      d="M11 11 L29 29 M29 11 L11 29"
-                      stroke="#FFFFFF"
-                      strokeWidth="7"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                )}
-              </motion.div>
-            ))}
-
-            {/* Peeking Calico Badge */}
-            <motion.div
-              animate={reducedMotion ? undefined : { rotate: [-4, 4, -4], y: [0, -3, 0] }}
-              transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-              className="absolute -top-4.5 -right-4 w-14 h-14 rounded-2xl bg-white border-2 border-[#F5EBDC] shadow-[0_8px_20px_rgba(92,69,52,0.16)] flex items-center justify-center p-1"
-            >
-              <CatIllustration breed="calico" mood="happy" className="w-full h-full" />
-            </motion.div>
+            <div className="relative w-full h-full rounded-[22px] overflow-hidden bg-[#FAF2E4]">
+              {reducedMotion ? (
+                <img
+                  src="/media/images/intro-hero.webp"
+                  alt="Three adorable cats peeking over pastel Meowdoku puzzle tiles"
+                  className="w-full h-full object-cover"
+                  fetchPriority="high"
+                />
+              ) : (
+                <video
+                  src="/media/videos/intro-cinematic.mp4"
+                  poster="/media/images/intro-hero.webp"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  aria-label="Animated intro showing adorable cats peeking over pastel Meowdoku puzzle tiles"
+                  className="w-full h-full object-cover"
+                />
+              )}
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#3A312C]/15 to-transparent pointer-events-none"
+              />
+            </div>
           </motion.div>
         </div>
 
         <MeowdokuLogo />
-        <p className="text-[15px] font-bold text-[#7E7067] mt-1.5 tracking-tight">
+        <p className="text-[14.5px] font-bold text-[#7E7067] mt-1 tracking-tight">
           Think smart. Find the cats.
         </p>
 
@@ -150,11 +117,15 @@ export const WelcomeScreen: React.FC = () => {
           type="button"
           whileTap={{ scale: 0.97 }}
           onClick={startDailyChallenge}
-          className="mt-4 w-full max-w-[340px] meow-card rounded-[20px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 text-left cursor-pointer hover:border-[#F2CFA0] transition-colors"
+          className="mt-3.5 w-full max-w-[330px] meow-card rounded-[20px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 text-left cursor-pointer hover:border-[#F2CFA0] transition-colors"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFE7B3] to-[#FFC39E] flex items-center justify-center shrink-0 shadow-xs">
-              <CatIllustration breed="lilac" mood={dailySolved ? 'celebrate' : 'idle'} className="w-9 h-9" />
+              <CatIllustration
+                breed="lilac"
+                mood={dailySolved ? 'celebrate' : 'idle'}
+                className="w-9 h-9"
+              />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -185,7 +156,7 @@ export const WelcomeScreen: React.FC = () => {
       </div>
 
       {/* Primary Action Stack */}
-      <div className="flex flex-col gap-2.5 w-full max-w-[340px] mx-auto">
+      <div className="flex flex-col gap-2.5 w-full max-w-[330px] mx-auto shrink-0">
         <TactileButton
           id="btn-welcome-play"
           variant="primary"

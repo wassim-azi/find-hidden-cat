@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Volume2, VolumeX, X } from 'lucide-react';
 import { ModalSheet } from '../../components/Modals/ModalSheet';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
+import { tutorialNarrator } from '../../utils/narration';
 
 interface TutorialScreenProps {
   open: boolean;
@@ -34,7 +35,6 @@ const STEPS = [
 const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = ({
   demo,
 }) => {
-  // 4x4 animated visual grid for instant comprehension
   const regionColors = [
     '#E8C158', '#E8C158', '#E87E8E', '#E87E8E',
     '#E8C158', '#86B4D0', '#E87E8E', '#79AE8D',
@@ -42,7 +42,7 @@ const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = (
     '#86B4D0', '#9B86D4', '#9B86D4', '#79AE8D',
   ];
 
-  const catIndex = demo === 'region' ? 0 : demo === 'rowCol' ? 5 : 5;
+  const catIndex = demo === 'region' ? 0 : 5;
 
   const isMarkedX = (idx: number): boolean => {
     const r = Math.floor(idx / 4);
@@ -50,20 +50,12 @@ const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = (
     const cr = Math.floor(catIndex / 4);
     const cc = catIndex % 4;
     if (idx === catIndex) return false;
-
-    if (demo === 'region') {
-      return regionColors[idx] === regionColors[catIndex];
-    }
-    if (demo === 'rowCol') {
-      return r === cr || c === cc;
-    }
-    // adjacent
+    if (demo === 'region') return regionColors[idx] === regionColors[catIndex];
+    if (demo === 'rowCol') return r === cr || c === cc;
     return Math.abs(r - cr) <= 1 && Math.abs(c - cc) <= 1;
   };
 
-  const isHighlighted = (idx: number): boolean => {
-    return idx === catIndex || isMarkedX(idx);
-  };
+  const isHighlighted = (idx: number): boolean => idx === catIndex || isMarkedX(idx);
 
   return (
     <div className="w-[196px] h-[196px] mx-auto bg-white p-2 rounded-[20px] border border-[#EAE0D2] shadow-[0_8px_20px_rgba(92,69,52,0.08)]">
@@ -125,9 +117,37 @@ const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = (
 
 export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose }) => {
   const [step, setStep] = useState(0);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const current = STEPS[step]!;
 
+  useEffect(() => {
+    if (!open) {
+      tutorialNarrator.stop();
+      setIsSpeaking(false);
+    }
+    return () => {
+      tutorialNarrator.stop();
+    };
+  }, [open]);
+
+  const handleStepChange = (nextStep: number) => {
+    tutorialNarrator.stop();
+    setIsSpeaking(false);
+    setStep(nextStep);
+  };
+
+  const handleToggleVoice = () => {
+    if (isSpeaking) {
+      tutorialNarrator.stop();
+      setIsSpeaking(false);
+    } else {
+      void tutorialNarrator.speakStep(step, setIsSpeaking);
+    }
+  };
+
   const handleClose = () => {
+    tutorialNarrator.stop();
+    setIsSpeaking(false);
     setStep(0);
     onClose();
   };
@@ -137,9 +157,35 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
       <div className="p-5 flex flex-col">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] font-black uppercase tracking-wider text-[#FF7A7A] bg-[#FFF0F0] px-2.5 py-1 rounded-full">
-            {current.badge}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#FF7A7A] bg-[#FFF0F0] px-2.5 py-1 rounded-full">
+              {current.badge}
+            </span>
+            <button
+              id="btn-tutorial-voice"
+              type="button"
+              onClick={handleToggleVoice}
+              aria-label={isSpeaking ? 'Stop voice explanation' : 'Listen to voice explanation'}
+              className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
+                isSpeaking
+                  ? 'bg-[#6EB58E] text-white'
+                  : 'bg-[#FAF2E4] text-[#6E5C4F] hover:bg-[#F2E6D2]'
+              }`}
+            >
+              {isSpeaking ? (
+                <>
+                  <VolumeX className="w-3.5 h-3.5" />
+                  Stop
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-3.5 h-3.5" />
+                  Listen
+                </>
+              )}
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleClose}
@@ -173,7 +219,8 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
 
         {/* Quick controls tip */}
         <div className="mt-4 rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] px-3 py-2 text-center text-[11.5px] font-bold text-[#6E6057]">
-          Tap a tile to select, tap again to place a cat. Toggle <span className="text-[#3A312C] font-black">Mark ×</span> to eliminate spots!
+          Tap to select, tap again to place a cat. Drag across tiles in{' '}
+          <span className="text-[#3A312C] font-black">Mark ×</span> mode!
         </div>
 
         {/* Dots */}
@@ -182,7 +229,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
             <button
               key={idx}
               type="button"
-              onClick={() => setStep(idx)}
+              onClick={() => handleStepChange(idx)}
               aria-label={`Step ${idx + 1}`}
               className={`h-2 rounded-full transition-all cursor-pointer ${
                 idx === step ? 'w-6 bg-[#FF7A7A]' : 'w-2 bg-[#E3D8C8]'
@@ -197,7 +244,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
             <TactileButton
               variant="secondary"
               size="md"
-              onClick={() => setStep((s) => s - 1)}
+              onClick={() => handleStepChange(step - 1)}
               className="px-3.5"
               ariaLabel="Previous rule"
             >
@@ -209,7 +256,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
               id="btn-tutorial-next"
               variant="primary"
               fullWidth
-              onClick={() => setStep((s) => s + 1)}
+              onClick={() => handleStepChange(step + 1)}
             >
               Next Rule
               <ChevronRight className="w-4 h-4" />

@@ -8,8 +8,20 @@ export type SoundEffect =
   | 'victory'
   | 'button';
 
+const SAMPLE_URLS: Partial<Record<SoundEffect, string>> = {
+  select: '/media/audio/sfx-select.mp3',
+  placeCat: '/media/audio/sfx-place-cat.mp3',
+  removeCat: '/media/audio/sfx-remove-cat.mp3',
+  markX: '/media/audio/sfx-mark-x.mp3',
+  error: '/media/audio/sfx-error.mp3',
+  hint: '/media/audio/sfx-hint.mp3',
+  victory: '/media/audio/sfx-victory.mp3',
+};
+
 class SoundManager {
   private ctx: AudioContext | null = null;
+  private buffers = new Map<SoundEffect, AudioBuffer>();
+  private loadingStarted = false;
   private musicTimer: number | null = null;
   private musicStep = 0;
 
@@ -26,7 +38,47 @@ class SoundManager {
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
+    if (!this.loadingStarted) {
+      this.loadingStarted = true;
+      void this.preloadSamples();
+    }
     return this.ctx;
+  }
+
+  private async preloadSamples(): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const entries = Object.entries(SAMPLE_URLS) as [SoundEffect, string][];
+    await Promise.all(
+      entries.map(async ([key, url]) => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return;
+          const arr = await res.arrayBuffer();
+          const decoded = await ctx.decodeAudioData(arr);
+          this.buffers.set(key, decoded);
+        } catch {
+          // Gracefully fall back to procedural Web Audio synth
+        }
+      })
+    );
+  }
+
+  private playBuffer(effect: SoundEffect, volume = 0.72): boolean {
+    const ctx = this.ensureContext();
+    if (!ctx) return false;
+    const buffer = this.buffers.get(effect);
+    if (!buffer) return false;
+
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buffer;
+    gain.gain.value = volume;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(0);
+    return true;
   }
 
   private playTone(
@@ -64,6 +116,10 @@ class SoundManager {
   public play(effect: SoundEffect, enabled: boolean): void {
     if (!enabled) return;
     try {
+      // Play ffmpeg-mastered studio audio sample if preloaded
+      if (this.playBuffer(effect)) return;
+
+      // Instant procedural fallback before samples finish decoding
       switch (effect) {
         case 'select':
           this.playTone(540, 0.065, 'sine', 0.055, 0, 620);
@@ -72,7 +128,6 @@ class SoundManager {
           this.playTone(480, 0.055, 'triangle', 0.05, 0, 560);
           break;
         case 'placeCat':
-          // Cheerful soft marimba + playful kitten chirp glide
           this.playTone(523.25, 0.12, 'triangle', 0.08, 0, 659.25);
           this.playTone(783.99, 0.16, 'sine', 0.07, 0.06, 880);
           break;
@@ -83,7 +138,6 @@ class SoundManager {
           this.playTone(360, 0.05, 'triangle', 0.045, 0, 300);
           break;
         case 'error':
-          // Gentle, friendly low double boop
           this.playTone(220, 0.11, 'sine', 0.075, 0, 185);
           this.playTone(185, 0.13, 'sine', 0.065, 0.09, 155);
           break;
@@ -95,13 +149,19 @@ class SoundManager {
         case 'victory': {
           const notes = [523.25, 659.25, 783.99, 1046.5, 1318.51];
           notes.forEach((n, idx) => {
-            this.playTone(n, 0.26, idx === notes.length - 1 ? 'triangle' : 'sine', 0.08, idx * 0.085);
+            this.playTone(
+              n,
+              0.26,
+              idx === notes.length - 1 ? 'triangle' : 'sine',
+              0.08,
+              idx * 0.085
+            );
           });
           break;
         }
       }
     } catch {
-      // Gracefully ignore audio errors on restricted devices
+      // Gracefully ignore audio errors
     }
   }
 
@@ -135,7 +195,6 @@ class SoundManager {
 
     if (this.musicTimer !== null) return;
 
-    // Gentle pentatonic lullaby notes (C major pentatonic)
     const melody = [523.25, 659.25, 587.33, 440.0, 523.25, 783.99, 659.25, 587.33];
     this.musicTimer = window.setInterval(() => {
       const freq = melody[this.musicStep % melody.length]!;

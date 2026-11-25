@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Lock, Settings, Star } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { getLevelMetaList, TOTAL_LEVELS } from '../../game/levels';
+import { CHAPTERS } from '../../game/chapters';
 import { Difficulty } from '../../game/gameTypes';
 import { formatTime } from '../../utils/format';
 
@@ -30,10 +31,10 @@ export const LevelSelectionScreen: React.FC = () => {
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
 
   const levels = getLevelMetaList();
-  const filteredLevels =
+  const visibleChapters =
     selectedDifficulty === 'all'
-      ? levels
-      : levels.filter((l) => l.difficulty === selectedDifficulty);
+      ? CHAPTERS
+      : CHAPTERS.filter((ch) => ch.id === selectedDifficulty);
 
   const totalStars = Object.values(levelProgress).reduce((acc, p) => acc + p.stars, 0);
   const maxStars = TOTAL_LEVELS * 3;
@@ -55,7 +56,7 @@ export const LevelSelectionScreen: React.FC = () => {
 
         <div className="text-center">
           <h1 className="text-[20px] font-black text-[#3A312C] tracking-tight leading-none">
-            Select Level
+            Chapters &amp; Levels
           </h1>
           <p className="text-[11.5px] font-bold text-[#8A7B70] mt-1">
             {solvedCount} of {TOTAL_LEVELS} solved
@@ -73,11 +74,11 @@ export const LevelSelectionScreen: React.FC = () => {
       </header>
 
       {/* Stars Progress Pill + Difficulty Tabs */}
-      <div className="px-4 pb-3 flex flex-col gap-2.5 shrink-0">
-        <div className="meow-card rounded-2xl px-3.5 py-2.5 flex items-center justify-between">
+      <div className="px-4 pb-2.5 flex flex-col gap-2 shrink-0">
+        <div className="meow-card rounded-2xl px-3.5 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-[#F4B942] fill-[#F4B942]" />
-            <span className="text-[14px] font-black text-[#3A312C] tabular-nums">
+            <Star className="w-4.5 h-4.5 text-[#F4B942] fill-[#F4B942]" />
+            <span className="text-[13.5px] font-black text-[#3A312C] tabular-nums">
               {totalStars}{' '}
               <span className="text-[#9A8B80] font-bold">/ {maxStars} Stars</span>
             </span>
@@ -90,7 +91,6 @@ export const LevelSelectionScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Difficulty Filter Pills */}
         <div className="grid grid-cols-4 gap-1.5 bg-[#EFE6D8]/80 p-1 rounded-2xl">
           {FILTERS.map((f) => {
             const active = selectedDifficulty === f.id;
@@ -113,102 +113,145 @@ export const LevelSelectionScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Level Grid */}
-      <div className="flex-1 soft-scroll px-4 pb-6">
-        <div className="grid grid-cols-3 gap-2.5">
-          {filteredLevels.map((lvl) => {
-            const prog = levelProgress[lvl.id];
-            const isUnlocked = lvl.id <= unlockedLevelId || Boolean(prog?.completed);
-            const isCompleted = Boolean(prog?.completed);
-            const isCurrent = lvl.id === currentLevelId && isUnlocked;
+      {/* Illustrated Storybook Chapters + Level Grids */}
+      <div className="flex-1 soft-scroll px-4 pb-6 flex flex-col gap-5">
+        {visibleChapters.map((chapter) => {
+          const chapterLevels = levels.filter((l) => l.difficulty === chapter.id);
+          const chapterSolved = chapterLevels.filter(
+            (l) => levelProgress[l.id]?.completed
+          ).length;
 
-            return (
-              <motion.button
-                key={lvl.id}
-                id={`level-card-${lvl.id}`}
-                type="button"
-                disabled={!isUnlocked}
-                whileTap={isUnlocked ? { scale: 0.94 } : undefined}
-                onClick={() => startLevel(lvl.id, lvl.id === currentLevelId)}
-                aria-label={`Level ${lvl.id}, ${lvl.title}, ${lvl.difficulty}, ${lvl.size} by ${lvl.size}, ${
-                  isCompleted
-                    ? `completed with ${prog?.stars ?? 0} stars`
-                    : isUnlocked
-                      ? 'unlocked'
-                      : 'locked'
-                }`}
-                className={`
-                  relative rounded-[22px] p-2.5 flex flex-col items-center text-center
-                  border transition-all select-none
-                  ${
-                    isCurrent
-                      ? 'bg-white border-[#FF8585] ring-2 ring-[#FF8585]/25 shadow-[0_6px_16px_rgba(255,122,122,0.18)] cursor-pointer'
-                      : isUnlocked
-                        ? 'bg-white border-[#EAE0D2] shadow-[0_3px_10px_rgba(92,69,52,0.06)] cursor-pointer'
-                        : 'bg-[#F2EAE0]/75 border-[#E6DCCE] opacity-70 cursor-not-allowed'
-                  }
-                `}
-              >
-                {/* Top row: Grid size & status dot */}
-                <div className="w-full flex items-center justify-between mb-1">
-                  <span className="text-[9.5px] font-black text-[#9A8B80]">
-                    {lvl.size}×{lvl.size}
-                  </span>
-                  {isCompleted ? (
-                    <span className="w-4 h-4 rounded-full bg-[#6EB58E] text-white flex items-center justify-center">
-                      <Check className="w-2.5 h-2.5" strokeWidth={3.2} />
+          return (
+            <section key={chapter.id} className="flex flex-col gap-2.5">
+              {/* Illustrated Gemini Nano Banana Chapter Banner */}
+              <div className="relative w-full h-[108px] rounded-[22px] overflow-hidden border border-[#E6D9C6] shadow-[0_6px_18px_rgba(92,69,52,0.1)]">
+                <img
+                  src={chapter.imageSrc}
+                  alt={chapter.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover"
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-gradient-to-r from-[#2D241E]/72 via-[#2D241E]/32 to-transparent"
+                />
+                <div className="absolute inset-0 p-3.5 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${chapter.accentBg} ${chapter.accentText}`}
+                    >
+                      {chapter.id}
                     </span>
-                  ) : !isUnlocked ? (
-                    <Lock className="w-3.5 h-3.5 text-[#A99B90]" />
-                  ) : isCurrent ? (
-                    <span className="w-2 h-2 rounded-full bg-[#FF7A7A]" />
-                  ) : (
-                    <span className="w-3.5 h-3.5" />
-                  )}
+                    <span className="text-[11px] font-black text-white bg-[#2D241E]/50 backdrop-blur-xs px-2 py-0.5 rounded-full tabular-nums">
+                      {chapterSolved}/{chapterLevels.length}
+                    </span>
+                  </div>
+                  <div>
+                    <h2 className="text-[18px] font-black text-white leading-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.4)]">
+                      {chapter.title}
+                    </h2>
+                    <p className="text-[11.5px] font-bold text-white/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                      {chapter.subtitle}
+                    </p>
+                  </div>
                 </div>
+              </div>
 
-                {/* Level Number */}
-                <span
-                  className={`text-[24px] font-black leading-none tracking-tight ${
-                    isUnlocked ? 'text-[#3A312C]' : 'text-[#A99B90]'
-                  }`}
-                >
-                  {lvl.id}
-                </span>
+              {/* Chapter Level Grid */}
+              <div className="grid grid-cols-4 gap-2">
+                {chapterLevels.map((lvl) => {
+                  const prog = levelProgress[lvl.id];
+                  const isUnlocked = lvl.id <= unlockedLevelId || Boolean(prog?.completed);
+                  const isCompleted = Boolean(prog?.completed);
+                  const isCurrent = lvl.id === currentLevelId && isUnlocked;
 
-                {/* Difficulty tag */}
-                <span
-                  className={`mt-1.5 text-[9.5px] font-extrabold uppercase px-1.5 py-0.5 rounded-full leading-none ${DIFF_BADGE[lvl.difficulty]}`}
-                >
-                  {lvl.difficulty}
-                </span>
+                  return (
+                    <motion.button
+                      key={lvl.id}
+                      id={`level-card-${lvl.id}`}
+                      type="button"
+                      disabled={!isUnlocked}
+                      whileTap={isUnlocked ? { scale: 0.93 } : undefined}
+                      onClick={() => startLevel(lvl.id, lvl.id === currentLevelId)}
+                      aria-label={`Level ${lvl.id}, ${lvl.title}, ${lvl.difficulty}, ${lvl.size} by ${lvl.size}, ${
+                        isCompleted
+                          ? `completed with ${prog?.stars ?? 0} stars`
+                          : isUnlocked
+                            ? 'unlocked'
+                            : 'locked'
+                      }`}
+                      className={`
+                        relative rounded-[18px] p-2 flex flex-col items-center text-center
+                        border transition-all select-none
+                        ${
+                          isCurrent
+                            ? 'bg-white border-[#FF8585] ring-2 ring-[#FF8585]/25 shadow-[0_6px_14px_rgba(255,122,122,0.2)] cursor-pointer'
+                            : isUnlocked
+                              ? 'bg-white border-[#EAE0D2] shadow-[0_2px_8px_rgba(92,69,52,0.06)] cursor-pointer'
+                              : 'bg-[#F2EAE0]/75 border-[#E6DCCE] opacity-70 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      <div className="w-full flex items-center justify-between mb-0.5">
+                        <span className="text-[9px] font-black text-[#9A8B80]">
+                          {lvl.size}×{lvl.size}
+                        </span>
+                        {isCompleted ? (
+                          <span className="w-3.5 h-3.5 rounded-full bg-[#6EB58E] text-white flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5" strokeWidth={3.2} />
+                          </span>
+                        ) : !isUnlocked ? (
+                          <Lock className="w-3 h-3 text-[#A99B90]" />
+                        ) : isCurrent ? (
+                          <span className="w-2 h-2 rounded-full bg-[#FF7A7A]" />
+                        ) : (
+                          <span className="w-3 h-3" />
+                        )}
+                      </div>
 
-                {/* Stars or Best Time */}
-                <div className="flex items-center justify-center gap-0.5 mt-2">
-                  {[1, 2, 3].map((s) => {
-                    const earned = (prog?.stars ?? 0) >= s;
-                    return (
-                      <Star
-                        key={s}
-                        className={`w-3.5 h-3.5 ${
-                          earned
-                            ? 'text-[#F4B942] fill-[#F4B942]'
-                            : 'text-[#E3D8C8] fill-[#EFE7DA]'
+                      <span
+                        className={`text-[21px] font-black leading-none tracking-tight ${
+                          isUnlocked ? 'text-[#3A312C]' : 'text-[#A99B90]'
                         }`}
-                      />
-                    );
-                  })}
-                </div>
+                      >
+                        {lvl.id}
+                      </span>
 
-                {prog?.bestTimeSec !== null && prog?.bestTimeSec !== undefined && (
-                  <span className="text-[9.5px] font-bold text-[#9A8B80] tabular-nums mt-0.5">
-                    {formatTime(prog.bestTimeSec)}
-                  </span>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
+                      <span
+                        className={`mt-1 text-[8.5px] font-extrabold uppercase px-1.5 py-0.5 rounded-full leading-none ${DIFF_BADGE[lvl.difficulty]}`}
+                      >
+                        {lvl.difficulty}
+                      </span>
+
+                      <div className="flex items-center justify-center gap-0.5 mt-1.5">
+                        {[1, 2, 3].map((s) => {
+                          const earned = (prog?.stars ?? 0) >= s;
+                          return (
+                            <Star
+                              key={s}
+                              className={`w-3 h-3 ${
+                                earned
+                                  ? 'text-[#F4B942] fill-[#F4B942]'
+                                  : 'text-[#E3D8C8] fill-[#EFE7DA]'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {prog?.bestTimeSec !== null && prog?.bestTimeSec !== undefined && (
+                        <span className="text-[9px] font-bold text-[#9A8B80] tabular-nums mt-0.5">
+                          {formatTime(prog.bestTimeSec)}
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
