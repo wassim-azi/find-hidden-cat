@@ -91,4 +91,54 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     const data = loadPersistedState();
     expect(data.levelProgress[1]?.bestMistakes).toBeNull();
   });
+
+  it('backfills dailyLogin.weekClaims from lastClaimDateKey when loading an old save (#7)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    const { getWeekKey } = await import('../game/dateKeys');
+    const { toDateKey } = await import('../services/reminderPlanner');
+
+    const now = new Date();
+    const todayKey = toDateKey(now);
+    const currentWeekKey = getWeekKey(now);
+
+    // Old save without weekClaims whose last claim was today -> count: 1 in current week
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        dailyLogin: {
+          currentDayIndex: 3,
+          lastClaimDateKey: todayKey,
+          streakCount: 3,
+          streakShields: 1,
+          totalClaims: 10,
+        },
+      })
+    );
+    const todayData = loadPersistedState();
+    expect(todayData.dailyLogin.weekClaims).toEqual({
+      weekKey: currentWeekKey,
+      count: 1,
+    });
+
+    // Old save without weekClaims whose last claim was from a past week -> count: 0
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        dailyLogin: {
+          currentDayIndex: 3,
+          lastClaimDateKey: '2025-01-02',
+          streakCount: 3,
+          streakShields: 1,
+          totalClaims: 10,
+        },
+      })
+    );
+    const staleData = loadPersistedState();
+    expect(staleData.dailyLogin.weekClaims).toEqual({
+      weekKey: '',
+      count: 0,
+    });
+  });
 });

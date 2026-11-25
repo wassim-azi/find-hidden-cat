@@ -11,7 +11,9 @@ import {
   INITIAL_FISH_COINS,
 } from '../game/economy';
 import { DailyLoginState, INITIAL_DAILY_LOGIN } from '../game/dailyRewards';
+import { getWeekKey } from '../game/dateKeys';
 import { DailyMissionsState } from '../game/missions';
+import { dateFromKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
 const STORAGE_KEY_V2 = 'meowdoku_state_v2';
@@ -130,13 +132,41 @@ function sanitizeBoosters(raw: unknown): BoosterInventory {
 
 function sanitizeDailyLogin(raw: unknown): DailyLoginState {
   const d = (raw && typeof raw === 'object' ? raw : {}) as Partial<DailyLoginState>;
+  const lastClaimDateKey =
+    typeof d.lastClaimDateKey === 'string' ? d.lastClaimDateKey : null;
+
+  let weekClaims: DailyLoginState['weekClaims'] = {
+    ...INITIAL_DAILY_LOGIN.weekClaims,
+  };
+  const rawWeek = d.weekClaims;
+  if (
+    rawWeek &&
+    typeof rawWeek === 'object' &&
+    typeof rawWeek.weekKey === 'string' &&
+    typeof rawWeek.count === 'number' &&
+    Number.isFinite(rawWeek.count) &&
+    rawWeek.count >= 0
+  ) {
+    weekClaims = {
+      weekKey: rawWeek.weekKey,
+      count: Math.floor(rawWeek.count),
+    };
+  } else if (lastClaimDateKey && /^\d{4}-\d{2}-\d{2}$/.test(lastClaimDateKey)) {
+    const parsed = dateFromKey(lastClaimDateKey);
+    if (!Number.isNaN(parsed.getTime())) {
+      const currentWeek = getWeekKey(new Date());
+      if (getWeekKey(parsed) === currentWeek) {
+        weekClaims = { weekKey: currentWeek, count: 1 };
+      }
+    }
+  }
+
   return {
     currentDayIndex:
       typeof d.currentDayIndex === 'number'
         ? Math.max(0, Math.min(6, Math.floor(d.currentDayIndex)))
         : 0,
-    lastClaimDateKey:
-      typeof d.lastClaimDateKey === 'string' ? d.lastClaimDateKey : null,
+    lastClaimDateKey,
     streakCount:
       typeof d.streakCount === 'number' ? Math.max(0, Math.floor(d.streakCount)) : 0,
     streakShields:
@@ -145,6 +175,7 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
         : INITIAL_DAILY_LOGIN.streakShields,
     totalClaims:
       typeof d.totalClaims === 'number' ? Math.max(0, Math.floor(d.totalClaims)) : 0,
+    weekClaims,
   };
 }
 

@@ -468,7 +468,7 @@
     "perfect_week": {
       "badge": "Hebdo",
       "title": "Semaine Ronronnante",
-      "subtitle": "Récupère 3 cadeaux du jour pour gagner un lot de bonus."
+      "subtitle": "Récupère 3 récompenses quotidiennes cette semaine pour gagner un pack de boosts."
     },
     "rewardFixed": "+{{coins}} pièces poisson",
     "rewardRange": "{{min}}–{{max}} pièces poisson en Classique",

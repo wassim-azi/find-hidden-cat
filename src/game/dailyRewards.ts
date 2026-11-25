@@ -1,4 +1,6 @@
 import { BoosterId } from './economy';
+import { getWeekKey } from './dateKeys';
+import { dateFromKey } from '../services/reminderPlanner';
 
 export interface DailyRewardSlot {
   day: number; // 1..7
@@ -16,6 +18,7 @@ export interface DailyLoginState {
   streakCount: number;
   streakShields: number;
   totalClaims: number;
+  weekClaims: { weekKey: string; count: number };
 }
 
 export const INITIAL_DAILY_LOGIN: DailyLoginState = {
@@ -24,6 +27,7 @@ export const INITIAL_DAILY_LOGIN: DailyLoginState = {
   streakCount: 0,
   streakShields: 1, // Start with 1 friendly streak protection!
   totalClaims: 0,
+  weekClaims: { weekKey: '', count: 0 },
 };
 
 export const SEVEN_DAY_REWARDS: readonly DailyRewardSlot[] = [
@@ -141,6 +145,11 @@ export function claimDailyRewardPure(
 
   const reward = SEVEN_DAY_REWARDS[dayIdx % 7]!;
   const nextDayIdx = (dayIdx + 1) % 7;
+  const weekKey = getWeekKey(dateFromKey(todayKey));
+  const weekClaims =
+    state.weekClaims.weekKey === weekKey
+      ? { weekKey, count: state.weekClaims.count + 1 }
+      : { weekKey, count: 1 };
 
   return {
     claimed: true,
@@ -152,6 +161,14 @@ export function claimDailyRewardPure(
       streakCount: streak,
       streakShields: shields + (reward.streakShields ?? 0),
       totalClaims: state.totalClaims + 1,
+      weekClaims,
     },
   };
+}
+
+export function getWeeklyClaimCount(
+  state: DailyLoginState,
+  weekKey: string
+): number {
+  return state.weekClaims.weekKey === weekKey ? state.weekClaims.count : 0;
 }

@@ -54,6 +54,7 @@ import {
   claimDailyRewardPure,
   DailyLoginState,
   DailyRewardSlot,
+  getWeeklyClaimCount,
   INITIAL_DAILY_LOGIN,
 } from '../game/dailyRewards';
 import {
@@ -2307,15 +2308,18 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const ev = WORLD_EVENTS.find((e) => e.id === eventId);
     if (!ev || ev.type !== 'milestone_chest') return false;
 
+    const currentWeekKey = getCurrentWeekKey();
     const claimKey =
       eventId === 'perfect_week'
-        ? `${eventId}-${getCurrentWeekKey()}`
+        ? `${eventId}-${currentWeekKey}`
         : eventId;
     if (state.claimedEventIds.includes(claimKey)) return false;
 
     const solvedCount = Object.values(state.levelProgress).filter((p) => p.completed).length;
     const progress =
-      eventId === 'treasure_hunt' ? solvedCount : state.dailyLogin.totalClaims;
+      eventId === 'treasure_hunt'
+        ? solvedCount
+        : getWeeklyClaimCount(state.dailyLogin, currentWeekKey);
     if (progress < ev.targetCount) return false;
 
     const nextBoosters = { ...state.boosters };

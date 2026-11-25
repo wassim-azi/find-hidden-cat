@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from './gameStore';
-import { getEventRewardPreview, WORLD_EVENTS } from '../game/events';
+import { getCurrentWeekKey, getEventRewardPreview, WORLD_EVENTS } from '../game/events';
 import { calculateLevelCoinReward } from '../game/economy';
 import { canClaimDailyReward, claimDailyRewardPure, INITIAL_DAILY_LOGIN } from '../game/dailyRewards';
 import { coordsEqual } from '../game/gameTypes';
@@ -214,5 +214,39 @@ describe('Economy integrity', () => {
 
     expect(S().fishCoins).toBe(coinsBefore + preview.maxCoins);
     expect(S().boosters.superHint).toBe(superHintsBefore + 1);
+  });
+
+  it('Cozy Streak Week chest requires 3 claims in the current week, not lifetime totalClaims (#7)', () => {
+    const coinsBefore = S().fishCoins;
+    const regionBefore = S().boosters.revealRegion;
+
+    // 10 lifetime claims, but weekClaims is from a previous week -> cannot claim
+    useGameStore.setState({
+      dailyLogin: {
+        ...INITIAL_DAILY_LOGIN,
+        totalClaims: 10,
+        weekClaims: { weekKey: 'old', count: 3 },
+      },
+    });
+    expect(S().claimEventChest('perfect_week')).toBe(false);
+    expect(S().fishCoins).toBe(coinsBefore);
+    expect(S().boosters.revealRegion).toBe(regionBefore);
+
+    // 3 claims in the current week -> claimable once
+    useGameStore.setState({
+      dailyLogin: {
+        ...INITIAL_DAILY_LOGIN,
+        totalClaims: 10,
+        weekClaims: { weekKey: getCurrentWeekKey(), count: 3 },
+      },
+    });
+    expect(S().claimEventChest('perfect_week')).toBe(true);
+    expect(S().fishCoins).toBe(coinsBefore + 60);
+    expect(S().boosters.revealRegion).toBe(regionBefore + 1);
+
+    // Second claim in the same week -> rejected
+    expect(S().claimEventChest('perfect_week')).toBe(false);
+    expect(S().fishCoins).toBe(coinsBefore + 60);
+    expect(S().boosters.revealRegion).toBe(regionBefore + 1);
   });
 });

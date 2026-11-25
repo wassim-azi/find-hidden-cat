@@ -1,4 +1,5 @@
 import { BoosterId, calculateLevelCoinReward } from './economy';
+import { getWeekKey } from './dateKeys';
 import { PuzzleDefinition } from './gameTypes';
 import { generateValidatedPuzzle } from './puzzleGenerator';
 
@@ -69,7 +70,7 @@ export const WORLD_EVENTS: readonly WorldEventCard[] = [
   {
     id: 'perfect_week',
     title: 'Cozy Streak Week',
-    subtitle: 'Claim 3 Daily Login Rewards to earn a Booster Bundle.',
+    subtitle: 'Claim 3 Daily Login Rewards this week to earn a Booster Bundle.',
     badge: 'Weekly',
     rewardCoins: 60,
     rewardBooster: 'revealRegion',
@@ -140,10 +141,7 @@ export function getEventRewardPreview(ev: WorldEventCard): EventRewardPreview {
 let cachedGoldenPuzzle: { weekKey: string; puzzle: PuzzleDefinition } | null = null;
 
 export function getCurrentWeekKey(now: Date = new Date()): string {
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const days = Math.floor((now.getTime() - startOfYear.getTime()) / 86400000);
-  const week = Math.ceil((days + startOfYear.getDay() + 1) / 7);
-  return `${now.getFullYear()}-W${String(week).padStart(2, '0')}`;
+  return getWeekKey(now);
 }
 
 export function getGoldenCatPuzzle(weekKey = getCurrentWeekKey()): PuzzleDefinition {

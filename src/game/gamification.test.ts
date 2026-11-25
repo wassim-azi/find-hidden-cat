@@ -4,8 +4,10 @@ import { calculateLevelCoinReward, SHOP_ITEMS } from './economy';
 import {
   canClaimDailyReward,
   claimDailyRewardPure,
+  getWeeklyClaimCount,
   INITIAL_DAILY_LOGIN,
 } from './dailyRewards';
+import { getWeekKey } from './dateKeys';
 import { applyMissionEvent, generateDailyMissions } from './missions';
 import { getNewlyUnlockedAchievements } from './achievements';
 import { getNewlyUnlockedCats } from './collectibleCats';
@@ -83,6 +85,28 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
     expect(day2Saved.usedStreakShield).toBe(true);
     expect(day2Saved.nextState.streakCount).toBe(2);
     expect(day2Saved.nextState.streakShields).toBe(0);
+  });
+
+  it('tracks weekly daily-login claims and resets on Sunday rollover (#7)', () => {
+    // 2026-11-23 (Mon), 2026-11-24 (Tue), 2026-11-25 (Wed) are in the same Sunday-start week
+    const weekA = getWeekKey(new Date(2026, 10, 23));
+    const mon = claimDailyRewardPure(INITIAL_DAILY_LOGIN, '2026-11-23').nextState;
+    const tue = claimDailyRewardPure(mon, '2026-11-24').nextState;
+    const wed = claimDailyRewardPure(tue, '2026-11-25').nextState;
+
+    expect(wed.weekClaims).toEqual({ weekKey: weekA, count: 3 });
+    expect(getWeeklyClaimCount(wed, weekA)).toBe(3);
+
+    // Stale week check returns 0
+    const nextWeek = getWeekKey(new Date(2026, 10, 29)); // Sunday, Nov 29
+    expect(nextWeek).not.toBe(weekA);
+    expect(getWeeklyClaimCount(wed, nextWeek)).toBe(0);
+
+    // Claiming on the following Sunday resets the counter to { nextWeek, 1 }
+    const sun = claimDailyRewardPure(wed, '2026-11-29').nextState;
+    expect(sun.weekClaims).toEqual({ weekKey: nextWeek, count: 1 });
+    expect(getWeeklyClaimCount(sun, nextWeek)).toBe(1);
+    expect(getWeeklyClaimCount(sun, weekA)).toBe(0);
   });
 
   it('tracks real gameplay events on generated Daily Missions', () => {

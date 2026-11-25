@@ -23,7 +23,7 @@ import {
   getEventRewardPreview,
   WORLD_EVENTS,
 } from '../../game/events';
-import { canClaimDailyReward } from '../../game/dailyRewards';
+import { canClaimDailyReward, getWeeklyClaimCount } from '../../game/dailyRewards';
 import { getTodayDateKey } from '../../game/levels';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
@@ -252,7 +252,9 @@ export const MissionsScreen: React.FC = () => {
               ev.id === 'perfect_week' ? `${ev.id}-${weekKey}` : ev.id;
             const chestClaimed = claimedEventIds.includes(claimKey);
             const chestProgress =
-              ev.id === 'treasure_hunt' ? solvedCount : dailyLogin.totalClaims;
+              ev.id === 'treasure_hunt'
+                ? solvedCount
+                : getWeeklyClaimCount(dailyLogin, weekKey);
             const chestReady =
               ev.type === 'milestone_chest' &&
               !chestClaimed &&
