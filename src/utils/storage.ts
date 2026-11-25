@@ -27,6 +27,8 @@ export interface PersistedGameData {
   selectedDifficulty: Difficulty | 'all';
   hasSeenTutorial: boolean;
   activePuzzle: ActivePuzzleSave | null;
+  /** In-progress Daily Kitty / Golden Cat boards keyed by dailyDateKey */
+  activeSpecialPuzzles: Record<string, ActivePuzzleSave & { dailyDateKey: string }>;
   achievements: PlayerAchievements;
   completedDailyDates: string[];
 
@@ -80,6 +82,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   selectedDifficulty: 'all',
   hasSeenTutorial: false,
   activePuzzle: null,
+  activeSpecialPuzzles: {},
   achievements: DEFAULT_ACHIEVEMENTS,
   completedDailyDates: [],
 
@@ -142,6 +145,39 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
         : INITIAL_DAILY_LOGIN.streakShields,
     totalClaims:
       typeof d.totalClaims === 'number' ? Math.max(0, Math.floor(d.totalClaims)) : 0,
+  };
+}
+
+function sanitizeActivePuzzle(raw: unknown, fallbackMode: PlayerSettings['gameMode']): ActivePuzzleSave | null {
+  const validGameModes = new Set(['classic', 'practice']);
+  const ap = raw as Partial<ActivePuzzleSave> | null | undefined;
+  if (!ap || typeof ap !== 'object' || typeof ap.levelId !== 'number' || !isValidBoard(ap.board)) {
+    return null;
+  }
+  const manualXKeys = Array.isArray(ap.manualXKeys)
+    ? ap.manualXKeys.filter((k): k is string => typeof k === 'string')
+    : undefined;
+  const candidateMarks: Record<string, 'possible' | 'priority'> = {};
+  if (ap.candidateMarks && typeof ap.candidateMarks === 'object') {
+    for (const [ck, cv] of Object.entries(ap.candidateMarks)) {
+      if (cv === 'possible' || cv === 'priority') candidateMarks[ck] = cv;
+    }
+  }
+  const num = (v: unknown, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : fallback;
+  return {
+    levelId: ap.levelId,
+    board: ap.board as ActivePuzzleSave['board'],
+    manualXKeys,
+    candidateMarks,
+    elapsedSec: num(ap.elapsedSec, 0),
+    hintsUsed: num(ap.hintsUsed, 0),
+    mistakesCount: num(ap.mistakesCount, 0),
+    hearts: Math.min(3, num(ap.hearts, 3)),
+    gameMode:
+      typeof ap.gameMode === 'string' && validGameModes.has(ap.gameMode)
+        ? ap.gameMode
+        : fallbackMode,
   };
 }
 
@@ -279,54 +315,15 @@ export function loadPersistedState(): PersistedGameData {
       }
     }
 
-    let activePuzzle: ActivePuzzleSave | null = null;
-    if (
-      parsed.activePuzzle &&
-      typeof parsed.activePuzzle === 'object' &&
-      typeof parsed.activePuzzle.levelId === 'number' &&
-      isValidBoard(parsed.activePuzzle.board)
-    ) {
-      const rawManualX = Array.isArray(parsed.activePuzzle.manualXKeys)
-        ? parsed.activePuzzle.manualXKeys.filter((k): k is string => typeof k === 'string')
-        : undefined;
-      const rawCandidates: Record<string, 'possible' | 'priority'> = {};
-      if (
-        parsed.activePuzzle.candidateMarks &&
-        typeof parsed.activePuzzle.candidateMarks === 'object'
-      ) {
-        for (const [ck, cv] of Object.entries(parsed.activePuzzle.candidateMarks)) {
-          if (cv === 'possible' || cv === 'priority') {
-            rawCandidates[ck] = cv;
-          }
+    const activePuzzle = sanitizeActivePuzzle(parsed.activePuzzle, settings.gameMode);
+    const activeSpecialPuzzles: PersistedGameData['activeSpecialPuzzles'] = {};
+    if (parsed.activeSpecialPuzzles && typeof parsed.activeSpecialPuzzles === 'object') {
+      for (const [key, raw] of Object.entries(parsed.activeSpecialPuzzles).slice(0, 4)) {
+        const clean = sanitizeActivePuzzle(raw, settings.gameMode);
+        if (clean && /^(golden-)?\d{4}-(W)?\d{2}(-\d{2})?$/.test(key)) {
+          activeSpecialPuzzles[key] = { ...clean, dailyDateKey: key };
         }
       }
-      activePuzzle = {
-        levelId: parsed.activePuzzle.levelId,
-        board: parsed.activePuzzle.board,
-        manualXKeys: rawManualX,
-        candidateMarks: rawCandidates,
-        elapsedSec:
-          typeof parsed.activePuzzle.elapsedSec === 'number'
-            ? Math.max(0, parsed.activePuzzle.elapsedSec)
-            : 0,
-        hintsUsed:
-          typeof parsed.activePuzzle.hintsUsed === 'number'
-            ? Math.max(0, parsed.activePuzzle.hintsUsed)
-            : 0,
-        mistakesCount:
-          typeof parsed.activePuzzle.mistakesCount === 'number'
-            ? Math.max(0, Math.floor(parsed.activePuzzle.mistakesCount))
-            : 0,
-        hearts:
-          typeof parsed.activePuzzle.hearts === 'number'
-            ? Math.max(0, Math.min(3, Math.floor(parsed.activePuzzle.hearts)))
-            : 3,
-        gameMode:
-          typeof parsed.activePuzzle.gameMode === 'string' &&
-          validGameModes.has(parsed.activePuzzle.gameMode)
-            ? parsed.activePuzzle.gameMode
-            : settings.gameMode,
-      };
     }
 
     const achievements: PlayerAchievements = {
@@ -374,6 +371,7 @@ export function loadPersistedState(): PersistedGameData {
       selectedDifficulty,
       hasSeenTutorial: Boolean(parsed.hasSeenTutorial),
       activePuzzle,
+      activeSpecialPuzzles,
       achievements,
       completedDailyDates,
       fishCoins:
@@ -441,17 +439,37 @@ export function clearPersistedState(): void {
   void idbDelete(STORE_GAME_STATE, 'current');
 }
 
+function hasUsableLocalSave(): boolean {
+  const raw =
+    window.localStorage.getItem(STORAGE_KEY_V2) ??
+    window.localStorage.getItem(LEGACY_STORAGE_KEY_V1);
+  if (raw === null) return false;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Boolean(parsed) && typeof parsed === 'object';
+  } catch {
+    // Keep the damaged copy for manual recovery before it can be overwritten
+    try {
+      window.localStorage.setItem(`${STORAGE_KEY_V2}_corrupt_backup`, raw);
+    } catch {
+      // Ignore quota errors
+    }
+    return false;
+  }
+}
+
 /**
- * If LocalStorage was evicted by browser storage pressure while IndexedDB survived,
- * restores the player's saved progress cleanly from IndexedDB.
+ * If LocalStorage was evicted by browser storage pressure (or its save is corrupted) while the
+ * IndexedDB mirror survived, restores the player's progress from IndexedDB.
+ *
+ * MUST complete before the game store module is evaluated (see main.tsx): the store reads
+ * LocalStorage synchronously at import time, so a late recovery would be overwritten by the
+ * first save of the default state.
  */
 export async function recoverPersistedStateFromIDB(): Promise<PersistedGameData | null> {
   if (typeof window === 'undefined') return null;
   try {
-    const hasLocal =
-      window.localStorage.getItem(STORAGE_KEY_V2) !== null ||
-      window.localStorage.getItem(LEGACY_STORAGE_KEY_V1) !== null;
-    if (hasLocal) return null;
+    if (hasUsableLocalSave()) return null;
 
     const fromIdb = await idbGet<PersistedGameData>(STORE_GAME_STATE, 'current');
     if (!fromIdb || typeof fromIdb !== 'object') return null;
@@ -461,4 +479,3 @@ export async function recoverPersistedStateFromIDB(): Promise<PersistedGameData 
     return null;
   }
 }
-

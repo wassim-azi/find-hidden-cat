@@ -200,28 +200,50 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
     // Keyboard accessibility navigation
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-          return;
-        }
-        const curr = selectedCell ?? { row: 0, col: 0 };
+        if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+        // Only react when the board (a cell) or nothing in particular has focus. Otherwise
+        // Enter/Space on a focused toolbar or modal button would ALSO place a cat on the
+        // selected tile — an accidental move that can cost a heart.
+        const target = e.target instanceof HTMLElement ? e.target : null;
+        const focusedCell = target?.closest<HTMLElement>('[data-row][data-col]') ?? null;
+        const isNeutralFocus =
+          !target || target === document.body || target === document.documentElement;
+        if (!focusedCell && !isNeutralFocus) return;
+        if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+
+        const moveTo = (coord: CellCoord) => {
+          onSelectCell(coord);
+          // Keep keyboard focus (and screen-reader position) on the newly selected tile
+          if (focusedCell) {
+            document.getElementById(`cell-${coord.row}-${coord.col}`)?.focus();
+          }
+        };
+        // The focused tile is the keyboard user's cursor; never act on a different selected tile
+        const focusedCoord = focusedCell
+          ? { row: Number(focusedCell.dataset.row), col: Number(focusedCell.dataset.col) }
+          : null;
+        const curr = focusedCoord ?? selectedCell ?? { row: 0, col: 0 };
+        const actionCell = focusedCoord ?? selectedCell;
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          onSelectCell({ row: (curr.row - 1 + size) % size, col: curr.col });
+          moveTo({ row: (curr.row - 1 + size) % size, col: curr.col });
         } else if (e.key === 'ArrowDown') {
           e.preventDefault();
-          onSelectCell({ row: (curr.row + 1) % size, col: curr.col });
+          moveTo({ row: (curr.row + 1) % size, col: curr.col });
         } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          onSelectCell({ row: curr.row, col: (curr.col - 1 + size) % size });
+          moveTo({ row: curr.row, col: (curr.col - 1 + size) % size });
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
-          onSelectCell({ row: curr.row, col: (curr.col + 1) % size });
-        } else if ((e.key === 'Enter' || e.key === ' ') && selectedCell) {
+          moveTo({ row: curr.row, col: (curr.col + 1) % size });
+        } else if ((e.key === 'Enter' || e.key === ' ') && actionCell) {
           e.preventDefault();
-          onDirectAction(selectedCell, pencilMode ? 'x' : 'cat');
-        } else if ((e.key === 'x' || e.key === 'X') && selectedCell) {
+          onSelectCell(actionCell);
+          onDirectAction(actionCell, pencilMode ? 'x' : 'cat');
+        } else if ((e.key === 'x' || e.key === 'X') && actionCell) {
           e.preventDefault();
-          onDirectAction(selectedCell, 'x');
+          onSelectCell(actionCell);
+          onDirectAction(actionCell, 'x');
         }
       };
       window.addEventListener('keydown', handleKeyDown);

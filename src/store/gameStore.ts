@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
 import {
+  ActivePuzzleSave,
   BoardGrid,
   CandidateMark,
   CellCoord,
@@ -94,6 +95,7 @@ import {
   savePersistedState,
 } from '../utils/storage';
 import { soundManager } from '../utils/sound';
+import { isResumableSave, resolveSessionGameMode } from './sessionGuards';
 import { triggerHaptic } from '../utils/haptics';
 import { particleBus } from '../components/Effects/ParticleCanvas';
 import { getRegionTheme } from '../styles/theme';
@@ -296,6 +298,15 @@ function clearCelebrationTimer(): void {
   }
 }
 
+/** Mirrors the `.rotate-hint` CSS rule: the board is covered, so the clock must not run. */
+function isBoardHiddenByOrientation(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches
+  );
+}
+
 function clearMistakeFlashTimer(): void {
   if (mistakeFlashTimer !== null && typeof window !== 'undefined') {
     window.clearTimeout(mistakeFlashTimer);
@@ -401,10 +412,16 @@ const persisted = loadPersistedState();
 const initialTodayKey = getTodayDateKey();
 const initialLevelId = Math.min(persisted.currentLevelId, TOTAL_LEVELS);
 const initialPuzzle = getLevelPuzzle(initialLevelId);
-const hasMatchingSave =
-  persisted.activePuzzle &&
-  persisted.activePuzzle.levelId === initialLevelId &&
-  persisted.activePuzzle.board.length === initialPuzzle.size;
+const hasMatchingSave = isResumableSave(persisted.activePuzzle, initialPuzzle);
+
+/**
+ * Last known in-progress CAMPAIGN session. Playing a Daily/Golden puzzle or finishing a
+ * different level never clobbers it, so "Continue" always returns to the real campaign board.
+ */
+let campaignSave: ActivePuzzleSave | null = persisted.activePuzzle;
+type DailySessionSave = ActivePuzzleSave & { dailyDateKey: string };
+/** In-progress Daily Kitty / Golden Cat sessions, keyed by their dailyDateKey. */
+let specialSaves: Record<string, DailySessionSave> = { ...persisted.activeSpecialPuzzles };
 
 const rawInitialBoard = hasMatchingSave
   ? cloneBoard(persisted.activePuzzle!.board)
@@ -429,7 +446,169 @@ const initialCandidates: Record<string, CandidateMark> = hasMatchingSave
 const initialValidation = validateBoard(initialPuzzle, initialSynced.board);
 const initialMissions = ensureTodaysMissions(persisted.dailyMissions, initialTodayKey);
 
+type ResumeSource =
+  | { kind: 'live' }
+  | { kind: 'saved'; save: ActivePuzzleSave }
+  | { kind: 'fresh' };
+
+/**
+ * Builds the complete active-session fields for starting (or resuming) `puzzle`.
+ * Centralised so campaign, Daily and Golden puzzles all restore the same state shape.
+ */
+function buildSessionFields(
+  state: GameStoreState,
+  puzzle: PuzzleDefinition,
+  source: ResumeSource
+): Partial<GameStoreState> {
+  const autoMarkX = state.settings.autoMarkX;
+  let rawBoard: BoardGrid;
+  let manualX: string[];
+  let candidates: Record<string, CandidateMark>;
+  if (source.kind === 'live') {
+    rawBoard = cloneBoard(state.board);
+    manualX = [...state.manualXKeys];
+    candidates = { ...state.candidateMarks };
+  } else if (source.kind === 'saved') {
+    rawBoard = cloneBoard(source.save.board);
+    manualX =
+      source.save.manualXKeys ?? extractLegacyManualXKeys(puzzle, rawBoard, autoMarkX);
+    candidates = { ...(source.save.candidateMarks ?? {}) };
+  } else {
+    rawBoard = createInitialBoard(puzzle);
+    manualX = [];
+    candidates = {};
+  }
+  const synced = syncBoardMarks(puzzle, rawBoard, manualX, autoMarkX);
+
+  const saved = source.kind === 'saved' ? source.save : null;
+  const live = source.kind === 'live';
+  return {
+    screen: 'game',
+    previousScreen: state.screen === 'game' ? state.previousScreen : state.screen,
+    puzzle,
+    board: synced.board,
+    manualXKeys: synced.manualXKeys,
+    autoXKeys: synced.autoXKeys,
+    candidateMarks: candidates,
+    validation: validateBoard(puzzle, synced.board),
+    selectedCell: null,
+    pencilMode: false,
+    pencilSubMode: 'x',
+    gameMode: live
+      ? state.gameMode
+      : (saved?.gameMode ?? state.settings.gameMode),
+    hearts: live ? state.hearts : (saved?.hearts ?? MAX_CLASSIC_HEARTS),
+    outOfHearts: false,
+    mistakeFlash: null,
+    pendingBoosterConfirm: null,
+    undoStack: live ? state.undoStack : [],
+    redoStack: live ? state.redoStack : [],
+    activeHint: null,
+    hintStage: 1,
+    elapsedSec: live ? state.elapsedSec : (saved?.elapsedSec ?? 0),
+    hintsUsed: live ? state.hintsUsed : (saved?.hintsUsed ?? 0),
+    mistakesCount: live ? state.mistakesCount : (saved?.mistakesCount ?? 0),
+    isMistakeShieldActive: false,
+    isPaused: false,
+    isCelebratingBoard: false,
+    victorySummary: null,
+  };
+}
+
+/** True when the in-memory session for `puzzle` can simply continue. */
+function canContinueLiveSession(state: GameStoreState, puzzle: PuzzleDefinition): boolean {
+  return (
+    state.puzzle.id === puzzle.id &&
+    state.puzzle.dailyDateKey === puzzle.dailyDateKey &&
+    !state.validation.isSolved &&
+    !state.victorySummary &&
+    !state.isCelebratingBoard &&
+    !state.outOfHearts &&
+    (state.gameMode === 'practice' || state.hearts > 0) &&
+    state.board.length === puzzle.size
+  );
+}
+
+/** Daily/Golden puzzles resume the live board or today's saved board, never another day's. */
+function resolveSpecialSource(state: GameStoreState, puzzle: PuzzleDefinition): ResumeSource {
+  if (canContinueLiveSession(state, puzzle)) return { kind: 'live' };
+  const saved = puzzle.dailyDateKey ? specialSaves[puzzle.dailyDateKey] : undefined;
+  if (saved && isResumableSave(saved, puzzle)) {
+    return { kind: 'saved', save: saved };
+  }
+  return { kind: 'fresh' };
+}
+
+/**
+ * Applies a Classic/Practice request: the preference always updates (it applies to new
+ * puzzles), but an in-progress puzzle can only be downgraded to Practice. Upgrading mid-puzzle
+ * is deferred so Practice mistakes can never be laundered into Classic stars or refilled hearts.
+ */
+function applyGameModeRequest(
+  state: GameStoreState,
+  mode: GameMode,
+  set: (partial: Partial<GameStoreState>) => void
+): void {
+  const { sessionMode, deferred } = resolveSessionGameMode(
+    {
+      gameMode: state.gameMode,
+      elapsedSec: state.elapsedSec,
+      mistakesCount: state.mistakesCount,
+      hintsUsed: state.hintsUsed,
+      undoStackLength: state.undoStack.length,
+      isSolved: state.validation.isSolved,
+    },
+    mode
+  );
+  set({
+    settings: { ...state.settings, gameMode: mode },
+    gameMode: sessionMode,
+    outOfHearts: sessionMode === 'practice' ? false : state.outOfHearts,
+    hearts:
+      sessionMode === 'classic' && state.gameMode !== 'classic'
+        ? MAX_CLASSIC_HEARTS
+        : state.hearts,
+  });
+  if (deferred) {
+    state.showToast(i18n.t('toasts.classicNextPuzzle'));
+  }
+}
+
+function buildSessionSave(state: GameStoreState): ActivePuzzleSave {
+  return {
+    levelId: state.puzzle.id,
+    board: state.board,
+    manualXKeys: state.manualXKeys,
+    candidateMarks: state.candidateMarks,
+    elapsedSec: state.elapsedSec,
+    hintsUsed: state.hintsUsed,
+    mistakesCount: state.mistakesCount,
+    hearts: state.hearts,
+    gameMode: state.gameMode,
+  };
+}
+
 function persistFromState(state: GameStoreState): void {
+  const finished = Boolean(
+    state.victorySummary || state.isCelebratingBoard || state.validation.isSolved
+  );
+  const dailyKey = state.puzzle.dailyDateKey;
+  if (dailyKey) {
+    const next: Record<string, DailySessionSave> = {};
+    // Keep only sessions that can still be resumed: today's Daily and this week's Golden Cat
+    const liveKeys = new Set([getTodayDateKey(), `golden-${getCurrentWeekKey()}`, dailyKey]);
+    for (const [k, v] of Object.entries(specialSaves)) {
+      if (liveKeys.has(k) && k !== dailyKey) next[k] = v;
+    }
+    if (!finished) next[dailyKey] = { ...buildSessionSave(state), dailyDateKey: dailyKey };
+    specialSaves = next;
+  } else if (finished) {
+    // Only clear the campaign slot if it belongs to the level that was just completed
+    if (campaignSave?.levelId === state.puzzle.id) campaignSave = null;
+  } else {
+    campaignSave = buildSessionSave(state);
+  }
+
   savePersistedState({
     schemaVersion: CURRENT_SCHEMA_VERSION,
     currentLevelId: state.currentLevelId,
@@ -438,20 +617,8 @@ function persistFromState(state: GameStoreState): void {
     settings: state.settings,
     selectedDifficulty: state.selectedDifficulty,
     hasSeenTutorial: state.hasSeenTutorial,
-    activePuzzle:
-      state.victorySummary || state.isCelebratingBoard || state.puzzle.dailyDateKey
-        ? null
-        : {
-            levelId: state.currentLevelId,
-            board: state.board,
-            manualXKeys: state.manualXKeys,
-            candidateMarks: state.candidateMarks,
-            elapsedSec: state.elapsedSec,
-            hintsUsed: state.hintsUsed,
-            mistakesCount: state.mistakesCount,
-            hearts: state.hearts,
-            gameMode: state.gameMode,
-          },
+    activePuzzle: campaignSave,
+    activeSpecialPuzzles: specialSaves,
     achievements: state.achievements,
     completedDailyDates: state.completedDailyDates,
     fishCoins: state.fishCoins,
@@ -525,7 +692,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     ? (persisted.activePuzzle!.gameMode ?? persisted.settings.gameMode)
     : persisted.settings.gameMode,
   hearts: hasMatchingSave
-    ? Math.max(1, persisted.activePuzzle!.hearts ?? MAX_CLASSIC_HEARTS)
+    ? Math.max(0, persisted.activePuzzle!.hearts ?? MAX_CLASSIC_HEARTS)
     : MAX_CLASSIC_HEARTS,
   mistakeFlash: null,
   undoStack: [],
@@ -596,18 +763,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     const puzzle = getLevelPuzzle(clampedId);
-    const canResume =
-      resumeIfSaved &&
-      !state.puzzle.dailyDateKey &&
-      state.currentLevelId === clampedId &&
-      !state.validation.isSolved &&
-      !state.outOfHearts &&
-      state.board.length === puzzle.size;
-
-    const baseBoard = canResume ? cloneBoard(state.board) : createInitialBoard(puzzle);
-    const baseManualX = canResume ? [...state.manualXKeys] : [];
-    const synced = syncBoardMarks(puzzle, baseBoard, baseManualX, state.settings.autoMarkX);
-    const validation = validateBoard(puzzle, synced.board);
+    const source: ResumeSource = !resumeIfSaved
+      ? { kind: 'fresh' }
+      : canContinueLiveSession(state, puzzle)
+        ? { kind: 'live' }
+        : campaignSave && isResumableSave(campaignSave, puzzle)
+          ? { kind: 'saved', save: campaignSave }
+          : { kind: 'fresh' };
 
     soundManager.play('button', state.settings.soundEnabled);
     if (state.settings.musicEnabled) {
@@ -615,34 +777,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     set({
-      screen: 'game',
-      previousScreen: state.screen,
+      ...buildSessionFields(state, puzzle, source),
       currentLevelId: clampedId,
-      puzzle,
-      board: synced.board,
-      manualXKeys: synced.manualXKeys,
-      autoXKeys: synced.autoXKeys,
-      candidateMarks: canResume ? { ...state.candidateMarks } : {},
-      validation,
-      selectedCell: null,
-      pencilMode: false,
-      pencilSubMode: 'x',
-      gameMode: canResume ? state.gameMode : state.settings.gameMode,
-      hearts: canResume ? state.hearts : MAX_CLASSIC_HEARTS,
-      outOfHearts: false,
-      mistakeFlash: null,
-      pendingBoosterConfirm: null,
-      undoStack: canResume ? state.undoStack : [],
-      redoStack: canResume ? state.redoStack : [],
-      activeHint: null,
-      hintStage: 1,
-      elapsedSec: canResume ? state.elapsedSec : 0,
-      hintsUsed: canResume ? state.hintsUsed : 0,
-      mistakesCount: canResume ? state.mistakesCount : 0,
-      isMistakeShieldActive: false,
-      isPaused: false,
-      isCelebratingBoard: false,
-      victorySummary: null,
       isTutorialOpen: !state.hasSeenTutorial && clampedId === 1,
     });
 
@@ -656,48 +792,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const state = get();
     const todayKey = getTodayDateKey();
     const dailyPuzzle = getDailyPuzzle(todayKey);
-    const synced = syncBoardMarks(
-      dailyPuzzle,
-      createInitialBoard(dailyPuzzle),
-      [],
-      state.settings.autoMarkX
-    );
-    const validation = validateBoard(dailyPuzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
     if (state.settings.musicEnabled) {
       soundManager.setMusic(true);
     }
 
-    set({
-      screen: 'game',
-      previousScreen: state.screen,
-      puzzle: dailyPuzzle,
-      board: synced.board,
-      manualXKeys: [],
-      autoXKeys: synced.autoXKeys,
-      candidateMarks: {},
-      validation,
-      selectedCell: null,
-      pencilMode: false,
-      pencilSubMode: 'x',
-      gameMode: state.settings.gameMode,
-      hearts: MAX_CLASSIC_HEARTS,
-      outOfHearts: false,
-      mistakeFlash: null,
-      pendingBoosterConfirm: null,
-      undoStack: [],
-      redoStack: [],
-      activeHint: null,
-      hintStage: 1,
-      elapsedSec: 0,
-      hintsUsed: 0,
-      mistakesCount: 0,
-      isMistakeShieldActive: false,
-      isPaused: false,
-      isCelebratingBoard: false,
-      victorySummary: null,
-    });
+    set(buildSessionFields(state, dailyPuzzle, resolveSpecialSource(state, dailyPuzzle)));
+    persistFromState(get());
   },
 
   startGoldenCatTrial: () => {
@@ -706,44 +808,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     activeDragSession = null;
     const state = get();
     const goldenPuzzle = getGoldenCatPuzzle(getCurrentWeekKey());
-    const synced = syncBoardMarks(
-      goldenPuzzle,
-      createInitialBoard(goldenPuzzle),
-      [],
-      state.settings.autoMarkX
-    );
-    const validation = validateBoard(goldenPuzzle, synced.board);
 
     soundManager.play('button', state.settings.soundEnabled);
-    set({
-      screen: 'game',
-      previousScreen: state.screen,
-      puzzle: goldenPuzzle,
-      board: synced.board,
-      manualXKeys: [],
-      autoXKeys: synced.autoXKeys,
-      candidateMarks: {},
-      validation,
-      selectedCell: null,
-      pencilMode: false,
-      pencilSubMode: 'x',
-      gameMode: state.settings.gameMode,
-      hearts: MAX_CLASSIC_HEARTS,
-      outOfHearts: false,
-      mistakeFlash: null,
-      pendingBoosterConfirm: null,
-      undoStack: [],
-      redoStack: [],
-      activeHint: null,
-      hintStage: 1,
-      elapsedSec: 0,
-      hintsUsed: 0,
-      mistakesCount: 0,
-      isMistakeShieldActive: false,
-      isPaused: false,
-      isCelebratingBoard: false,
-      victorySummary: null,
-    });
+    set(buildSessionFields(state, goldenPuzzle, resolveSpecialSource(state, goldenPuzzle)));
+    persistFromState(get());
   },
 
   continueGame: () => {
@@ -766,13 +834,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   setGameMode: (mode) => {
     const state = get();
     soundManager.play('button', state.settings.soundEnabled);
-    const nextSettings: PlayerSettings = { ...state.settings, gameMode: mode };
-    set({
-      gameMode: mode,
-      settings: nextSettings,
-      outOfHearts: mode === 'practice' ? false : state.outOfHearts,
-      hearts: mode === 'classic' && state.hearts === 0 ? MAX_CLASSIC_HEARTS : state.hearts,
-    });
+    applyGameModeRequest(state, mode, set);
     persistFromState(get());
   },
 
@@ -1137,8 +1199,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         });
         persistFromState(get());
       } else {
-        // Practice Mode: teach gently without deducting hearts!
+        // Practice Mode: teach gently without deducting hearts (mistakes are still tallied
+        // so the session can never be passed off as a mistake-free Classic run)
         set({
+          mistakesCount: state.mistakesCount + 1,
           selectedCell: coord,
           shakeNonce: nextNonce,
           mistakeFlash: flash,
@@ -1461,14 +1525,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     const delayMs = state.settings.reducedMotion ? 120 : 620;
     clearCelebrationTimer();
-    celebrationTimer = window.setTimeout(() => {
+    const revealVictory = () => {
       celebrationTimer = null;
       set({ isCelebratingBoard: false, victorySummary: summary });
       if (newlyUnlockedAchs.length > 0) {
         const achTitle = i18n.t(`achievements.${newlyUnlockedAchs[0]!.id}.title`);
         get().showToast(i18n.t('achievements.unlockedToast', { title: achTitle }));
       }
-    }, delayMs);
+    };
+    if (typeof window !== 'undefined') {
+      celebrationTimer = window.setTimeout(revealVictory, delayMs);
+    } else {
+      revealVictory();
+    }
 
     return true;
   },
@@ -1933,6 +2002,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         autoXKeys: synced.autoXKeys,
         validation: validateBoard(state.puzzle, synced.board),
         selectedCell: targetCatCell,
+        // Revealing a region's answer is assistance, just like a hint
+        hintsUsed: state.hintsUsed + 1,
         undoStack: [...state.undoStack.slice(-49), makeSnapshot(state, 'booster')],
         redoStack: [],
       });
@@ -1952,6 +2023,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         selectedCell: missing,
         activeHint: null,
         hintStage: 1,
+        // Revealing a cat is assistance: it must not keep 3-star / no-hint "perfect" eligibility
+        hintsUsed: state.hintsUsed + 1,
       });
       get().attemptPlaceCat(missing);
       return true;
@@ -1974,11 +2047,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (hint.applyValue === 'cat') {
-      // Consume 1 hint token if owned when confirming Stage 4 reveal
-      const nextBoosters = { ...state.boosters };
-      if (nextBoosters.hint > 0) {
-        nextBoosters.hint -= 1;
+      // Stages 1-3 are free (they only cost stars). Auto-placing the cat at Stage 4 always
+      // costs exactly one Hint token; without one, offer the honest get-a-hint prompt
+      // (rewarded ad or Fish Coins) instead of silently placing for free or charging some
+      // players but not others.
+      if (state.boosters.hint <= 0) {
+        soundManager.play('button', state.settings.soundEnabled);
+        set({ rewardedAdPlacement: 'free_hint', lastAdFeedback: null });
+        return;
       }
+      const nextBoosters = { ...state.boosters, hint: state.boosters.hint - 1 };
       set({
         boosters: nextBoosters,
         pencilMode: false,
@@ -2024,6 +2102,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       selectedCell: null,
       pencilMode: false,
       pencilSubMode: 'x',
+      // A restart is a brand-new attempt, so it follows the player's preferred mode again
+      gameMode: state.settings.gameMode,
       hearts: MAX_CLASSIC_HEARTS,
       outOfHearts: false,
       mistakeFlash: null,
@@ -2054,7 +2134,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       state.pendingBoosterConfirm !== null ||
       state.isCelebratingBoard ||
       state.victorySummary !== null ||
-      state.rewardedAdPlacement !== null
+      state.rewardedAdPlacement !== null ||
+      isBoardHiddenByOrientation()
     ) {
       return;
     }
@@ -2354,11 +2435,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (key === 'gameMode') {
-      set({
-        settings: nextSettings,
-        gameMode: value as GameMode,
-        outOfHearts: value === 'practice' ? false : state.outOfHearts,
-      });
+      applyGameModeRequest(state, value as GameMode, set);
       persistFromState(get());
       return;
     }
@@ -2371,6 +2448,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     clearCelebrationTimer();
     clearMistakeFlashTimer();
     activeDragSession = null;
+    campaignSave = null;
+    specialSaves = {};
     clearPersistedState();
     soundManager.setMusic(false);
     const level1 = getLevelPuzzle(1);

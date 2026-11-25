@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, WifiOff } from 'lucide-react';
+import { RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import { ScreenName, useGameStore } from './store/gameStore';
 import { WelcomeScreen } from './screens/WelcomeScreen/WelcomeScreen';
 import { ParticleCanvas } from './components/Effects/ParticleCanvas';
@@ -326,6 +326,18 @@ export const App: React.FC = () => {
             </Suspense>
           )}
         </div>
+
+        {/* Phone held sideways: the portrait board cannot fit, so explain instead of shrinking it */}
+        {screen === 'game' && (
+          <div
+            role="alert"
+            className="rotate-hint absolute inset-0 z-[80] flex-col items-center justify-center gap-2 px-6 text-center bg-[#FAF5EC]"
+          >
+            <Smartphone className="w-10 h-10 text-[#FF7A7A]" />
+            <p className="text-[16px] font-black text-[#3A312C]">{t('game.rotateTitle')}</p>
+            <p className="text-[12.5px] font-semibold text-[#7E7067]">{t('game.rotateDesc')}</p>
+          </div>
+        )}
 
         {/* 5-Tab Bottom Navigation (strictly hidden on Welcome & active Puzzle Gameplay!) */}
         {showBottomNav && (

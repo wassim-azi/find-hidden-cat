@@ -56,7 +56,7 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="relative w-full max-w-[356px] bg-[#FFFDF9] rounded-[32px] border border-[#EAE0D2] shadow-[0_28px_60px_rgba(46,36,30,0.3)] overflow-hidden text-center"
+            className="relative w-full max-w-[356px] max-h-full overflow-y-auto overscroll-contain bg-[#FFFDF9] rounded-[32px] border border-[#EAE0D2] shadow-[0_28px_60px_rgba(46,36,30,0.3)] text-center"
           >
             <div className="relative w-full h-[136px] bg-[#FAF2E4] overflow-hidden">
               <img

@@ -495,7 +495,7 @@ export const MapScreen: React.FC = () => {
                     id={`level-card-${node.levelId}`}
                     type="button"
                     whileTap={{ scale: 0.91 }}
-                    onClick={() => startLevel(node.levelId, isCurrent)}
+                    onClick={() => startLevel(node.levelId, true)}
                     aria-label={
                       isCompleted
                         ? t('map.nodeAriaCompleted', {

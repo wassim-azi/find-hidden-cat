@@ -6,7 +6,7 @@
  */
 
 import i18n, { AppLanguage, getCurrentLanguage } from '../i18n';
-import { idbPut, STORE_NOTIFICATION_PREFS } from '../utils/idbStorage';
+import { idbGet, idbPut, STORE_NOTIFICATION_PREFS } from '../utils/idbStorage';
 import { getSwRegistration } from './swManager';
 
 export type NotificationCategory =
@@ -289,6 +289,38 @@ export function subscribeNotificationPrefs(
   return () => prefListeners.delete(cb);
 }
 
+const CATEGORY_KEYS: readonly NotificationCategory[] = [
+  'dailyPuzzle',
+  'continueAdventure',
+  'specialChallenges',
+];
+
+/**
+ * Merges "last sent" dates from two sources, keeping the most recent date per category.
+ * The page (LocalStorage) and the Service Worker (IndexedDB) can both send reminders, so
+ * neither copy may overwrite a newer send recorded by the other — that is what prevents a
+ * second reminder on the same day.
+ */
+export function mergeLastSentDates(
+  a: Partial<Record<NotificationCategory, string | null>> | undefined,
+  b: Partial<Record<NotificationCategory, string | null>> | undefined
+): Record<NotificationCategory, string | null> {
+  const out = {} as Record<NotificationCategory, string | null>;
+  for (const k of CATEGORY_KEYS) {
+    const x = typeof a?.[k] === 'string' ? a[k]! : null;
+    const y = typeof b?.[k] === 'string' ? b[k]! : null;
+    out[k] = x && y ? (x > y ? x : y) : (x ?? y);
+  }
+  return out;
+}
+
+async function readServiceWorkerSentDates(): Promise<
+  Partial<Record<NotificationCategory, string | null>> | undefined
+> {
+  const fromIdb = await idbGet<Partial<NotificationPreferences>>(STORE_NOTIFICATION_PREFS, 'prefs');
+  return fromIdb?.lastSentDateByCategory;
+}
+
 export function saveNotificationPrefs(prefs: NotificationPreferences): void {
   if (typeof window !== 'undefined') {
     try {
@@ -297,11 +329,17 @@ export function saveNotificationPrefs(prefs: NotificationPreferences): void {
       // Ignore quota errors
     }
   }
-  // Mirror to IndexedDB with current language so Service Worker can read it offline
-  void idbPut(STORE_NOTIFICATION_PREFS, 'prefs', {
-    ...prefs,
-    language: getCurrentLanguage(),
-  });
+  // Mirror to IndexedDB with current language so the Service Worker can read it offline,
+  // without discarding a send the Service Worker recorded there in the meantime.
+  void readServiceWorkerSentDates()
+    .catch(() => undefined)
+    .then((swDates) =>
+      idbPut(STORE_NOTIFICATION_PREFS, 'prefs', {
+        ...prefs,
+        lastSentDateByCategory: mergeLastSentDates(prefs.lastSentDateByCategory, swDates),
+        language: getCurrentLanguage(),
+      })
+    );
   for (const cb of prefListeners) {
     cb(prefs);
   }
@@ -451,8 +489,26 @@ export function startLocalReminderScheduler(
 ): () => void {
   if (typeof window === 'undefined') return () => {};
 
+  let checking = false;
   const checkAndDeliver = async () => {
-    const prefs = loadNotificationPrefs();
+    if (checking) return;
+    checking = true;
+    try {
+      await checkAndDeliverOnce();
+    } finally {
+      checking = false;
+    }
+  };
+
+  const checkAndDeliverOnce = async () => {
+    const stored = loadNotificationPrefs();
+    if (!stored.enabled) return;
+    // Include sends made by the Service Worker (Periodic Background Sync) while the app was closed
+    const swDates = await readServiceWorkerSentDates().catch(() => undefined);
+    const prefs: NotificationPreferences = {
+      ...stored,
+      lastSentDateByCategory: mergeLastSentDates(stored.lastSentDateByCategory, swDates),
+    };
     const evaluation = evaluateDueReminder(prefs, new Date());
     if (!evaluation.due || !evaluation.category) return;
 
@@ -468,7 +524,12 @@ export function startLocalReminderScheduler(
     };
     saveNotificationPrefs(updated);
 
-    const deliveredViaBrowser = await deliverLocalNotification(copy);
+    // While the player is looking at the game, a gentle in-app message is enough;
+    // a system notification is only useful when the app is in the background.
+    const appInForeground =
+      document.visibilityState === 'visible' &&
+      (typeof document.hasFocus !== 'function' || document.hasFocus());
+    const deliveredViaBrowser = appInForeground ? false : await deliverLocalNotification(copy);
     if (!deliveredViaBrowser && onInAppReminder) {
       onInAppReminder(copy);
     }

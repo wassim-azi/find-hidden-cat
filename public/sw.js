@@ -1,5 +1,5 @@
 /* Meowdoku Offline-First Service Worker (Zero-Server PWA) */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const SHELL_CACHE = `meowdoku-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `meowdoku-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `meowdoku-fonts-${CACHE_VERSION}`;
@@ -341,19 +341,16 @@ self.addEventListener('periodicsync', (event) => {
       const today = getTodayKey();
       const lastSent = prefs.lastSentDateByCategory || {};
       const cats = prefs.categories || {};
+      const ordered = ['dailyPuzzle', 'continueAdventure', 'specialChallenges'];
 
-      let category = null;
-      let route = 'daily';
-      if (cats.dailyPuzzle && lastSent.dailyPuzzle !== today) {
-        category = 'dailyPuzzle';
-        route = 'daily';
-      } else if (cats.continueAdventure && lastSent.continueAdventure !== today) {
-        category = 'continueAdventure';
-        route = 'map';
-      } else if (cats.specialChallenges && lastSent.specialChallenges !== today) {
-        category = 'specialChallenges';
-        route = 'missions';
-      }
+      // Same rule as the page: at most ONE reminder per day across all categories
+      if (ordered.some((c) => lastSent[c] === today)) return;
+
+      const enabled = ordered.filter((c) => cats[c]);
+      if (enabled.length === 0) return;
+      const category = enabled[now.getDay() % enabled.length];
+      const route =
+        category === 'dailyPuzzle' ? 'daily' : category === 'continueAdventure' ? 'map' : 'missions';
 
       if (!category) return;
 
