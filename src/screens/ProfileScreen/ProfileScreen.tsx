@@ -2,8 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Award,
+  Bell,
   BookOpen,
   Compass,
+  Download,
   Flame,
   Settings,
   Shield,
@@ -19,7 +21,17 @@ import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 
-export const ProfileScreen: React.FC = () => {
+interface ProfileScreenProps {
+  isPwaInstalled?: boolean;
+  onOpenNotifications?: () => void;
+  onOpenInstall?: () => void;
+}
+
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({
+  isPwaInstalled = false,
+  onOpenNotifications,
+  onOpenInstall,
+}) => {
   const { t } = useTranslation();
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const levelProgress = useGameStore((s) => s.levelProgress);
@@ -122,6 +134,30 @@ export const ProfileScreen: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-2 mt-1">
+          {onOpenNotifications && (
+            <TactileButton
+              id="btn-profile-notifications"
+              variant="secondary"
+              fullWidth
+              onClick={onOpenNotifications}
+            >
+              <Bell className="w-4.5 h-4.5 text-[#E86A7B]" />
+              {t('notifications.settingsTitle')}
+            </TactileButton>
+          )}
+
+          {onOpenInstall && !isPwaInstalled && (
+            <TactileButton
+              id="btn-profile-install"
+              variant="secondary"
+              fullWidth
+              onClick={onOpenInstall}
+            >
+              <Download className="w-4.5 h-4.5 text-[#6EB58E]" />
+              {t('pwa.installTitle')}
+            </TactileButton>
+          )}
+
           <TactileButton
             variant="secondary"
             fullWidth

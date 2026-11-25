@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import {
   BookOpen,
   Calendar,
   Check,
   ChevronRight,
+  Download,
   Gift,
   Map,
   Play,
@@ -15,57 +15,105 @@ import { useGameStore } from '../../store/gameStore';
 import { getTodayDateKey } from '../../game/levels';
 import { canClaimDailyReward } from '../../game/dailyRewards';
 import { formatLocalizedDate } from '../../i18n';
-import { CatIllustration } from '../../components/Cat/CatIllustration';
+import {
+  getPwaInstallState,
+  PwaInstallState,
+  subscribePwaInstall,
+} from '../../services/pwaInstall';
 import { MeowdokuLogo } from '../../components/Cat/MeowdokuLogo';
+import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { TactileButton } from '../../components/Buttons/TactileButton';
-import { FishCoinPill } from '../../components/Currency/FishCoinIcon';
+import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
 
-export const WelcomeScreen: React.FC = () => {
+interface WelcomeScreenProps {
+  onOpenInstall?: () => void;
+}
+
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) => {
   const { t, i18n } = useTranslation();
-  const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const levelProgress = useGameStore((s) => s.levelProgress);
+  const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
+  const completedDailyDates = useGameStore((s) => s.completedDailyDates);
   const fishCoins = useGameStore((s) => s.fishCoins);
   const dailyLogin = useGameStore((s) => s.dailyLogin);
-  const completedDailyDates = useGameStore((s) => s.completedDailyDates);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const continueGame = useGameStore((s) => s.continueGame);
   const startDailyChallenge = useGameStore((s) => s.startDailyChallenge);
   const goToScreen = useGameStore((s) => s.goToScreen);
-  const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const setTutorialOpen = useGameStore((s) => s.setTutorialOpen);
+  const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const setDailyCalendarOpen = useGameStore((s) => s.setDailyCalendarOpen);
 
-  const completedCount = Object.values(levelProgress).filter((p) => p.completed).length;
-  const hasStarted = completedCount > 0 || unlockedLevelId > 1;
-  const todayKey = getTodayDateKey();
-  const formattedToday = formatLocalizedDate(
-    todayKey,
-    i18n.language.startsWith('fr') ? 'fr' : 'en'
+  const [installState, setInstallState] = useState<PwaInstallState>(() =>
+    getPwaInstallState()
   );
+  const [mountAmbientVideo, setMountAmbientVideo] = useState(false);
+
+  useEffect(() => {
+    return subscribePwaInstall(setInstallState);
+  }, []);
+
+  // Load ambient intro video strictly on-demand (after user interaction or 6.5s idle, never during cold LCP!)
+  useEffect(() => {
+    if (reducedMotion) return;
+    const nav = navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    };
+    if (!navigator.onLine || nav.connection?.saveData) return;
+
+    const activate = () => setMountAmbientVideo(true);
+    const timer = window.setTimeout(activate, 6500);
+    window.addEventListener('pointerdown', activate, { once: true, passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pointerdown', activate);
+    };
+  }, [reducedMotion]);
+
+  const hasStarted = Object.keys(levelProgress).length > 0 || unlockedLevelId > 1;
+  const todayKey = getTodayDateKey();
   const dailySolved = completedDailyDates.includes(todayKey);
-  const dailyRewardReady = canClaimDailyReward(dailyLogin, todayKey);
+  const canClaimDaily = canClaimDailyReward(dailyLogin, todayKey);
+  const lang = i18n.language.startsWith('fr') ? 'fr' : 'en';
+  const formattedToday = formatLocalizedDate(todayKey, lang);
 
   return (
-    <div className="relative h-full w-full flex flex-col justify-between px-5 pt-3.5 pb-5 overflow-hidden">
-      {/* Top utility row */}
-      <div className="flex items-center justify-between shrink-0">
-        <FishCoinPill coins={fishCoins} onClick={() => goToScreen('shop')} />
+    <main className="h-full w-full flex flex-col justify-between px-5 pt-4 pb-5 overflow-hidden">
+      {/* Top Bar: Coins + Optional Install + Daily Gift + Settings */}
+      <div className="flex items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="inline-flex items-center gap-1.5 bg-white/95 border border-[#EAE0D2] rounded-full px-3 py-1.5 shadow-[0_2px_8px_rgba(92,69,52,0.06)] shrink-0">
+            <FishCoinIcon className="w-4.5 h-4.5" />
+            <span className="text-[12.5px] font-black text-[#3A312C] tabular-nums">
+              {fishCoins}
+            </span>
+          </div>
 
-        <div className="flex items-center gap-1.5">
+          {!installState.isInstalled && onOpenInstall && (
+            <button
+              id="btn-welcome-install"
+              type="button"
+              onClick={onOpenInstall}
+              aria-label={t('pwa.installBtnAria')}
+              className="inline-flex items-center gap-1 bg-[#FFF0F2] border border-[#F7C8CE] text-[#B83B4B] rounded-full px-2.5 py-1.5 text-[11px] font-black shadow-2xs active:scale-94 transition-transform cursor-pointer whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5 shrink-0" />
+              <span>{t('pwa.installShort')}</span>
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
           <button
             id="btn-welcome-daily-gift"
             type="button"
             onClick={() => setDailyCalendarOpen(true)}
             aria-label={t('welcome.openDailyAria')}
-            className={`relative w-10 h-10 rounded-full border shadow-[0_3px_10px_rgba(92,69,52,0.08)] flex items-center justify-center active:scale-92 transition-transform cursor-pointer ${
-              dailyRewardReady
-                ? 'bg-gradient-to-b from-[#FFE39A] to-[#F7BD48] border-[#E8A328] text-[#6B4209]'
-                : 'bg-white border-[#EAE0D2] text-[#5A4E47]'
-            }`}
+            className="relative w-10 h-10 rounded-full bg-[#FFF4D6] border border-[#F2D58A] shadow-xs flex items-center justify-center text-[#7D4F0C] active:scale-92 transition-transform cursor-pointer"
           >
-            <Gift className="w-5 h-5" />
-            {dailyRewardReady && (
-              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#FF5B6B] border-2 border-white" />
+            <Gift className="w-4.5 h-4.5" />
+            {canClaimDaily && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#FF6B6B] border-2 border-white animate-pulse" />
             )}
           </button>
 
@@ -74,14 +122,14 @@ export const WelcomeScreen: React.FC = () => {
             type="button"
             onClick={() => setSettingsOpen(true)}
             aria-label={t('welcome.openSettingsAria')}
-            className="w-10 h-10 rounded-full bg-white border border-[#EAE0D2] shadow-[0_3px_10px_rgba(92,69,52,0.07)] flex items-center justify-center text-[#5A4E47] active:scale-92 transition-transform cursor-pointer"
+            className="w-10 h-10 rounded-full bg-white/95 border border-[#EAE0D2] shadow-[0_3px_10px_rgba(92,69,52,0.07)] flex items-center justify-center text-[#5A4E47] active:scale-92 transition-transform cursor-pointer"
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4.5 h-4.5" />
           </button>
         </div>
       </div>
 
-      {/* Hero Showcase */}
+      {/* Hero Showcase (Instant WebP LCP + On-Demand Ambient Video) */}
       <div className="flex flex-col items-center text-center my-auto py-1">
         <div className="relative w-full max-w-[330px] mb-3.5">
           <div
@@ -89,21 +137,18 @@ export const WelcomeScreen: React.FC = () => {
             className="absolute -inset-4 rounded-[36px] bg-gradient-to-tr from-[#FFE2B8]/70 via-[#FFD4DC]/55 to-[#D9D0F5]/60 blur-2xl pointer-events-none"
           />
 
-          <motion.div
-            initial={{ scale: 0.94, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-            className="relative meow-board-frame w-full aspect-[4/3] rounded-[28px] p-1.5 overflow-hidden"
-          >
+          <div className="relative meow-board-frame w-full aspect-[4/3] rounded-[28px] p-1.5 overflow-hidden">
             <div className="relative w-full h-full rounded-[22px] overflow-hidden bg-[#FAF2E4]">
-              {reducedMotion ? (
-                <img
-                  src="/media/images/intro-hero.webp"
-                  alt={t('welcome.heroAlt')}
-                  className="w-full h-full object-cover"
-                  fetchPriority="high"
-                />
-              ) : (
+              <img
+                src="/media/images/intro-hero.webp"
+                alt={t('welcome.heroAlt')}
+                width={640}
+                height={480}
+                fetchPriority="high"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
+              {mountAmbientVideo && !reducedMotion && (
                 <video
                   src="/media/videos/intro-cinematic.mp4"
                   poster="/media/images/intro-hero.webp"
@@ -111,8 +156,9 @@ export const WelcomeScreen: React.FC = () => {
                   loop
                   muted
                   playsInline
-                  aria-label={t('welcome.heroAlt')}
-                  className="w-full h-full object-cover"
+                  preload="none"
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               )}
               <div
@@ -120,21 +166,20 @@ export const WelcomeScreen: React.FC = () => {
                 className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#3A312C]/15 to-transparent pointer-events-none"
               />
             </div>
-          </motion.div>
+          </div>
         </div>
 
         <MeowdokuLogo />
-        <p className="text-[14.5px] font-bold text-[#7E7067] mt-1 tracking-tight">
+        <p className="text-[14.5px] font-bold text-[#6B5D54] mt-1 tracking-tight">
           {t('welcome.tagline')}
         </p>
 
         {/* Daily Kitty Challenge Card */}
-        <motion.button
+        <button
           id="btn-daily-challenge"
           type="button"
-          whileTap={{ scale: 0.97 }}
           onClick={startDailyChallenge}
-          className="mt-3.5 w-full max-w-[330px] meow-card rounded-[20px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 text-left cursor-pointer hover:border-[#F2CFA0] transition-colors"
+          className="mt-3.5 w-full max-w-[330px] meow-card rounded-[20px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 text-left cursor-pointer hover:border-[#F2CFA0] active:scale-[0.98] transition-all"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFE7B3] to-[#FFC39E] flex items-center justify-center shrink-0 shadow-xs">
@@ -149,11 +194,11 @@ export const WelcomeScreen: React.FC = () => {
                 <span className="text-[13.5px] font-black text-[#3A312C] leading-none">
                   {t('welcome.dailyKittyTitle')}
                 </span>
-                <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded-full bg-[#FEF2DC] text-[#A46D1A] leading-none whitespace-nowrap">
+                <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded-full bg-[#FEF2DC] text-[#7D4F0C] leading-none whitespace-nowrap">
                   {t('welcome.dailyCoinsBadge')}
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-[#8A7B70] mt-1 leading-none">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-[#6E6056] mt-1 leading-none">
                 <Calendar className="w-3 h-3 shrink-0" />
                 <span className="truncate">
                   {dailySolved
@@ -173,7 +218,7 @@ export const WelcomeScreen: React.FC = () => {
               <ChevronRight className="w-4 h-4" strokeWidth={2.8} />
             </span>
           )}
-        </motion.button>
+        </button>
       </div>
 
       {/* Primary Action Stack */}
@@ -216,6 +261,6 @@ export const WelcomeScreen: React.FC = () => {
           </TactileButton>
         </div>
       </div>
-    </div>
+    </main>
   );
 };

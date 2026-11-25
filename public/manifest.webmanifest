@@ -1,19 +1,65 @@
 {
+  "id": "/",
   "name": "Meowdoku — Find the Hidden Cats",
   "short_name": "Meowdoku",
-  "description": "Think smart. Find the cats. A cozy pastel logic puzzle game.",
-  "start_url": "/",
+  "description": "Think smart. Find the cats. A cozy offline-first pastel logic puzzle game.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#FAF5EC",
   "theme_color": "#FAF5EC",
+  "lang": "en",
+  "dir": "ltr",
   "categories": ["games", "puzzle"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/cat-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-master-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Daily Kitty Challenge",
+      "short_name": "Daily Kitty",
+      "description": "Jump straight into today's 8x8 Daily Kitty puzzle",
+      "url": "/?action=daily",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Continue Adventure",
+      "short_name": "Continue",
+      "description": "Resume your current Cat Journey level",
+      "url": "/?action=continue",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

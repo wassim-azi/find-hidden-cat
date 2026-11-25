@@ -18,7 +18,7 @@ export const MeowdokuLogo: React.FC<MeowdokuLogoProps> = ({
         </div>
         {!iconOnly && (
           <span className="hidden min-[360px]:inline font-black tracking-tight text-[#3A312C] text-[16px] leading-none whitespace-nowrap">
-            Meow<span className="text-[#FF7A7A]">doku</span>
+            Meow<span className="text-[#D94D58]">doku</span>
           </span>
         )}
       </div>
@@ -28,7 +28,7 @@ export const MeowdokuLogo: React.FC<MeowdokuLogoProps> = ({
   return (
     <div className="flex flex-col items-center select-none">
       <h1 className="font-black text-[38px] sm:text-[42px] tracking-tight leading-none text-[#3A312C]">
-        Meow<span className="text-[#FF7A7A]">doku</span>
+        Meow<span className="text-[#D94D58]">doku</span>
       </h1>
     </div>
   );

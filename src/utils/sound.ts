@@ -197,11 +197,30 @@ class SoundManager {
 
     const melody = [523.25, 659.25, 587.33, 440.0, 523.25, 783.99, 659.25, 587.33];
     this.musicTimer = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       const freq = melody[this.musicStep % melody.length]!;
       this.musicStep += 1;
       this.playTone(freq, 0.55, 'sine', 0.018);
     }, 950);
   }
+
+  /**
+   * Suspends AudioContext cleanly when the app goes to background to save mobile battery & RAM.
+   */
+  public suspendForBackground(): void {
+    if (this.ctx && this.ctx.state === 'running') {
+      void this.ctx.suspend().catch(() => undefined);
+    }
+  }
 }
 
 export const soundManager = new SoundManager();
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      soundManager.suspendForBackground();
+    }
+  });
+}
+

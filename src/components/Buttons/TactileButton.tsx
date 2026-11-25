@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -47,18 +46,17 @@ export const TactileButton: React.FC<TactileButtonProps> = ({
   type = 'button',
 }) => {
   return (
-    <motion.button
+    <button
       id={id}
       type={type}
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onClick}
-      whileTap={disabled ? undefined : { scale: 0.97, y: 2 }}
-      transition={{ type: 'spring', stiffness: 550, damping: 28 }}
       className={`
         inline-flex items-center justify-center gap-2.5 font-extrabold tracking-tight
-        select-none cursor-pointer transition-colors
-        disabled:opacity-45 disabled:cursor-not-allowed
+        select-none cursor-pointer transition-all duration-100
+        active:scale-[0.97] active:translate-y-[2px]
+        disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100 disabled:active:translate-y-0
         ${VARIANT_CLASSES[variant]}
         ${SIZE_CLASSES[size]}
         ${fullWidth ? 'w-full' : ''}
@@ -66,6 +64,6 @@ export const TactileButton: React.FC<TactileButtonProps> = ({
       `}
     >
       {children}
-    </motion.button>
+    </button>
   );
 };

@@ -12,6 +12,7 @@ import {
 } from '../game/economy';
 import { DailyLoginState, INITIAL_DAILY_LOGIN } from '../game/dailyRewards';
 import { DailyMissionsState } from '../game/missions';
+import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
 const STORAGE_KEY_V2 = 'meowdoku_state_v2';
 const LEGACY_STORAGE_KEY_V1 = 'meowdoku_state_v1';
@@ -425,6 +426,8 @@ export function savePersistedState(data: PersistedGameData): void {
   } catch {
     // Ignore storage quota or private mode errors
   }
+  // Mirror asynchronously to IndexedDB for durable offline storage
+  void idbPut(STORE_GAME_STATE, 'current', data);
 }
 
 export function clearPersistedState(): void {
@@ -435,4 +438,27 @@ export function clearPersistedState(): void {
   } catch {
     // Ignore
   }
+  void idbDelete(STORE_GAME_STATE, 'current');
 }
+
+/**
+ * If LocalStorage was evicted by browser storage pressure while IndexedDB survived,
+ * restores the player's saved progress cleanly from IndexedDB.
+ */
+export async function recoverPersistedStateFromIDB(): Promise<PersistedGameData | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const hasLocal =
+      window.localStorage.getItem(STORAGE_KEY_V2) !== null ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY_V1) !== null;
+    if (hasLocal) return null;
+
+    const fromIdb = await idbGet<PersistedGameData>(STORE_GAME_STATE, 'current');
+    if (!fromIdb || typeof fromIdb !== 'object') return null;
+    window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(fromIdb));
+    return loadPersistedState();
+  } catch {
+    return null;
+  }
+}
+
