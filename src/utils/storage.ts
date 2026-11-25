@@ -311,6 +311,8 @@ export function loadPersistedState(): PersistedGameData {
           bestTimeSec: typeof v.bestTimeSec === 'number' ? v.bestTimeSec : null,
           stars: typeof v.stars === 'number' ? Math.max(0, Math.min(3, v.stars)) : 0,
           bestHintsUsed: typeof v.bestHintsUsed === 'number' ? v.bestHintsUsed : null,
+          bestMistakes:
+            typeof v.bestMistakes === 'number' ? Math.max(0, Math.floor(v.bestMistakes)) : null,
         };
       }
     }

@@ -84,4 +84,11 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(data.activeSpecialPuzzles['2026-11-25']!.hearts).toBe(3);
     expect(data.activeSpecialPuzzles['2026-11-25']!.dailyDateKey).toBe('2026-11-25');
   });
+
+  it('loads levelProgress entries without bestMistakes with bestMistakes: null', async () => {
+    const { loadPersistedState } = await import('./storage');
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    const data = loadPersistedState();
+    expect(data.levelProgress[1]?.bestMistakes).toBeNull();
+  });
 });

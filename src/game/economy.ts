@@ -93,12 +93,15 @@ export function getShopItem(id: BoosterId): ShopItemDefinition {
   return SHOP_ITEMS.find((i) => i.id === id) ?? SHOP_ITEMS[0]!;
 }
 
+export const STAR_IMPROVEMENT_COINS_PER_STAR = 10;
+
 export interface LevelRewardBreakdown {
   baseCoins: number;
   firstClearBonus: number;
   starBonus: number;
   specialNodeBonus: number;
   worldMilestoneBonus: number;
+  starImprovementBonus: number;
   totalCoins: number;
 }
 
@@ -112,6 +115,7 @@ export function calculateLevelCoinReward(params: {
   specialNodeBonus: number;
   worldMilestoneBonus: number;
   isDaily?: boolean;
+  previousBestStars?: number;
 }): LevelRewardBreakdown {
   // A Daily / Golden puzzle pays out once: replaying an already-solved one (whose answer the
   // player now knows) must not mint the daily reward again.
@@ -122,7 +126,23 @@ export function calculateLevelCoinReward(params: {
       starBonus: 0,
       specialNodeBonus: 0,
       worldMilestoneBonus: 0,
+      starImprovementBonus: 0,
       totalCoins: 0,
+    };
+  }
+
+  // Campaign replays only pay for newly earned stars above previousBestStars.
+  if (!params.isDaily && !params.isFirstCompletion) {
+    const newStars = Math.max(0, params.stars - (params.previousBestStars ?? 0));
+    const starImprovementBonus = STAR_IMPROVEMENT_COINS_PER_STAR * newStars;
+    return {
+      baseCoins: 0,
+      firstClearBonus: 0,
+      starBonus: 0,
+      specialNodeBonus: 0,
+      worldMilestoneBonus: 0,
+      starImprovementBonus,
+      totalCoins: starImprovementBonus,
     };
   }
 
@@ -145,6 +165,7 @@ export function calculateLevelCoinReward(params: {
     starBonus,
     specialNodeBonus,
     worldMilestoneBonus,
+    starImprovementBonus: 0,
     totalCoins:
       baseCoins +
       firstClearBonus +

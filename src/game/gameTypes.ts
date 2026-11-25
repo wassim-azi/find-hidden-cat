@@ -145,6 +145,7 @@ export interface LevelProgress {
   bestTimeSec: number | null;
   stars: number; // 0..3
   bestHintsUsed: number | null;
+  bestMistakes: number | null;
 }
 
 export interface PlayerSettings {

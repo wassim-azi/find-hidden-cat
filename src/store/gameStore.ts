@@ -131,6 +131,7 @@ export interface VictorySummary {
   unlockedNextWorld: WorldDefinition | null;
   newlyUnlockedCats: CollectibleCat[];
   isPracticeMode?: boolean;
+  isReplay: boolean;
 }
 
 export interface ChestRevealModalData {
@@ -1290,6 +1291,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     const isDailyOrEvent = Boolean(state.puzzle.dailyDateKey);
     const isGoldenTrial = Boolean(state.puzzle.dailyDateKey?.startsWith('golden-'));
+    const prevProg = isDailyOrEvent ? undefined : state.levelProgress[state.puzzle.id];
     let updatedLevelProgress = state.levelProgress;
     let nextUnlocked = state.unlockedLevelId;
     let nextCurrentLevel = state.currentLevelId;
@@ -1314,7 +1316,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         }
       }
     } else {
-      const prevProg = state.levelProgress[state.puzzle.id];
       isFirstCompletion = !prevProg?.completed;
       previousBestStars = prevProg?.stars ?? 0;
 
@@ -1334,6 +1335,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             prevProg?.bestHintsUsed === null || prevProg?.bestHintsUsed === undefined
               ? state.hintsUsed
               : Math.min(prevProg.bestHintsUsed, state.hintsUsed),
+          bestMistakes:
+            prevProg?.bestMistakes === null || prevProg?.bestMistakes === undefined
+              ? state.mistakesCount
+              : Math.min(prevProg.bestMistakes, state.mistakesCount),
         };
 
         updatedLevelProgress = {
@@ -1378,6 +1383,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               bestTimeSec: null,
               stars: Math.max(previousBestStars, 1),
               bestHintsUsed: null,
+              bestMistakes: null,
             },
           };
           nextUnlocked = Math.min(
@@ -1389,14 +1395,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }
 
-    const rewardBreakdown = isPractice
+    const practiceCoins = isFirstCompletion ? 8 : 0;
+    const rewardBreakdown: LevelRewardBreakdown = isPractice
       ? {
-          baseCoins: 8,
+          baseCoins: practiceCoins,
           firstClearBonus: 0,
           starBonus: 0,
           specialNodeBonus: 0,
           worldMilestoneBonus: 0,
-          totalCoins: 8,
+          starImprovementBonus: 0,
+          totalCoins: practiceCoins,
         }
       : calculateLevelCoinReward({
           difficulty: state.puzzle.difficulty,
@@ -1405,20 +1413,38 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           specialNodeBonus,
           worldMilestoneBonus,
           isDaily: isDailyOrEvent,
+          previousBestStars,
         });
 
     const nextCoins = state.fishCoins + rewardBreakdown.totalCoins;
-    // Never award competitive zero-mistake / no-hint perfect achievements in Practice Mode
-    const nextZeroMistakes =
-      state.zeroMistakeSolves + (!isPractice && state.mistakesCount === 0 ? 1 : 0);
+    // Never award competitive zero-mistake / no-hint perfect achievements in Practice Mode,
+    // and never count replays of a puzzle that already earned them.
+    const earnedPerfectLevel =
+      !isPractice &&
+      state.hintsUsed === 0 &&
+      (isDailyOrEvent ? isFirstCompletion : prevProg?.bestHintsUsed !== 0);
+    const earnedZeroMistake =
+      !isPractice &&
+      state.mistakesCount === 0 &&
+      (isDailyOrEvent ? isFirstCompletion : prevProg?.bestMistakes !== 0);
+    const starsEarnedDelta = isDailyOrEvent
+      ? !isPractice && isFirstCompletion
+        ? computedStars
+        : 0
+      : isPractice
+        ? isFirstCompletion
+          ? 1
+          : 0
+        : Math.max(0, computedStars - previousBestStars);
+
+    const nextZeroMistakes = state.zeroMistakeSolves + (earnedZeroMistake ? 1 : 0);
     const newStreak = isPractice
       ? state.achievements.currentStreak
       : state.achievements.currentStreak + 1;
 
     const updatedAchievements: PlayerAchievements = {
       totalCatsFound: state.achievements.totalCatsFound + state.puzzle.size,
-      perfectLevels:
-        state.achievements.perfectLevels + (!isPractice && state.hintsUsed === 0 ? 1 : 0),
+      perfectLevels: state.achievements.perfectLevels + (earnedPerfectLevel ? 1 : 0),
       currentStreak: newStreak,
       bestStreak: Math.max(state.achievements.bestStreak, newStreak),
     };
@@ -1489,6 +1515,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       unlockedNextWorld,
       newlyUnlockedCats,
       isPracticeMode: isPractice,
+      isReplay: !isFirstCompletion,
     };
 
     set({
@@ -1515,7 +1542,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       unlockedCatIds: nextUnlockedCats,
       zeroMistakeSolves: nextZeroMistakes,
       specialLevelsCompleted: nextSpecialCompleted,
-      totalStarsEarnedEver: state.totalStarsEarnedEver + computedStars,
+      totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
       isMistakeShieldActive: false,
       isCelebratingBoard: true,
       victorySummary: null,

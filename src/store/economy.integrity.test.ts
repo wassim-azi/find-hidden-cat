@@ -93,4 +93,111 @@ describe('Economy integrity', () => {
     expect(S().validation.isValid).toBe(true);
     expect(S().puzzle.solution.some((s) => coordsEqual(s, cats[0]!))).toBe(true);
   });
+
+  function solveWithElapsed(elapsedSec: number): void {
+    const remaining = S().puzzle.solution.filter(
+      (cat) => S().board[cat.row]![cat.col] !== 'cat'
+    );
+    for (let i = 0; i < remaining.length; i++) {
+      if (i === remaining.length - 1) {
+        useGameStore.setState({ elapsedSec });
+      }
+      S().attemptPlaceCat(remaining[i]!);
+    }
+  }
+
+  it('pays > 0 on level 2 Classic first clear and 0 on same-stars replay with isReplay === true', () => {
+    useGameStore.setState({ unlockedLevelId: 2 });
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+
+    const first = S().victorySummary!;
+    expect(first.coinsAwarded).toBeGreaterThan(0);
+    expect(first.isReplay).toBe(false);
+    expect(first.stars).toBe(3);
+    const coinsAfterFirst = S().fishCoins;
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+
+    const replay = S().victorySummary!;
+    expect(replay.coinsAwarded).toBe(0);
+    expect(replay.isReplay).toBe(true);
+    expect(S().fishCoins).toBe(coinsAfterFirst);
+  });
+
+  it('pays exactly +20 coins when improving a Classic level from 1 star to 3 stars', () => {
+    useGameStore.setState({ unlockedLevelId: 2 });
+    S().startLevel(2, false);
+    solveWithElapsed(S().puzzle.parTimeSec * 2 + 1);
+    expect(S().victorySummary!.stars).toBe(1);
+    const coinsAfter1Star = S().fishCoins;
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    const replay = S().victorySummary!;
+    expect(replay.stars).toBe(3);
+    expect(replay.previousBestStars).toBe(1);
+    expect(replay.coinsAwarded).toBe(20);
+    expect(replay.rewardBreakdown.starImprovementBonus).toBe(20);
+    expect(S().fishCoins).toBe(coinsAfter1Star + 20);
+  });
+
+  it('pays +8 on Practice first clear and +0 on Practice replay of a completed level', () => {
+    useGameStore.setState({ unlockedLevelId: 2 });
+    S().updateSetting('gameMode', 'practice');
+    S().startLevel(2, false);
+    const coinsBefore = S().fishCoins;
+    solveWithElapsed(1);
+
+    expect(S().victorySummary!.coinsAwarded).toBe(8);
+    expect(S().victorySummary!.isReplay).toBe(false);
+    expect(S().fishCoins).toBe(coinsBefore + 8);
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+
+    expect(S().victorySummary!.coinsAwarded).toBe(0);
+    expect(S().victorySummary!.isReplay).toBe(true);
+    expect(S().fishCoins).toBe(coinsBefore + 8);
+  });
+
+  it('increments achievements.perfectLevels at most once per level across no-hint Classic solves', () => {
+    useGameStore.setState({ unlockedLevelId: 2 });
+    const perfectBefore = S().achievements.perfectLevels;
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    expect(S().achievements.perfectLevels).toBe(perfectBefore + 1);
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    expect(S().achievements.perfectLevels).toBe(perfectBefore + 1);
+  });
+
+  it('increments zeroMistakeSolves at most once per level across zero-mistake Classic solves', () => {
+    useGameStore.setState({ unlockedLevelId: 2 });
+    const zeroBefore = S().zeroMistakeSolves;
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    expect(S().zeroMistakeSolves).toBe(zeroBefore + 1);
+    expect(S().levelProgress[2]?.bestMistakes).toBe(0);
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    expect(S().zeroMistakeSolves).toBe(zeroBefore + 1);
+  });
+
+  it('does not change totalStarsEarnedEver on a same-stars replay', () => {
+    useGameStore.setState({ unlockedLevelId: 2 });
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    const starsAfterFirst = S().totalStarsEarnedEver;
+    expect(starsAfterFirst).toBe(3);
+
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    expect(S().totalStarsEarnedEver).toBe(starsAfterFirst);
+  });
 });

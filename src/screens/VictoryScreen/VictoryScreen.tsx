@@ -123,6 +123,27 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                 </span>
               </div>
 
+              {summary.isReplay && summary.coinsAwarded === 0 && !summary.isPracticeMode && (
+                <p
+                  id="victory-replay-note"
+                  className="text-[11.5px] font-bold text-[#7A6B60] mb-3 -mt-1.5 px-2"
+                >
+                  {t('victory.replayNoCoins')}
+                </p>
+              )}
+
+              {summary.rewardBreakdown.starImprovementBonus > 0 && (
+                <p
+                  id="victory-new-stars"
+                  className="text-[11.5px] font-extrabold text-[#357D56] mb-3 -mt-1.5 px-2"
+                >
+                  {t('victory.newStarsBonus', {
+                    count: summary.stars - summary.previousBestStars,
+                    coins: summary.rewardBreakdown.starImprovementBonus,
+                  })}
+                </p>
+              )}
+
               {(summary.unlockedNextWorld || summary.newlyUnlockedCats.length > 0) && (
                 <div className="mb-3 rounded-2xl bg-[#F4EEFD] border border-[#DFD2F8] px-3 py-1.5 text-[11.5px] font-extrabold text-[#5D439E] flex items-center justify-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
