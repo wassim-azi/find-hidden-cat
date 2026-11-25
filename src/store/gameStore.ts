@@ -1233,10 +1233,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const regionId = state.puzzle.regions[coord.row]?.[coord.col] ?? 0;
     const theme = getRegionTheme(regionId);
 
-    // Update daily mission counter on valid cat placement
+    // Ensure today's daily missions are rolled over cleanly
     const todayKey = getTodayDateKey();
     let updatedMissions = ensureTodaysMissions(state.dailyMissions, todayKey);
-    updatedMissions = applyMissionEvent(updatedMissions, { type: 'cat_placed' });
 
     if (!nextValidation.isSolved) {
       soundManager.play('placeCat', state.settings.soundEnabled);
@@ -1460,6 +1459,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         mistakesCount: state.mistakesCount,
         elapsedSec: state.elapsedSec,
         improvedBest,
+        catsFound: state.puzzle.size - state.puzzle.initialCats.length,
       });
     }
 

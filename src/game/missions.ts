@@ -46,7 +46,7 @@ const MISSION_POOL: readonly MissionTemplate[] = [
   {
     metric: 'place_cats',
     title: 'Cat Finder',
-    description: 'Place 8 valid cats on the board',
+    description: 'Find 8 cats by solving puzzles',
     target: 8,
     rewardCoins: 20,
   },
@@ -144,12 +144,13 @@ export function ensureTodaysMissions(
 }
 
 export interface GameplayMissionEvent {
-  type: 'cat_placed' | 'level_completed';
+  type: 'level_completed';
   starsEarned?: number;
   hintsUsed?: number;
   mistakesCount?: number;
   elapsedSec?: number;
   improvedBest?: boolean;
+  catsFound?: number;
 }
 
 export function applyMissionEvent(
@@ -160,10 +161,9 @@ export function applyMissionEvent(
     if (m.claimed || m.progress >= m.target) return m;
     let delta = 0;
 
-    if (event.type === 'cat_placed' && m.metric === 'place_cats') {
-      delta = 1;
-    } else if (event.type === 'level_completed') {
+    if (event.type === 'level_completed') {
       if (m.metric === 'levels_completed') delta = 1;
+      if (m.metric === 'place_cats') delta = Math.max(0, event.catsFound ?? 0);
       if (m.metric === 'earn_stars') delta = event.starsEarned ?? 0;
       if (m.metric === 'no_hint_level' && (event.hintsUsed ?? 1) === 0) delta = 1;
       if (m.metric === 'no_mistake_level' && (event.mistakesCount ?? 1) === 0) delta = 1;

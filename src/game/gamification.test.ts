@@ -89,9 +89,6 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
     let state = generateDailyMissions('2026-11-25');
     expect(state.missions).toHaveLength(3);
 
-    for (let i = 0; i < 10; i++) {
-      state = applyMissionEvent(state, { type: 'cat_placed' });
-    }
     state = applyMissionEvent(state, {
       type: 'level_completed',
       starsEarned: 3,
@@ -99,6 +96,7 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
       mistakesCount: 0,
       elapsedSec: 45,
       improvedBest: true,
+      catsFound: 6,
     });
 
     const anyProgressed = state.missions.some((m) => m.progress > 0);

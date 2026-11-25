@@ -3,7 +3,7 @@ import { useGameStore } from './gameStore';
 import { isResumableSave, resolveSessionGameMode } from './sessionGuards';
 import { CellCoord, MAX_CLASSIC_HEARTS, PuzzleDefinition, coordsEqual } from '../game/gameTypes';
 import { createInitialBoard } from '../game/puzzleEngine';
-import { getLevelPuzzle } from '../game/levels';
+import { getLevelPuzzle, getTodayDateKey } from '../game/levels';
 import { getPlacedCats } from '../game/validation';
 
 const S = () => useGameStore.getState();
@@ -191,3 +191,81 @@ describe('Campaign and Daily progress survive each other', () => {
     expect(getPlacedCats(S().board)).toHaveLength(S().puzzle.initialCats.length);
   });
 });
+
+describe('Cat Finder mission cannot be farmed (#5)', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+    useGameStore.setState({
+      dailyMissions: {
+        dateKey: getTodayDateKey(),
+        missions: [
+          {
+            id: 'm1',
+            metric: 'place_cats',
+            title: '',
+            description: '',
+            target: 8,
+            progress: 0,
+            rewardCoins: 20,
+            claimed: false,
+          },
+          {
+            id: 'm2',
+            metric: 'levels_completed',
+            title: '',
+            description: '',
+            target: 2,
+            progress: 0,
+            rewardCoins: 30,
+            claimed: false,
+          },
+          {
+            id: 'm3',
+            metric: 'fast_solve',
+            title: '',
+            description: '',
+            target: 1,
+            progress: 0,
+            rewardCoins: 25,
+            claimed: false,
+          },
+        ],
+      },
+    });
+  });
+
+  it('repeating place/remove/undo/redo never advances Cat Finder, while Classic solve adds non-starter cats', () => {
+    S().startLevel(2, false);
+    const { puzzle } = S();
+    const nonStarterCat = puzzle.solution.find(
+      (s) => !puzzle.initialCats.some((ic) => coordsEqual(ic, s))
+    )!;
+
+    for (let i = 0; i < 10; i++) {
+      expect(S().attemptPlaceCat(nonStarterCat)).toBe(true);
+      S().removeCatAt(nonStarterCat);
+    }
+    // Undo/redo cycles must not advance progress either
+    S().attemptPlaceCat(nonStarterCat);
+    S().undo();
+    S().redo();
+    S().undo();
+
+    expect(S().dailyMissions.missions[0]!.progress).toBe(0);
+
+    // Solving in Classic advances by exactly (size - initialCats.length)
+    solveCurrentPuzzle();
+    expect(S().dailyMissions.missions[0]!.progress).toBe(
+      puzzle.size - puzzle.initialCats.length
+    );
+  });
+
+  it('solving in Practice mode does not advance Cat Finder', () => {
+    S().updateSetting('gameMode', 'practice');
+    S().startLevel(2, false);
+    solveCurrentPuzzle();
+    expect(S().dailyMissions.missions[0]!.progress).toBe(0);
+  });
+});
+

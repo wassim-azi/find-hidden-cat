@@ -425,7 +425,7 @@
       },
       "place_cats": {
         "title": "Cat Finder",
-        "desc": "Place {{target}} valid cats on the board"
+        "desc": "Find {{target}} cats by solving puzzles"
       },
       "no_hint_level": {
         "title": "Sharp Instincts",

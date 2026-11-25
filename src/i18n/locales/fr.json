@@ -425,7 +425,7 @@
       },
       "place_cats": {
         "title": "Détective félin",
-        "desc": "Place {{target}} chats valides sur la grille"
+        "desc": "Trouve {{target}} chats en résolvant des grilles"
       },
       "no_hint_level": {
         "title": "Instinct affûté",
