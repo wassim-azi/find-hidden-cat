@@ -6,13 +6,32 @@
  */
 
 import i18n, { AppLanguage, getCurrentLanguage } from '../i18n';
-import { idbPut, STORE_NOTIFICATION_PREFS } from '../utils/idbStorage';
+import { idbGet, idbPut, STORE_NOTIFICATION_PREFS } from '../utils/idbStorage';
 import { getSwRegistration } from './swManager';
+import {
+  buildReminderPlan,
+  EMPTY_ENGAGEMENT,
+  EngagementLog,
+  getEffectiveReminderMinutes,
+  MAX_SENT_LOG,
+  mergeSentLogs,
+  minutesToHHMM,
+  recordSession,
+  ReminderCopyFn,
+  ReminderGameContext,
+  ReminderKind,
+  ReminderPlanEntry,
+  ReminderPlanSettings,
+  ReminderRoute,
+  selectDueEntry,
+  shouldAskToKeepReminders,
+  } from './reminderPlanner';
 
-export type NotificationCategory =
-  | 'dailyPuzzle'
-  | 'continueAdventure'
-  | 'specialChallenges';
+/** 'streak' = daily-reward streak about to lapse */
+export type NotificationCategory = ReminderKind;
+
+/** 'auto' learns from when the player usually opens the game; 'manual' uses reminderTime. */
+export type ReminderTimingMode = 'auto' | 'manual';
 
 export type BrowserPermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
 
@@ -20,6 +39,7 @@ export type PeriodicSyncStatus = 'registered' | 'unsupported' | 'denied';
 
 export interface NotificationPreferences {
   enabled: boolean;
+  timingMode: ReminderTimingMode;
   reminderTime: string; // Local "HH:MM"
   quietHoursEnabled: boolean;
   quietStart: string; // Local "HH:MM"
@@ -33,17 +53,20 @@ const NOTIF_STORAGE_KEY = 'meowdoku_notifications_v1';
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
   enabled: false,
+  timingMode: 'auto',
   reminderTime: '19:00',
   quietHoursEnabled: true,
   quietStart: '22:00',
   quietEnd: '08:00',
   categories: {
+    streak: true,
     dailyPuzzle: true,
     continueAdventure: true,
     specialChallenges: true,
   },
   onboardingDismissed: false,
   lastSentDateByCategory: {
+    streak: null,
     dailyPuzzle: null,
     continueAdventure: null,
     specialChallenges: null,
@@ -53,53 +76,9 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
 export interface ReminderMessagePayload {
   title: string;
   body: string;
-  route: 'daily' | 'map' | 'missions';
+  route: ReminderRoute;
   category: NotificationCategory;
 }
-
-const REMINDER_MESSAGES: Record<
-  AppLanguage,
-  Record<NotificationCategory, readonly string[]>
-> = {
-  en: {
-    dailyPuzzle: [
-      'Your cats are waiting! 🐱 A new puzzle is ready.',
-      'Ready for another purr-fect challenge?',
-      'Today’s 8×8 Daily Kitty grid just arrived! 🐾',
-    ],
-    continueAdventure: [
-      'Ready for another purr-fect challenge?',
-      'Your Cat Journey awaits! Come unlock the next cozy stop. 🐾',
-      'Take a relaxing 2-minute logic break with your cats! 🐱',
-    ],
-    specialChallenges: [
-      'A special Golden Cat challenge is waiting in Events! ✨',
-      'Check your Daily Missions & claim shiny Fish Coins! 🐟',
-    ],
-  },
-  fr: {
-    dailyPuzzle: [
-      "Tes chats t'attendent ! 🐱 Un nouveau puzzle est prêt.",
-      'Prêt pour un nouveau défi ronronnant ?',
-      'La grille Chat du Jour 8×8 vient tout juste d’arriver ! 🐾',
-    ],
-    continueAdventure: [
-      'Prêt pour un nouveau défi ronronnant ?',
-      'Ton aventure féline t’attend ! Viens débloquer la prochaine étape. 🐾',
-      'Accorde-toi une pause logique toute douce avec tes chats ! 🐱',
-    ],
-    specialChallenges: [
-      'Un défi spécial Chat Doré t’attend dans les Événements ! ✨',
-      'Découvre tes missions du jour et récolte des pièces poisson ! 🐟',
-    ],
-  },
-};
-
-const CATEGORY_ROUTES: Record<NotificationCategory, 'daily' | 'map' | 'missions'> = {
-  dailyPuzzle: 'daily',
-  continueAdventure: 'map',
-  specialChallenges: 'missions',
-};
 
 export function getLocalDateKey(date = new Date()): string {
   const y = date.getFullYear();
@@ -132,96 +111,6 @@ export function isWithinQuietHours(
   return nowMinutes >= startMinutes || nowMinutes < endMinutes;
 }
 
-export function getLocalizedReminderCopy(
-  category: NotificationCategory,
-  lang: AppLanguage = getCurrentLanguage(),
-  date = new Date()
-): ReminderMessagePayload {
-  const pool = REMINDER_MESSAGES[lang][category];
-  const daySeed = date.getDate() + date.getMonth() * 31;
-  const body = pool[daySeed % pool.length]!;
-  return {
-    title: 'Meowdoku 🐱',
-    body,
-    route: CATEGORY_ROUTES[category],
-    category,
-  };
-}
-
-export interface DueReminderEvaluation {
-  due: boolean;
-  reason:
-    | 'disabled'
-    | 'before_time'
-    | 'quiet_hours'
-    | 'already_sent_today'
-    | 'no_categories'
-    | 'due';
-  category?: NotificationCategory;
-  route?: 'daily' | 'map' | 'missions';
-  dateKey: string;
-}
-
-/**
- * Pure, deterministic scheduler check evaluating whether a daily reminder is due right now
- * (or missed earlier today on launch) while strictly preventing duplicates and respecting quiet hours.
- */
-export function evaluateDueReminder(
-  prefs: NotificationPreferences,
-  now = new Date()
-): DueReminderEvaluation {
-  const dateKey = getLocalDateKey(now);
-  if (!prefs.enabled) {
-    return { due: false, reason: 'disabled', dateKey };
-  }
-
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const targetMin = parseTimeToMinutes(prefs.reminderTime);
-  if (nowMin < targetMin) {
-    return { due: false, reason: 'before_time', dateKey };
-  }
-
-  if (
-    prefs.quietHoursEnabled &&
-    isWithinQuietHours(
-      nowMin,
-      parseTimeToMinutes(prefs.quietStart),
-      parseTimeToMinutes(prefs.quietEnd)
-    )
-  ) {
-    return { due: false, reason: 'quiet_hours', dateKey };
-  }
-
-  const orderedCategories: NotificationCategory[] = [
-    'dailyPuzzle',
-    'continueAdventure',
-    'specialChallenges',
-  ];
-
-  const enabledCats = orderedCategories.filter((c) => prefs.categories[c]);
-  if (enabledCats.length === 0) {
-    return { due: false, reason: 'no_categories', dateKey };
-  }
-
-  // Strictly send at most ONE friendly reminder per day across active categories (no spam!)
-  const alreadySentAnyToday = orderedCategories.some(
-    (c) => prefs.lastSentDateByCategory[c] === dateKey
-  );
-  if (alreadySentAnyToday) {
-    return { due: false, reason: 'already_sent_today', dateKey };
-  }
-
-  // Rotate enabled categories gently by day-of-week so reminders stay varied and fresh
-  const chosen = enabledCats[now.getDay() % enabledCats.length]!;
-  return {
-    due: true,
-    reason: 'due',
-    category: chosen,
-    route: CATEGORY_ROUTES[chosen],
-    dateKey,
-  };
-}
-
 export function getBrowserNotificationPermission(): BrowserPermissionState {
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return 'unsupported';
@@ -235,8 +124,16 @@ export function loadNotificationPrefs(): NotificationPreferences {
     const raw = window.localStorage.getItem(NOTIF_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_NOTIFICATION_PREFS };
     const parsed = JSON.parse(raw) as Partial<NotificationPreferences>;
+    const timingMode: ReminderTimingMode =
+      parsed.timingMode === 'auto' || parsed.timingMode === 'manual'
+        ? parsed.timingMode
+        : // Saves from before Automatic timing: keep a time the player deliberately changed
+          typeof parsed.reminderTime === 'string' && parsed.reminderTime !== '19:00'
+          ? 'manual'
+          : 'auto';
     return {
       enabled: Boolean(parsed.enabled),
+      timingMode,
       reminderTime:
         typeof parsed.reminderTime === 'string' && /^\d{2}:\d{2}$/.test(parsed.reminderTime)
           ? parsed.reminderTime
@@ -254,6 +151,7 @@ export function loadNotificationPrefs(): NotificationPreferences {
           ? parsed.quietEnd
           : DEFAULT_NOTIFICATION_PREFS.quietEnd,
       categories: {
+        streak: typeof parsed.categories?.streak === 'boolean' ? parsed.categories.streak : true,
         dailyPuzzle:
           typeof parsed.categories?.dailyPuzzle === 'boolean'
             ? parsed.categories.dailyPuzzle
@@ -269,6 +167,7 @@ export function loadNotificationPrefs(): NotificationPreferences {
       },
       onboardingDismissed: Boolean(parsed.onboardingDismissed),
       lastSentDateByCategory: {
+        streak: parsed.lastSentDateByCategory?.streak ?? null,
         dailyPuzzle: parsed.lastSentDateByCategory?.dailyPuzzle ?? null,
         continueAdventure: parsed.lastSentDateByCategory?.continueAdventure ?? null,
         specialChallenges: parsed.lastSentDateByCategory?.specialChallenges ?? null,
@@ -289,19 +188,210 @@ export function subscribeNotificationPrefs(
   return () => prefListeners.delete(cb);
 }
 
-export function saveNotificationPrefs(prefs: NotificationPreferences): void {
-  if (typeof window !== 'undefined') {
-    try {
-      window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(prefs));
-    } catch {
-      // Ignore quota errors
-    }
+const CATEGORY_KEYS: readonly NotificationCategory[] = [
+  'streak',
+  'dailyPuzzle',
+  'continueAdventure',
+  'specialChallenges',
+];
+
+/**
+ * Merges "last sent" dates from two sources, keeping the most recent date per category.
+ * The page (LocalStorage) and the Service Worker (IndexedDB) can both send reminders, so
+ * neither copy may overwrite a newer send recorded by the other — that is what prevents a
+ * second reminder on the same day.
+ */
+export function mergeLastSentDates(
+  a: Partial<Record<NotificationCategory, string | null>> | undefined,
+  b: Partial<Record<NotificationCategory, string | null>> | undefined
+): Record<NotificationCategory, string | null> {
+  const out = {} as Record<NotificationCategory, string | null>;
+  for (const k of CATEGORY_KEYS) {
+    const x = typeof a?.[k] === 'string' ? a[k]! : null;
+    const y = typeof b?.[k] === 'string' ? b[k]! : null;
+    out[k] = x && y ? (x > y ? x : y) : (x ?? y);
   }
-  // Mirror to IndexedDB with current language so Service Worker can read it offline
-  void idbPut(STORE_NOTIFICATION_PREFS, 'prefs', {
-    ...prefs,
-    language: getCurrentLanguage(),
-  });
+  return out;
+}
+
+/** Shape of the record shared with the Service Worker in IndexedDB. */
+interface ReminderMirror extends Partial<NotificationPreferences> {
+  language?: AppLanguage;
+  plan?: ReminderPlanEntry[];
+  sentLog?: EngagementLog['sentLog'];
+}
+
+const ENGAGEMENT_STORAGE_KEY = 'meowdoku_reminder_engagement_v1';
+
+/** On-device history used for timing and back-off; it never leaves the browser. */
+export function loadEngagement(): EngagementLog {
+  if (typeof window === 'undefined') return { ...EMPTY_ENGAGEMENT };
+  try {
+    const raw = window.localStorage.getItem(ENGAGEMENT_STORAGE_KEY);
+    if (!raw) return { ...EMPTY_ENGAGEMENT };
+    const parsed = JSON.parse(raw) as Partial<EngagementLog>;
+    return {
+      sessionStarts: Array.isArray(parsed.sessionStarts)
+        ? parsed.sessionStarts.filter((t): t is number => typeof t === 'number').slice(-40)
+        : [],
+      sentLog: mergeSentLogs(Array.isArray(parsed.sentLog) ? parsed.sentLog : []),
+      pauseAskedFor: typeof parsed.pauseAskedFor === 'number' ? parsed.pauseAskedFor : null,
+    };
+  } catch {
+    return { ...EMPTY_ENGAGEMENT };
+  }
+}
+
+function saveEngagement(log: EngagementLog): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(ENGAGEMENT_STORAGE_KEY, JSON.stringify(log));
+  } catch {
+    // Ignore quota errors
+  }
+}
+
+let contextProvider: (() => ReminderGameContext) | null = null;
+
+/** The app registers a getter for the game state the planner needs (avoids a store import). */
+export function setReminderContextProvider(provider: (() => ReminderGameContext) | null): void {
+  contextProvider = provider;
+}
+
+function toPlanSettings(prefs: NotificationPreferences): ReminderPlanSettings {
+  return {
+    enabled: prefs.enabled,
+    timingMode: prefs.timingMode,
+    manualMinutes: parseTimeToMinutes(prefs.reminderTime),
+    quietHoursEnabled: prefs.quietHoursEnabled,
+    quietStartMinutes: parseTimeToMinutes(prefs.quietStart),
+    quietEndMinutes: parseTimeToMinutes(prefs.quietEnd),
+    categories: prefs.categories,
+  };
+}
+
+/** Localized, event-specific reminder text. */
+export function makeReminderCopy(lang: AppLanguage): ReminderCopyFn {
+  return (kind, { count, level, variant }) => {
+    const t = (key: string, opts: Record<string, unknown> = {}) =>
+      i18n.t(`notifications.msg.${key}`, { lng: lang, ...opts });
+    const body =
+      kind === 'streak'
+        ? t('streak', { count })
+        : kind === 'dailyPuzzle'
+          ? t(`daily_${variant % 2}`)
+          : kind === 'specialChallenges'
+            ? t('golden')
+            : t('continue', { level });
+    return { title: t('title'), body };
+  };
+}
+
+/** Learned/manual reminder time shown in settings. */
+export function getReminderTimeInfo(
+  prefs: NotificationPreferences = loadNotificationPrefs(),
+  now = Date.now()
+): { time: string; learned: boolean } {
+  const { minutes, learned } = getEffectiveReminderMinutes(
+    toPlanSettings(prefs),
+    loadEngagement(),
+    now
+  );
+  return { time: minutesToHHMM(minutes), learned };
+}
+
+export function computeReminderPlan(
+  prefs: NotificationPreferences,
+  log: EngagementLog,
+  now = Date.now(),
+  lang: AppLanguage = getCurrentLanguage()
+): ReminderPlanEntry[] {
+  if (!contextProvider) return [];
+  return buildReminderPlan(toPlanSettings(prefs), log, contextProvider(), now, makeReminderCopy(lang));
+}
+
+/**
+ * Pulls sends recorded by the Service Worker into local state, then writes the shared
+ * IndexedDB record (prefs + merged send history + a fresh 14-day plan in the current
+ * language). Calls are serialized so concurrent writes can never drop a send.
+ */
+let mirrorChain: Promise<void> = Promise.resolve();
+function syncReminderMirror(): Promise<void> {
+  mirrorChain = mirrorChain
+    .catch(() => undefined)
+    .then(async () => {
+      const existing = await idbGet<ReminderMirror>(STORE_NOTIFICATION_PREFS, 'prefs').catch(
+        () => null
+      );
+      const local = loadNotificationPrefs();
+      const prefs: NotificationPreferences = {
+        ...local,
+        lastSentDateByCategory: mergeLastSentDates(
+          local.lastSentDateByCategory,
+          existing?.lastSentDateByCategory
+        ),
+      };
+      const engagement = loadEngagement();
+      const mergedLog: EngagementLog = {
+        ...engagement,
+        sentLog: mergeSentLogs(engagement.sentLog, existing?.sentLog),
+      };
+      saveEngagement(mergedLog);
+      writeLocalPrefs(prefs);
+      const mirror: ReminderMirror = {
+        ...prefs,
+        language: getCurrentLanguage(),
+        plan: computeReminderPlan(prefs, mergedLog),
+        sentLog: mergedLog.sentLog,
+      };
+      await idbPut(STORE_NOTIFICATION_PREFS, 'prefs', mirror);
+    });
+  return mirrorChain;
+}
+
+let refreshTimer: number | null = null;
+/** Recompute the plan soon (debounced) — call after game-state changes. */
+export function refreshReminderPlan(): void {
+  if (typeof window === 'undefined') return;
+  if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = null;
+    void syncReminderMirror();
+  }, 250);
+}
+
+/** Records that the player opened/returned to the game (deduplicated per 90 minutes). */
+export function recordAppSession(now = Date.now()): void {
+  const log = loadEngagement();
+  const next = recordSession(log, now);
+  if (next !== log) saveEngagement(next);
+  refreshReminderPlan();
+}
+
+/** Reminders stopped after being ignored repeatedly — ask the returning player once. */
+export function needsKeepRemindersCheckIn(): boolean {
+  return shouldAskToKeepReminders(loadNotificationPrefs().enabled, loadEngagement());
+}
+
+export function markKeepRemindersAsked(): void {
+  const log = loadEngagement();
+  const lastSent = log.sentLog[log.sentLog.length - 1]?.sentAt ?? null;
+  saveEngagement({ ...log, pauseAskedFor: lastSent });
+}
+
+function writeLocalPrefs(prefs: NotificationPreferences): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    // Ignore quota errors
+  }
+}
+
+export function saveNotificationPrefs(prefs: NotificationPreferences): void {
+  writeLocalPrefs(prefs);
+  // Mirror to IndexedDB (with the plan and language) so the Service Worker can act offline
+  void syncReminderMirror();
   for (const cb of prefListeners) {
     cb(prefs);
   }
@@ -451,24 +541,56 @@ export function startLocalReminderScheduler(
 ): () => void {
   if (typeof window === 'undefined') return () => {};
 
+  let checking = false;
   const checkAndDeliver = async () => {
+    if (checking) return;
+    checking = true;
+    try {
+      await checkAndDeliverOnce();
+    } finally {
+      checking = false;
+    }
+  };
+
+  const checkAndDeliverOnce = async () => {
+    if (!loadNotificationPrefs().enabled) return;
+    // Pull in sends made by the Service Worker (Periodic Background Sync) while closed
+    await syncReminderMirror();
     const prefs = loadNotificationPrefs();
-    const evaluation = evaluateDueReminder(prefs, new Date());
-    if (!evaluation.due || !evaluation.category) return;
+    const log = loadEngagement();
+    const now = new Date();
+    const plan = computeReminderPlan(prefs, log, now.getTime());
+    const sentDates = [
+      ...Object.values(prefs.lastSentDateByCategory),
+      ...log.sentLog.map((x) => x.dateKey),
+    ];
+    const entry = selectDueEntry(plan, toPlanSettings(prefs), sentDates, now);
+    if (!entry) return;
 
-    const copy = getLocalizedReminderCopy(evaluation.category, getCurrentLanguage(), new Date());
-
-    // Mark sent BEFORE async dispatch to guarantee zero duplicates on rapid checks
-    const updated: NotificationPreferences = {
+    // Record the send BEFORE async dispatch so rapid checks can never duplicate it
+    saveEngagement({
+      ...log,
+      sentLog: mergeSentLogs(log.sentLog, [
+        { dateKey: entry.dateKey, sentAt: now.getTime(), kind: entry.kind },
+      ]).slice(-MAX_SENT_LOG),
+    });
+    saveNotificationPrefs({
       ...prefs,
-      lastSentDateByCategory: {
-        ...prefs.lastSentDateByCategory,
-        [evaluation.category]: evaluation.dateKey,
-      },
-    };
-    saveNotificationPrefs(updated);
+      lastSentDateByCategory: { ...prefs.lastSentDateByCategory, [entry.kind]: entry.dateKey },
+    });
 
-    const deliveredViaBrowser = await deliverLocalNotification(copy);
+    const copy: ReminderMessagePayload = {
+      title: entry.title,
+      body: entry.body,
+      route: entry.route,
+      category: entry.kind,
+    };
+    // While the player is looking at the game, a gentle in-app message is enough;
+    // a system notification is only useful when the app is in the background.
+    const appInForeground =
+      document.visibilityState === 'visible' &&
+      (typeof document.hasFocus !== 'function' || document.hasFocus());
+    const deliveredViaBrowser = appInForeground ? false : await deliverLocalNotification(copy);
     if (!deliveredViaBrowser && onInAppReminder) {
       onInAppReminder(copy);
     }
@@ -493,9 +615,9 @@ export function startLocalReminderScheduler(
   };
   document.addEventListener('visibilitychange', onVisibility);
 
-  // Keep IDB language synced whenever user switches English <-> French
+  // Re-localize the planned reminders whenever the player switches English <-> French
   const onLangChanged = () => {
-    saveNotificationPrefs(loadNotificationPrefs());
+    refreshReminderPlan();
   };
   i18n.on('languageChanged', onLangChanged);
 

@@ -1,5 +1,5 @@
 /* Meowdoku Offline-First Service Worker (Zero-Server PWA) */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v5';
 const SHELL_CACHE = `meowdoku-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `meowdoku-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `meowdoku-fonts-${CACHE_VERSION}`;
@@ -282,35 +282,11 @@ function writeNotificationPrefsToIDB(prefs) {
   });
 }
 
-const SW_MESSAGES = {
-  en: {
-    dailyPuzzle: [
-      'Your cats are waiting! 🐱 A new puzzle is ready.',
-      'Ready for another purr-fect challenge?',
-    ],
-    continueAdventure: [
-      'Your Cat Journey awaits! Ready for the next stop? 🐾',
-      'Come back for a cozy logic break with your cats!',
-    ],
-    specialChallenges: [
-      'A special weekly cat challenge is ready to explore! ✨',
-    ],
-  },
-  fr: {
-    dailyPuzzle: [
-      "Tes chats t'attendent ! 🐱 Un nouveau puzzle est prêt.",
-      'Prêt pour un nouveau défi ronronnant ?',
-    ],
-    continueAdventure: [
-      'Ton aventure féline continue ! Prêt pour le prochain niveau ? 🐾',
-      'Une petite pause logique avec tes chats ?',
-    ],
-    specialChallenges: [
-      'Un défi félin spécial t’attend dans les événements ! ✨',
-    ],
-  },
-};
-
+/*
+ * The page builds a localized day-by-day reminder plan on-device (automatic timing, no
+ * reminder on days already played, event-based messages, back-off when ignored) and stores
+ * it here. The worker only delivers today's entry — it never invents its own message.
+ */
 self.addEventListener('periodicsync', (event) => {
   if (event.tag !== 'meowdoku-daily-reminder') return;
 
@@ -320,59 +296,38 @@ self.addEventListener('periodicsync', (event) => {
       if (!prefs || !prefs.enabled) return;
 
       const now = new Date();
+      const today = getTodayKey();
+      const plan = Array.isArray(prefs.plan) ? prefs.plan : [];
+      const entry = plan.find((e) => e && e.dateKey === today);
+      if (!entry || typeof entry.body !== 'string') return;
+
       const nowMin = now.getHours() * 60 + now.getMinutes();
-      const targetMin = parseHHMM(prefs.reminderTime);
+      if (nowMin < Number(entry.notBeforeMinutes)) return;
 
-      // Only deliver at or after the user's preferred time
-      if (nowMin < targetMin) return;
-
-      // Respect quiet hours
       if (
         prefs.quietHoursEnabled &&
-        isInsideQuietHours(
-          nowMin,
-          parseHHMM(prefs.quietStart),
-          parseHHMM(prefs.quietEnd)
-        )
+        isInsideQuietHours(nowMin, parseHHMM(prefs.quietStart), parseHHMM(prefs.quietEnd))
       ) {
         return;
       }
 
-      const today = getTodayKey();
+      // At most ONE reminder per day, whoever (page or worker) sent it
       const lastSent = prefs.lastSentDateByCategory || {};
-      const cats = prefs.categories || {};
-
-      let category = null;
-      let route = 'daily';
-      if (cats.dailyPuzzle && lastSent.dailyPuzzle !== today) {
-        category = 'dailyPuzzle';
-        route = 'daily';
-      } else if (cats.continueAdventure && lastSent.continueAdventure !== today) {
-        category = 'continueAdventure';
-        route = 'map';
-      } else if (cats.specialChallenges && lastSent.specialChallenges !== today) {
-        category = 'specialChallenges';
-        route = 'missions';
+      const sentLog = Array.isArray(prefs.sentLog) ? prefs.sentLog : [];
+      if (Object.values(lastSent).includes(today) || sentLog.some((x) => x && x.dateKey === today)) {
+        return;
       }
 
-      if (!category) return;
-
-      const lang = prefs.language === 'fr' ? 'fr' : 'en';
-      const pool = SW_MESSAGES[lang][category];
-      const body = pool[now.getDate() % pool.length];
-
-      await self.registration.showNotification('Meowdoku 🐱', {
-        body,
+      await self.registration.showNotification(entry.title || 'Meowdoku 🐱', {
+        body: entry.body,
         icon: '/icons/icon-192.png',
         badge: '/icons/favicon-32.png',
-        tag: `meowdoku-${category}-${today}`,
-        data: { route, category, dateKey: today },
+        tag: `meowdoku-${today}`,
+        data: { route: entry.route || 'daily', category: entry.kind, dateKey: today },
       });
 
-      prefs.lastSentDateByCategory = {
-        ...lastSent,
-        [category]: today,
-      };
+      prefs.lastSentDateByCategory = { ...lastSent, [entry.kind]: today };
+      prefs.sentLog = [...sentLog, { dateKey: today, sentAt: Date.now(), kind: entry.kind }].slice(-20);
       await writeNotificationPrefsToIDB(prefs);
     })()
   );

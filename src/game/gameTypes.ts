@@ -32,7 +32,14 @@ export type LogicalTechnique =
   | 'region_line_intersection'
   | 'line_region_intersection'
   | 'region_adjacency_exclusion'
+  /** A tile that would block every remaining spot of a row or column */
+  | 'line_adjacency_exclusion'
+  /** N regions confined to N rows/columns (pigeonhole) */
   | 'naked_pair_regions'
+  /** N rows/columns whose candidates all lie in N regions (dual pigeonhole) */
+  | 'line_group_confinement'
+  /** One-step "what if" test: placing a cat leads to an empty region/row/column */
+  | 'contradiction_chain'
   | 'oracle_fallback';
 
 export interface DifficultyAnalysis {

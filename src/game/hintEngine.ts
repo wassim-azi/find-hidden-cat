@@ -134,35 +134,56 @@ export function getProgressiveHint(
 
   // Stage 2: Explain the Deduction (teaches the logic without placing or spotlighting exact cell)
   if (stage === 2) {
+    // The explanation always names the technique the solver really needed, so the text can
+    // never contradict the board (e.g. a column-based deduction is never described as a row).
+    const region = targetRegName.toLowerCase();
+    const helperRegion =
+      deduction.helperRegionId !== undefined
+        ? localizedRegionName(deduction.helperRegionId).toLowerCase()
+        : region;
+    const line = deduction.helperLine
+      ? i18n.t(deduction.helperLine.type === 'row' ? 'hints.lineRow' : 'hints.lineCol', {
+          n: deduction.helperLine.index + 1,
+        })
+      : null;
+    const explanationTechnique =
+      deduction.technique === 'oracle_fallback' ? 'oracle_fallback' : deduction.helperTechnique;
+
     let message: string;
-    if (deduction.helperTechnique === 'region_line_intersection' && deduction.helperRegionId !== undefined) {
-      const helperReg = localizedRegionName(deduction.helperRegionId).toLowerCase();
-      message = i18n.t('hints.explainIntersection', {
-        helperRegion: helperReg,
-        region: focusRegName.toLowerCase(),
-        row: target.row + 1,
-      });
-    } else if (deduction.helperTechnique === 'region_adjacency_exclusion' && deduction.helperRegionId !== undefined) {
-      const helperReg = localizedRegionName(deduction.helperRegionId).toLowerCase();
-      message = i18n.t('hints.explainAdjacency', {
-        helperRegion: helperReg,
-        region: focusRegName.toLowerCase(),
-      });
-    } else if (deduction.focusType === 'row') {
-      message = i18n.t('hints.explainRow', {
-        row: deduction.focusIndex + 1,
-        region: targetRegName.toLowerCase(),
-      });
-    } else if (deduction.focusType === 'col') {
-      message = i18n.t('hints.explainCol', {
-        col: deduction.focusIndex + 1,
-        region: targetRegName.toLowerCase(),
-      });
-    } else {
-      message = i18n.t('hints.explainRegion', {
-        region: focusRegName.toLowerCase(),
-        row: target.row + 1,
-      });
+    switch (explanationTechnique) {
+      case 'oracle_fallback':
+        message = i18n.t('hints.explainFallback', { region });
+        break;
+      case 'region_line_intersection':
+        message = i18n.t('hints.explainIntersection', { helperRegion, region });
+        break;
+      case 'line_region_intersection':
+        message = line
+          ? i18n.t('hints.explainLineRegion', { line, helperRegion, region })
+          : i18n.t('hints.explainIntersection', { helperRegion, region });
+        break;
+      case 'region_adjacency_exclusion':
+        message = i18n.t('hints.explainAdjacency', { helperRegion, region });
+        break;
+      case 'line_adjacency_exclusion':
+        message = line
+          ? i18n.t('hints.explainLineAdjacency', { line, region })
+          : i18n.t('hints.explainAdjacency', { helperRegion, region });
+        break;
+      case 'naked_pair_regions':
+      case 'line_group_confinement':
+        message = i18n.t('hints.explainGroup', { region });
+        break;
+      case 'contradiction_chain':
+        message = i18n.t('hints.explainContradiction', { region });
+        break;
+      default:
+        message =
+          deduction.focusType === 'row'
+            ? i18n.t('hints.explainRow', { row: deduction.focusIndex + 1 })
+            : deduction.focusType === 'col'
+              ? i18n.t('hints.explainCol', { col: deduction.focusIndex + 1 })
+              : i18n.t('hints.explainRegion', { region: focusRegName.toLowerCase() });
     }
 
     return {

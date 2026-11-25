@@ -357,7 +357,9 @@ export const GameScreen: React.FC = () => {
                     >
                       <Check className="w-3 h-3" strokeWidth={3} />
                       {activeHint.applyValue === 'cat'
-                        ? t('game.hintPlace')
+                        ? boosters.hint > 0
+                          ? t('game.hintPlaceCost', { count: boosters.hint })
+                          : t('game.hintGetToken')
                         : t('game.hintFix')}
                     </button>
                   )}

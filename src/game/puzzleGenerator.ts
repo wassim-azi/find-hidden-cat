@@ -386,6 +386,8 @@ export function generateValidatedPuzzle(
         parTimeSec,
       };
       candidatePuzzle.analysis = analyzePuzzleDifficulty(candidatePuzzle);
+      // Never publish a puzzle that needs guessing: it must be solvable by pure logic
+      if (!candidatePuzzle.analysis.solvableByHumanLogic) continue;
       return candidatePuzzle;
     }
   }

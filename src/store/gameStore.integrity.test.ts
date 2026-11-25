@@ -1,0 +1,193 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { useGameStore } from './gameStore';
+import { isResumableSave, resolveSessionGameMode } from './sessionGuards';
+import { CellCoord, MAX_CLASSIC_HEARTS, PuzzleDefinition, coordsEqual } from '../game/gameTypes';
+import { createInitialBoard } from '../game/puzzleEngine';
+import { getLevelPuzzle } from '../game/levels';
+import { getPlacedCats } from '../game/validation';
+
+const S = () => useGameStore.getState();
+
+function wrongCellFor(puzzle: PuzzleDefinition): CellCoord {
+  // A tile that conflicts with nothing on the starting board but is not in the solution
+  for (let r = 0; r < puzzle.size; r++) {
+    for (let c = 0; c < puzzle.size; c++) {
+      const cell = { row: r, col: c };
+      if (S().board[r]![c] !== 'empty') continue;
+      if (!puzzle.solution.some((s) => coordsEqual(s, cell))) return cell;
+    }
+  }
+  throw new Error('no wrong cell');
+}
+
+function solveCurrentPuzzle(): void {
+  const { puzzle } = S();
+  for (const cat of puzzle.solution) {
+    if (S().board[cat.row]![cat.col] !== 'cat') S().attemptPlaceCat(cat);
+  }
+}
+
+function unlockAll(): void {
+  useGameStore.setState({ unlockedLevelId: 24 });
+}
+
+describe('Heart system integrity', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+  });
+
+  it('does not resume a Classic board with 0 hearts after leaving the Out-of-Hearts screen', () => {
+    S().startLevel(2, false);
+    const wrong = wrongCellFor(S().puzzle);
+    const good = S().puzzle.solution.find(
+      (s) => !S().puzzle.initialCats.some((ic) => coordsEqual(ic, s))
+    )!;
+    S().attemptPlaceCat(good);
+    for (let i = 0; i < MAX_CLASSIC_HEARTS; i++) S().attemptPlaceCat(wrong);
+    expect(S().outOfHearts).toBe(true);
+
+    S().goToScreen('map');
+    S().continueGame();
+
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+    expect(S().outOfHearts).toBe(false);
+    // Classic rules: running out of hearts restarts the level
+    expect(S().board[good.row]![good.col]).not.toBe('cat');
+  });
+
+  it('defers Practice → Classic until the next puzzle so practice mistakes cannot earn Classic stars', () => {
+    S().startLevel(3, false);
+    S().updateSetting('gameMode', 'practice');
+    expect(S().gameMode).toBe('practice');
+
+    const wrong = wrongCellFor(S().puzzle);
+    S().attemptPlaceCat(wrong);
+    S().attemptPlaceCat(wrong);
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+
+    S().updateSetting('gameMode', 'classic');
+    expect(S().settings.gameMode).toBe('classic');
+    expect(S().gameMode).toBe('practice');
+
+    solveCurrentPuzzle();
+    const summary = S().victorySummary!;
+    expect(summary).not.toBeNull();
+    expect(summary.isPracticeMode).toBe(true);
+    expect(summary.stars).toBe(1);
+
+    // Next puzzle honours the Classic preference
+    S().startNextLevel();
+    expect(S().gameMode).toBe('classic');
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+  });
+
+  it('switching back to Classic after continuing in Practice does not refill hearts', () => {
+    S().startLevel(2, false);
+    const wrong = wrongCellFor(S().puzzle);
+    for (let i = 0; i < MAX_CLASSIC_HEARTS; i++) S().attemptPlaceCat(wrong);
+    S().continueInPracticeMode();
+    S().setGameMode('classic');
+    expect(S().gameMode).toBe('practice');
+    expect(S().hearts).toBe(0);
+
+    // A deliberate restart is a new Classic attempt with full hearts
+    S().restartLevel();
+    expect(S().gameMode).toBe('classic');
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+  });
+
+  it('allows choosing Classic before any move has been made', () => {
+    S().updateSetting('gameMode', 'practice');
+    S().startLevel(2, false);
+    expect(S().gameMode).toBe('practice');
+    S().setGameMode('classic');
+    expect(S().gameMode).toBe('classic');
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+  });
+
+  it('resolveSessionGameMode only defers upgrades of a started puzzle', () => {
+    const base = { gameMode: 'practice' as const, elapsedSec: 0, mistakesCount: 0, hintsUsed: 0, undoStackLength: 0, isSolved: false };
+    expect(resolveSessionGameMode(base, 'classic')).toEqual({ sessionMode: 'classic', deferred: false });
+    expect(resolveSessionGameMode({ ...base, elapsedSec: 4 }, 'classic')).toEqual({ sessionMode: 'practice', deferred: true });
+    expect(resolveSessionGameMode({ ...base, gameMode: 'classic', elapsedSec: 9 }, 'practice')).toEqual({ sessionMode: 'practice', deferred: false });
+  });
+});
+
+describe('Saved session safety', () => {
+  const lvl1 = getLevelPuzzle(1);
+  const baseSave = () => ({
+    levelId: 1,
+    board: createInitialBoard(lvl1),
+    elapsedSec: 10,
+    hintsUsed: 0,
+    hearts: 2,
+    gameMode: 'classic' as const,
+  });
+
+  it('accepts a consistent save', () => {
+    expect(isResumableSave(baseSave(), lvl1)).toBe(true);
+  });
+
+  it('rejects a Classic save with 0 hearts', () => {
+    expect(isResumableSave({ ...baseSave(), hearts: 0 }, lvl1)).toBe(false);
+    expect(isResumableSave({ ...baseSave(), hearts: 0, gameMode: 'practice' }, lvl1)).toBe(true);
+  });
+
+  it('rejects a save whose cats are not in the solution (layout changed / tampered)', () => {
+    const save = baseSave();
+    const wrong = (() => {
+      for (let r = 0; r < 6; r++)
+        for (let c = 0; c < 6; c++)
+          if (!lvl1.solution.some((s) => s.row === r && s.col === c)) return { row: r, col: c };
+      throw new Error();
+    })();
+    save.board[wrong.row]![wrong.col] = 'cat';
+    expect(isResumableSave(save, lvl1)).toBe(false);
+  });
+
+  it('rejects a save for another level, wrong size, or missing starter cats', () => {
+    expect(isResumableSave({ ...baseSave(), levelId: 2 }, lvl1)).toBe(false);
+    expect(isResumableSave({ ...baseSave(), board: createInitialBoard(getLevelPuzzle(24)) }, lvl1)).toBe(false);
+    const noStarter = baseSave();
+    const st = lvl1.initialCats[0]!;
+    noStarter.board[st.row]![st.col] = 'empty';
+    expect(isResumableSave(noStarter, lvl1)).toBe(false);
+  });
+});
+
+describe('Campaign and Daily progress survive each other', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+  });
+
+  it('playing the Daily Kitty does not wipe the in-progress campaign board', () => {
+    S().startLevel(5, false);
+    const campaignCat = S().puzzle.solution[0]!;
+    S().attemptPlaceCat(campaignCat);
+    expect(S().board[campaignCat.row]![campaignCat.col]).toBe('cat');
+
+    S().startDailyChallenge();
+    const dailyCat = S().puzzle.solution[0]!;
+    S().attemptPlaceCat(dailyCat);
+    S().goToScreen('map');
+
+    S().continueGame();
+    expect(S().puzzle.id).toBe(5);
+    expect(S().board[campaignCat.row]![campaignCat.col]).toBe('cat');
+
+    // ...and the Daily board is resumed as well
+    S().startDailyChallenge();
+    expect(S().board[dailyCat.row]![dailyCat.col]).toBe('cat');
+  });
+
+  it('a solved Daily starts fresh when replayed', () => {
+    S().startDailyChallenge();
+    solveCurrentPuzzle();
+    expect(S().victorySummary).not.toBeNull();
+    S().goToScreen('map');
+    S().startDailyChallenge();
+    expect(getPlacedCats(S().board)).toHaveLength(S().puzzle.initialCats.length);
+  });
+});

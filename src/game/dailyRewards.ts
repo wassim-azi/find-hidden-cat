@@ -90,7 +90,10 @@ export function canClaimDailyReward(
   state: DailyLoginState,
   todayKey: string
 ): boolean {
-  return state.lastClaimDateKey !== todayKey;
+  if (!state.lastClaimDateKey) return true;
+  // Only a strictly later calendar day can be claimed: moving the device clock (or timezone)
+  // backwards must not unlock an extra reward.
+  return parseDateKeyToDays(todayKey) > parseDateKeyToDays(state.lastClaimDateKey);
 }
 
 /**

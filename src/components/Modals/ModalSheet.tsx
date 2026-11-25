@@ -45,7 +45,7 @@ export const ModalSheet: React.FC<ModalSheetProps> = ({
             exit={{ opacity: 0, scale: 0.92, y: 12 }}
             transition={{ type: 'spring', stiffness: 420, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className={`w-full ${maxWidthClass} bg-[#FFFDF9] rounded-[28px] border border-[#EAE0D2] shadow-[0_24px_48px_rgba(46,36,30,0.24)] overflow-hidden`}
+            className={`w-full ${maxWidthClass} max-h-full overflow-y-auto overscroll-contain bg-[#FFFDF9] rounded-[28px] border border-[#EAE0D2] shadow-[0_24px_48px_rgba(46,36,30,0.24)]`}
           >
             {children}
           </motion.div>

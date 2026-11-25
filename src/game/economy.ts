@@ -113,6 +113,19 @@ export function calculateLevelCoinReward(params: {
   worldMilestoneBonus: number;
   isDaily?: boolean;
 }): LevelRewardBreakdown {
+  // A Daily / Golden puzzle pays out once: replaying an already-solved one (whose answer the
+  // player now knows) must not mint the daily reward again.
+  if (params.isDaily && !params.isFirstCompletion) {
+    return {
+      baseCoins: 0,
+      firstClearBonus: 0,
+      starBonus: 0,
+      specialNodeBonus: 0,
+      worldMilestoneBonus: 0,
+      totalCoins: 0,
+    };
+  }
+
   const baseCoins = params.isDaily
     ? 45
     : params.difficulty === 'easy'
