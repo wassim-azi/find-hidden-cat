@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFE0A3"/>
+      <stop offset="100%" stop-color="#FF9B9B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+  <!-- Cat Ears -->
+  <path d="M126 225 L112 118 Q110 98 130 108 L212 162 Z" fill="#2E2930"/>
+  <path d="M138 202 L131 134 L190 172 Z" fill="#F9B4C4"/>
+  <path d="M386 225 L400 118 Q402 98 382 108 L300 162 Z" fill="#2E2930"/>
+  <path d="M374 202 L381 134 L322 172 Z" fill="#F9B4C4"/>
+  <!-- Cat Head -->
+  <ellipse cx="256" cy="285" rx="154" ry="132" fill="#2E2930"/>
+  <!-- White muzzle/cheeks tuxedo pattern -->
+  <path d="M108 308 Q112 406 256 416 Q400 406 404 308 Q365 294 316 308 Q282 280 256 244 Q230 280 196 308 Q147 294 108 308 Z" fill="#FFFDF9"/>
+  <!-- Eyes -->
+  <circle cx="192" cy="274" r="24" fill="#FFFDF9"/>
+  <circle cx="196" cy="274" r="14" fill="#231F20"/>
+  <circle cx="190" cy="267" r="5" fill="#FFFFFF"/>
+  <circle cx="320" cy="274" r="24" fill="#FFFDF9"/>
+  <circle cx="316" cy="274" r="14" fill="#231F20"/>
+  <circle cx="310" cy="267" r="5" fill="#FFFFFF"/>
+  <!-- Rosy Cheeks -->
+  <ellipse cx="152" cy="316" rx="22" ry="12" fill="#FFA6B8" opacity="0.65"/>
+  <ellipse cx="360" cy="316" rx="22" ry="12" fill="#FFA6B8" opacity="0.65"/>
+  <!-- Nose -->
+  <path d="M244 304 Q256 296 268 304 Q256 320 244 304 Z" fill="#FF8DA1"/>
+  <!-- Mouth -->
+  <path d="M256 316 Q244 334 230 326 M256 316 Q268 334 282 326" fill="none" stroke="#3A312C" stroke-width="7" stroke-linecap="round"/>
+</svg>

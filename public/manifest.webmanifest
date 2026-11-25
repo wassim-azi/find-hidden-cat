@@ -1,0 +1,19 @@
+{
+  "name": "Meowdoku — Find the Hidden Cats",
+  "short_name": "Meowdoku",
+  "description": "Think smart. Find the cats. A cozy pastel logic puzzle game.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF5EC",
+  "theme_color": "#FAF5EC",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    {
+      "src": "/cat-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

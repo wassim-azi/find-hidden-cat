@@ -1,0 +1,256 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-cream: #FAF5EC;
+    --bg-cream-deep: #F2E8D8;
+    --surface-card: #FFFFFF;
+    --surface-soft: #F7F1E6;
+    --text-primary: #3A312C;
+    --text-secondary: #7E7067;
+    --text-muted: #A99B90;
+    --accent-coral: #FF7A7A;
+    --accent-coral-dark: #EA6161;
+    --accent-lavender: #9B86D4;
+    --accent-mint: #6EB58E;
+    --accent-gold: #F4B942;
+    --shadow-soft: 0 4px 16px rgba(92, 69, 52, 0.07);
+    --shadow-card: 0 8px 24px rgba(92, 69, 52, 0.09);
+    --shadow-float: 0 10px 28px rgba(72, 52, 38, 0.14);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-cream);
+    color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+}
+
+/* Mobile-only centered app shell on desktop screens */
+.app-backdrop {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 209, 168, 0.5) 0%, transparent 45%),
+    radial-gradient(circle at 84% 85%, rgba(190, 173, 240, 0.42) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 246, 232, 0.7) 0%, transparent 70%),
+    linear-gradient(155deg, #EFE5D5 0%, #E5D6C0 100%);
+}
+
+.mobile-viewport {
+  background:
+    radial-gradient(circle at 50% 0%, #FFFDF9 0%, #FAF5EC 52%, #F3E9DA 100%);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* Tactile ceramic card surfaces */
+.meow-card {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(226, 214, 198, 0.75);
+  box-shadow:
+    0 4px 14px rgba(92, 69, 52, 0.065),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.meow-board-frame {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FDFBF7 100%);
+  border: 1.5px solid rgba(232, 222, 208, 0.95);
+  box-shadow:
+    0 14px 36px rgba(92, 69, 52, 0.12),
+    0 3px 8px rgba(92, 69, 52, 0.06),
+    inset 0 1.5px 0 rgba(255, 255, 255, 1);
+}
+
+.meow-toolbar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(232, 222, 208, 0.95);
+  box-shadow:
+    0 12px 28px rgba(72, 52, 38, 0.13),
+    0 2px 6px rgba(72, 52, 38, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Smooth custom scrollbar inside scrollable sheets */
+.soft-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.soft-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pillowy glossy highlight on puzzle tiles */
+.tile-gloss {
+  box-shadow:
+    inset 0 2.5px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -3px 0 rgba(45, 32, 24, 0.14);
+}
+
+/* ============================================================
+   GPU-ONLY 120FPS MICRO-ANIMATIONS FOR GAME CELLS & CATS
+   Zero React/Framer-Motion reconciliation overhead per tile!
+   ============================================================ */
+
+.game-cell {
+  transform: translate3d(0, 0, 0) scale(1);
+  transition:
+    transform 120ms cubic-bezier(0.22, 1.35, 0.36, 1),
+    filter 140ms ease,
+    box-shadow 140ms ease;
+  will-change: transform;
+  contain: layout style;
+}
+
+.game-cell:active {
+  transform: translate3d(0, 0, 0) scale(0.92);
+}
+
+.game-cell-selected {
+  transform: translate3d(0, 0, 0) scale(1.06);
+}
+
+@keyframes catPopIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.32);
+  }
+  58% {
+    opacity: 1;
+    transform: translate3d(0, -3px, 0) scale(1.12, 0.92);
+  }
+  80% {
+    transform: translate3d(0, 1px, 0) scale(0.96, 1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.anim-cat-pop {
+  animation: catPopIn 320ms cubic-bezier(0.22, 1.28, 0.36, 1) both;
+}
+
+@keyframes catCelebrateWave {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  35% {
+    transform: translate3d(0, -7px, 0) scale(1.16) rotate(-5deg);
+  }
+  65% {
+    transform: translate3d(0, -4px, 0) scale(1.1) rotate(5deg);
+  }
+}
+
+.anim-cat-celebrate {
+  animation: catCelebrateWave 580ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+@keyframes xSnapIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.25) rotate(-18deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.1) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.anim-x-pop {
+  animation: xSnapIn 200ms cubic-bezier(0.22, 1.3, 0.36, 1) both;
+}
+
+@keyframes cellConflictShake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  18% { transform: translate3d(-4px, 0, 0); }
+  36% { transform: translate3d(4px, 0, 0); }
+  54% { transform: translate3d(-3px, 0, 0); }
+  72% { transform: translate3d(3px, 0, 0); }
+}
+
+.anim-conflict-shake {
+  animation: cellConflictShake 320ms ease-in-out;
+}
+
+@keyframes hintGlowPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.98;
+    transform: scale(1.03);
+  }
+}
+
+.anim-hint-pulse {
+  animation: hintGlowPulse 1.3s ease-in-out infinite;
+}
+
+/* Living Cat Idle Blink (GPU scaleY on eyes) */
+@keyframes catBlink {
+  0%, 92%, 100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}
+
+.cat-eyes-alive {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: catBlink 4.6s ease-in-out infinite;
+}
+
+/* Subtle glossy sheen across primary buttons */
+@keyframes shimmerSweep {
+  0% { transform: translateX(-140%) skewX(-22deg); }
+  100% { transform: translateX(260%) skewX(-22deg); }
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 100%
+  );
+  animation: shimmerSweep 3.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Reduced motion helper */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
