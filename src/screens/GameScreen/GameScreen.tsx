@@ -1,9 +1,21 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, Check, Lightbulb, Sparkles, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Cat,
+  Check,
+  Grid,
+  Lightbulb,
+  RotateCcw,
+  Shield,
+  Sparkles,
+  Wand2,
+  X,
+} from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { useGameTimer } from '../../hooks/useGameTimer';
 import { CellCoord } from '../../game/gameTypes';
+import { BoosterId } from '../../game/economy';
 import { GameHeader } from '../../components/GameHeader/GameHeader';
 import { ProgressIndicator } from '../../components/ProgressIndicator/ProgressIndicator';
 import { RuleCards } from '../../components/RuleCards/RuleCards';
@@ -12,11 +24,54 @@ import { BottomToolbar } from '../../components/BottomToolbar/BottomToolbar';
 import { PauseModal } from '../../components/Modals/PauseModal';
 import { VictoryScreen } from '../VictoryScreen/VictoryScreen';
 
+const LIVE_BOOSTERS: readonly {
+  id: BoosterId;
+  label: string;
+  color: string;
+  bg: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    id: 'superHint',
+    label: 'Super',
+    color: '#7B5CC7',
+    bg: '#F3ECFD',
+    icon: <Sparkles className="w-4 h-4" />,
+  },
+  {
+    id: 'revealCat',
+    label: 'Cat',
+    color: '#DF5E70',
+    bg: '#FFF0F3',
+    icon: <Cat className="w-4 h-4" />,
+  },
+  {
+    id: 'revealRegion',
+    label: 'Region',
+    color: '#CE6F38',
+    bg: '#FFF2E8',
+    icon: <Grid className="w-4 h-4" />,
+  },
+  {
+    id: 'mistakeShield',
+    label: 'Shield',
+    color: '#3B8B61',
+    bg: '#E8F7EE',
+    icon: <Shield className="w-4 h-4" />,
+  },
+  {
+    id: 'undoToken',
+    label: 'Rewind',
+    color: '#4384A6',
+    bg: '#EAF5FB',
+    icon: <RotateCcw className="w-4 h-4" />,
+  },
+];
+
 export const GameScreen: React.FC = () => {
   useGameTimer();
+  const [boostersOpen, setBoostersOpen] = useState(false);
 
-  // NOTE: elapsedSec is intentionally NOT subscribed here — LiveTimer inside GameHeader
-  // isolates the 1s tick so GameScreen & GameBoard have ZERO re-renders per second!
   const puzzle = useGameStore((s) => s.puzzle);
   const board = useGameStore((s) => s.board);
   const validation = useGameStore((s) => s.validation);
@@ -26,6 +81,8 @@ export const GameScreen: React.FC = () => {
   const canRedo = useGameStore((s) => s.redoStack.length > 0);
   const activeHint = useGameStore((s) => s.activeHint);
   const hintsUsed = useGameStore((s) => s.hintsUsed);
+  const boosters = useGameStore((s) => s.boosters);
+  const isMistakeShieldActive = useGameStore((s) => s.isMistakeShieldActive);
   const shakeNonce = useGameStore((s) => s.shakeNonce);
   const isPaused = useGameStore((s) => s.isPaused);
   const isCelebratingBoard = useGameStore((s) => s.isCelebratingBoard);
@@ -42,6 +99,7 @@ export const GameScreen: React.FC = () => {
   const undo = useGameStore((s) => s.undo);
   const redo = useGameStore((s) => s.redo);
   const requestHint = useGameStore((s) => s.requestHint);
+  const useBooster = useGameStore((s) => s.useBooster);
   const applyActiveHint = useGameStore((s) => s.applyActiveHint);
   const dismissHint = useGameStore((s) => s.dismissHint);
   const restartLevel = useGameStore((s) => s.restartLevel);
@@ -55,22 +113,38 @@ export const GameScreen: React.FC = () => {
   const handleClosePause = useCallback(() => setPaused(false), [setPaused]);
   const handleOpenSettings = useCallback(() => setSettingsOpen(true), [setSettingsOpen]);
   const handleOpenTutorial = useCallback(() => setTutorialOpen(true), [setTutorialOpen]);
-  const handleGoLevels = useCallback(() => goToScreen('levels'), [goToScreen]);
+  const handleGoMap = useCallback(() => {
+    const summary = useGameStore.getState().victorySummary;
+    goToScreen('map');
+    if (summary?.unlockedNextWorld) {
+      useGameStore.setState({ unlockedWorldModal: summary.unlockedNextWorld });
+    } else if (summary?.newlyUnlockedCats && summary.newlyUnlockedCats.length > 0) {
+      useGameStore.setState({ unlockedCatModal: summary.newlyUnlockedCats[0]! });
+    }
+  }, [goToScreen]);
+
   const handleSelectCell = useCallback(
     (coord: CellCoord) => useGameStore.setState({ selectedCell: coord }),
     []
   );
 
+  const totalExtraBoosters =
+    boosters.superHint +
+    boosters.revealCat +
+    boosters.revealRegion +
+    boosters.mistakeShield +
+    boosters.undoToken;
+
   return (
     <div className="relative h-full w-full flex flex-col justify-between overflow-hidden">
-      {/* Top Bar (timer isolated internally) */}
+      {/* Top Bar */}
       <GameHeader
         levelId={puzzle.id}
         dailyDateKey={puzzle.dailyDateKey}
         difficulty={puzzle.difficulty}
         onPause={handleOpenPause}
         onOpenSettings={handleOpenSettings}
-        onLogoClick={handleGoLevels}
+        onLogoClick={handleGoMap}
       />
 
       {/* Cat Silhouette Progress Tracker */}
@@ -87,7 +161,7 @@ export const GameScreen: React.FC = () => {
       />
 
       {/* Centerpiece Responsive 120fps Puzzle Board */}
-      <main className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
+      <main className="w-full flex-1 min-h-0 flex flex-col items-center justify-center relative">
         <GameBoard
           puzzle={puzzle}
           board={board}
@@ -105,94 +179,167 @@ export const GameScreen: React.FC = () => {
           onDragMarkCell={dragMarkCell}
           onEndDragMark={endDragMark}
         />
-      </main>
 
-      {/* Fixed-height Contextual Feedback / Hint / Helper Banner */}
-      <div className="px-3.5 h-[50px] flex items-center justify-center shrink-0">
-        <AnimatePresence mode="wait">
-          {isCelebratingBoard ? (
+        {/* Compact Collapsible Boosters Tray floating above banner when opened */}
+        <AnimatePresence>
+          {boostersOpen && (
             <motion.div
-              key="celebrate-banner"
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full rounded-2xl bg-[#E8F7EE] border border-[#9FD7B5] px-3 py-2 flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 text-[#3A9462]" />
-              <p className="text-[12.5px] font-black text-[#2C784E]">
-                Purr-fect! Every hidden cat found!
-              </p>
-            </motion.div>
-          ) : activeHint ? (
-            <motion.div
-              key="hint-banner"
-              initial={{ opacity: 0, y: 6, scale: 0.97 }}
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -4, scale: 0.97 }}
-              className="w-full rounded-2xl bg-[#FFF7E2] border border-[#F2D58A] px-3 py-1.5 flex items-center justify-between gap-2 shadow-xs"
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.16 }}
+              className="absolute bottom-1.5 inset-x-3.5 z-30 meow-toolbar rounded-2xl p-2 grid grid-cols-5 gap-1.5"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <Lightbulb className="w-4 h-4 text-[#DF991E] shrink-0" />
-                <p className="text-[11.5px] font-bold text-[#6E4D12] leading-tight line-clamp-2">
-                  {activeHint.message}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {activeHint.canApply && (
+              {LIVE_BOOSTERS.map((b) => {
+                const qty = boosters[b.id];
+                return (
                   <button
-                    id="btn-apply-hint"
+                    key={b.id}
+                    id={`btn-use-booster-${b.id}`}
                     type="button"
-                    onClick={applyActiveHint}
-                    className="px-2.5 py-1 rounded-xl bg-[#E8A328] text-white text-[11px] font-black inline-flex items-center gap-1 cursor-pointer active:scale-95"
+                    onClick={() => {
+                      useBooster(b.id);
+                      setBoostersOpen(false);
+                    }}
+                    style={{ backgroundColor: b.bg, color: b.color }}
+                    className="relative flex flex-col items-center justify-center py-1.5 rounded-xl cursor-pointer active:scale-92 transition-transform"
                   >
-                    <Check className="w-3 h-3" strokeWidth={3} />
-                    {activeHint.applyValue === 'cat' ? 'Place' : 'Fix'}
+                    {b.icon}
+                    <span className="text-[9.5px] font-black leading-none mt-1">
+                      {b.label}
+                    </span>
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#3A312C] text-white text-[9px] font-black flex items-center justify-center border border-white tabular-nums">
+                      {qty}
+                    </span>
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={dismissHint}
-                  aria-label="Dismiss hint"
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[#9A7A3A] hover:bg-[#F5E6BF] cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          ) : validation.primaryMessage ? (
-            <motion.div
-              key="conflict-banner"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              role="status"
-              aria-live="polite"
-              className="w-full rounded-2xl bg-[#FFF0F0] border border-[#F5B5B5] px-3 py-2 flex items-center gap-2"
-            >
-              <AlertCircle className="w-4 h-4 text-[#D94B4B] shrink-0" />
-              <p className="text-[12px] font-extrabold text-[#B53D3D] leading-tight">
-                {validation.primaryMessage}
-              </p>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="tip-banner"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full rounded-2xl bg-white/80 border border-[#EDE3D4] px-3 py-2 flex items-center justify-center gap-1.5 text-center"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#FF8585] shrink-0" />
-              <p className="text-[12px] font-bold text-[#7E7067] leading-tight">
-                {pencilMode
-                  ? 'Tap or drag across tiles to paint × marks'
-                  : selectedCell
-                    ? 'Tap highlighted tile again to place a cat'
-                    : `${puzzle.title} — tap a tile to begin`}
-              </p>
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>
+      </main>
+
+      {/* Fixed-height Contextual Feedback / Hint / Boosters Row */}
+      <div className="px-3.5 h-[50px] flex items-center justify-between gap-2 shrink-0">
+        <div className="flex-1 min-w-0">
+          <AnimatePresence mode="wait">
+            {isCelebratingBoard ? (
+              <motion.div
+                key="celebrate-banner"
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full rounded-2xl bg-[#E8F7EE] border border-[#9FD7B5] px-3 py-2 flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-[#3A9462]" />
+                <p className="text-[12.5px] font-black text-[#2C784E]">
+                  Purr-fect! Every hidden cat found!
+                </p>
+              </motion.div>
+            ) : activeHint ? (
+              <motion.div
+                key="hint-banner"
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                className="w-full rounded-2xl bg-[#FFF7E2] border border-[#F2D58A] px-2.5 py-1.5 flex items-center justify-between gap-1.5 shadow-xs"
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Lightbulb className="w-4 h-4 text-[#DF991E] shrink-0" />
+                  <p className="text-[11px] font-bold text-[#6E4D12] leading-tight line-clamp-2">
+                    {activeHint.message}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {activeHint.canApply && (
+                    <button
+                      id="btn-apply-hint"
+                      type="button"
+                      onClick={applyActiveHint}
+                      className="px-2 py-1 rounded-xl bg-[#E8A328] text-white text-[10.5px] font-black inline-flex items-center gap-0.5 cursor-pointer active:scale-95"
+                    >
+                      <Check className="w-3 h-3" strokeWidth={3} />
+                      {activeHint.applyValue === 'cat' ? 'Place' : 'Fix'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={dismissHint}
+                    aria-label="Dismiss hint"
+                    className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[#9A7A3A] cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </motion.div>
+            ) : validation.primaryMessage ? (
+              <motion.div
+                key="conflict-banner"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                role="status"
+                aria-live="polite"
+                className="w-full rounded-2xl bg-[#FFF0F0] border border-[#F5B5B5] px-3 py-2 flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 text-[#D94B4B] shrink-0" />
+                <p className="text-[11.5px] font-extrabold text-[#B53D3D] leading-tight truncate">
+                  {validation.primaryMessage}
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="tip-banner"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full rounded-2xl bg-white/85 border border-[#EDE3D4] px-3 py-2 flex items-center justify-center gap-1.5 text-center"
+              >
+                {isMistakeShieldActive ? (
+                  <>
+                    <Shield className="w-3.5 h-3.5 text-[#3B8B61] shrink-0" />
+                    <p className="text-[11.5px] font-extrabold text-[#2D754E] truncate">
+                      Mistake Shield active!
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-[#FF8585] shrink-0" />
+                    <p className="text-[11.5px] font-bold text-[#7E7067] truncate">
+                      {pencilMode
+                        ? 'Drag across tiles to paint ×'
+                        : selectedCell
+                          ? 'Tap again to place a cat'
+                          : `${puzzle.title}`}
+                    </p>
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Sleek Boosters Drawer Trigger */}
+        <button
+          id="btn-open-boosters"
+          type="button"
+          onClick={() => setBoostersOpen((v) => !v)}
+          aria-expanded={boostersOpen}
+          aria-label="Open boosters tray"
+          className={`relative h-9 px-2.5 rounded-2xl border flex items-center gap-1 text-[11px] font-black shrink-0 cursor-pointer active:scale-94 transition-all ${
+            boostersOpen
+              ? 'bg-[#7B5CC7] border-[#7B5CC7] text-white'
+              : 'bg-[#F3ECFD] border-[#DFD2F8] text-[#6B4EB5]'
+          }`}
+        >
+          <Wand2 className="w-3.5 h-3.5" />
+          <span>Items</span>
+          {totalExtraBoosters > 0 && (
+            <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF7A7A] text-white text-[9px] font-black flex items-center justify-center">
+              {totalExtraBoosters}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Floating Bottom Toolbar */}
@@ -219,7 +366,7 @@ export const GameScreen: React.FC = () => {
           setPaused(false);
           setTutorialOpen(true);
         }}
-        onExitToLevels={handleGoLevels}
+        onExitToLevels={handleGoMap}
       />
 
       {/* Victory Celebration Overlay */}
@@ -228,7 +375,7 @@ export const GameScreen: React.FC = () => {
         reducedMotion={reducedMotion}
         onNextLevel={startNextLevel}
         onReplay={restartLevel}
-        onLevels={handleGoLevels}
+        onLevels={handleGoMap}
       />
     </div>
   );

@@ -184,18 +184,39 @@ export function isPlacementSafe(
   return true;
 }
 
+export interface StarThresholds {
+  parTimeSec: number;
+  maxTime2StarSec?: number;
+  maxHints2Star?: number;
+  maxMistakes2Star?: number;
+}
+
 /**
- * Computes stars earned (1 to 3) based on completion time and hints used.
+ * Computes stars earned (1 to 3) based on completion time, hints used, and mistakes.
+ * - 3 stars: 0 hints, 0 mistakes, and within parTimeSec
+ * - 2 stars: limited hints & mistakes and reasonable completion time
+ * - 1 star: completed the puzzle
  */
 export function calculateStars(
   elapsedSec: number,
   hintsUsed: number,
-  parTimeSec: number
+  parTimeSec: number,
+  mistakesCount = 0,
+  thresholds?: Partial<StarThresholds>
 ): number {
-  if (hintsUsed === 0 && elapsedSec <= parTimeSec) {
+  const target3 = thresholds?.parTimeSec ?? parTimeSec;
+  const target2 = thresholds?.maxTime2StarSec ?? target3 * 1.9;
+  const maxHints2 = thresholds?.maxHints2Star ?? 1;
+  const maxMistakes2 = thresholds?.maxMistakes2Star ?? 2;
+
+  if (hintsUsed === 0 && mistakesCount === 0 && elapsedSec <= target3) {
     return 3;
   }
-  if (hintsUsed <= 1 && elapsedSec <= parTimeSec * 1.8) {
+  if (
+    hintsUsed <= maxHints2 &&
+    mistakesCount <= maxMistakes2 &&
+    elapsedSec <= target2
+  ) {
     return 2;
   }
   return 1;

@@ -5,20 +5,24 @@ import {
   Calendar,
   Check,
   ChevronRight,
-  Grid2x2,
+  Gift,
+  Map,
   Play,
   Settings,
-  Star,
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
-import { getTodayDateKey, TOTAL_LEVELS } from '../../game/levels';
+import { getTodayDateKey } from '../../game/levels';
+import { canClaimDailyReward } from '../../game/dailyRewards';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { MeowdokuLogo } from '../../components/Cat/MeowdokuLogo';
 import { TactileButton } from '../../components/Buttons/TactileButton';
+import { FishCoinPill } from '../../components/Currency/FishCoinIcon';
 
 export const WelcomeScreen: React.FC = () => {
-  const currentLevelId = useGameStore((s) => s.currentLevelId);
+  const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const levelProgress = useGameStore((s) => s.levelProgress);
+  const fishCoins = useGameStore((s) => s.fishCoins);
+  const dailyLogin = useGameStore((s) => s.dailyLogin);
   const completedDailyDates = useGameStore((s) => s.completedDailyDates);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const continueGame = useGameStore((s) => s.continueGame);
@@ -26,47 +30,53 @@ export const WelcomeScreen: React.FC = () => {
   const goToScreen = useGameStore((s) => s.goToScreen);
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const setTutorialOpen = useGameStore((s) => s.setTutorialOpen);
+  const setDailyCalendarOpen = useGameStore((s) => s.setDailyCalendarOpen);
 
   const completedCount = Object.values(levelProgress).filter((p) => p.completed).length;
-  const totalStars = Object.values(levelProgress).reduce((acc, p) => acc + p.stars, 0);
-  const hasStarted = completedCount > 0 || currentLevelId > 1;
+  const hasStarted = completedCount > 0 || unlockedLevelId > 1;
   const todayKey = getTodayDateKey();
   const dailySolved = completedDailyDates.includes(todayKey);
+  const dailyRewardReady = canClaimDailyReward(dailyLogin, todayKey);
 
   return (
     <div className="relative h-full w-full flex flex-col justify-between px-5 pt-3.5 pb-5 overflow-hidden">
       {/* Top utility row */}
       <div className="flex items-center justify-between shrink-0">
-        {completedCount > 0 ? (
-          <div className="inline-flex items-center gap-2 bg-white/95 border border-[#EAE0D2] rounded-full px-3 py-1.5 shadow-[0_3px_10px_rgba(92,69,52,0.06)]">
-            <Star className="w-4 h-4 text-[#F4B942] fill-[#F4B942]" />
-            <span className="text-[13px] font-black text-[#3A312C] tabular-nums">
-              {totalStars}
-            </span>
-            <span className="w-px h-3 bg-[#E3D8C8]" />
-            <span className="text-[12px] font-extrabold text-[#7E7067] tabular-nums">
-              {completedCount}/{TOTAL_LEVELS}
-            </span>
-          </div>
-        ) : (
-          <div />
-        )}
+        <FishCoinPill coins={fishCoins} onClick={() => goToScreen('shop')} />
 
-        <button
-          id="btn-welcome-settings"
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Open settings"
-          className="w-10 h-10 rounded-full bg-white border border-[#EAE0D2] shadow-[0_3px_10px_rgba(92,69,52,0.07)] flex items-center justify-center text-[#5A4E47] active:scale-92 transition-transform cursor-pointer"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            id="btn-welcome-daily-gift"
+            type="button"
+            onClick={() => setDailyCalendarOpen(true)}
+            aria-label="Open daily rewards calendar"
+            className={`relative w-10 h-10 rounded-full border shadow-[0_3px_10px_rgba(92,69,52,0.08)] flex items-center justify-center active:scale-92 transition-transform cursor-pointer ${
+              dailyRewardReady
+                ? 'bg-gradient-to-b from-[#FFE39A] to-[#F7BD48] border-[#E8A328] text-[#6B4209]'
+                : 'bg-white border-[#EAE0D2] text-[#5A4E47]'
+            }`}
+          >
+            <Gift className="w-5 h-5" />
+            {dailyRewardReady && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#FF5B6B] border-2 border-white" />
+            )}
+          </button>
+
+          <button
+            id="btn-welcome-settings"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+            className="w-10 h-10 rounded-full bg-white border border-[#EAE0D2] shadow-[0_3px_10px_rgba(92,69,52,0.07)] flex items-center justify-center text-[#5A4E47] active:scale-92 transition-transform cursor-pointer"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Hero Showcase with Gemini Nano Banana Storybook Key Art & Animated Cinemagraph */}
       <div className="flex flex-col items-center text-center my-auto py-1">
         <div className="relative w-full max-w-[330px] mb-3.5">
-          {/* Warm ambient halo */}
           <div
             aria-hidden="true"
             className="absolute -inset-4 rounded-[36px] bg-gradient-to-tr from-[#FFE2B8]/70 via-[#FFD4DC]/55 to-[#D9D0F5]/60 blur-2xl pointer-events-none"
@@ -133,12 +143,12 @@ export const WelcomeScreen: React.FC = () => {
                   Daily Kitty
                 </span>
                 <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded-full bg-[#FEF2DC] text-[#A46D1A] leading-none">
-                  8×8
+                  +45 Coins
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[11px] font-bold text-[#8A7B70] mt-1 leading-none">
                 <Calendar className="w-3 h-3" />
-                {dailySolved ? 'Solved today — replay anytime!' : `Fresh puzzle • ${todayKey}`}
+                {dailySolved ? 'Solved today — replay anytime!' : `Fresh 8×8 • ${todayKey}`}
               </div>
             </div>
           </div>
@@ -166,7 +176,7 @@ export const WelcomeScreen: React.FC = () => {
           className="relative overflow-hidden btn-shimmer"
         >
           <Play className="w-5 h-5 fill-current" />
-          {hasStarted ? `Continue Level ${currentLevelId}` : 'Play Level 1'}
+          {hasStarted ? `Continue Level ${unlockedLevelId}` : 'Play Level 1'}
         </TactileButton>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -175,10 +185,10 @@ export const WelcomeScreen: React.FC = () => {
             variant="secondary"
             size="md"
             fullWidth
-            onClick={() => goToScreen('levels')}
+            onClick={() => goToScreen('map')}
           >
-            <Grid2x2 className="w-4.5 h-4.5 text-[#FF7A7A]" />
-            Levels
+            <Map className="w-4.5 h-4.5 text-[#FF7A7A]" />
+            World Map
           </TactileButton>
 
           <TactileButton
