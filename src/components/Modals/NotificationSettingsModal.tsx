@@ -6,6 +6,7 @@ import {
   Calendar,
   Clock,
   Compass,
+  Flame,
   Info,
   Moon,
   Send,
@@ -17,10 +18,13 @@ import { TactileButton } from '../Buttons/TactileButton';
 import { getCurrentLanguage } from '../../i18n';
 import {
   BrowserPermissionState,
+  computeReminderPlan,
   deliverLocalNotification,
   getBrowserNotificationPermission,
-  getLocalizedReminderCopy,
+  getReminderTimeInfo,
+  loadEngagement,
   loadNotificationPrefs,
+  makeReminderCopy,
   NotificationCategory,
   NotificationPreferences,
   PeriodicSyncStatus,
@@ -98,9 +102,16 @@ export const NotificationSettingsModal: React.FC<
     });
   };
 
+  const timeInfo = getReminderTimeInfo(prefs);
+
   const handleSendTest = async () => {
+    // Preview the next reminder this player would really get (or a Daily Kitty example)
     const lang = getCurrentLanguage();
-    const copy = getLocalizedReminderCopy('dailyPuzzle', lang, new Date());
+    const next = computeReminderPlan({ ...prefs, enabled: true }, loadEngagement())[0];
+    const fallback = makeReminderCopy(lang)('dailyPuzzle', { variant: new Date().getDate() });
+    const copy = next
+      ? { title: next.title, body: next.body, route: next.route, category: next.kind }
+      : { ...fallback, route: 'daily' as const, category: 'dailyPuzzle' as const };
     const sent = await deliverLocalNotification(copy, { isTest: true });
     if (sent) {
       onToast?.(t('notifications.testSentToast'));
@@ -187,23 +198,57 @@ export const NotificationSettingsModal: React.FC<
 
         {/* Reminder Time & Quiet Hours */}
         <div className="rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] p-3 mb-2.5 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <label
-              htmlFor="input-reminder-time"
-              className="flex items-center gap-2 text-[12.5px] font-extrabold text-[#3A312C]"
-            >
-              <Clock className="w-4 h-4 text-[#E59C1E]" />
-              {t('notifications.reminderTimeLabel')}
-            </label>
-            <input
-              id="input-reminder-time"
-              type="time"
-              value={prefs.reminderTime}
-              onChange={(e) =>
-                updatePrefs({ ...prefs, reminderTime: e.target.value || '19:00' })
-              }
-              className="px-2.5 py-1 rounded-xl bg-white border border-[#E5DACB] text-[12.5px] font-black text-[#3A312C] tabular-nums"
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12.5px] font-extrabold text-[#3A312C] flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-[#E59C1E]" />
+                {t('notifications.reminderTimeLabel')}
+              </span>
+              <div
+                role="radiogroup"
+                aria-label={t('notifications.reminderTimeLabel')}
+                className="grid grid-cols-2 gap-1 bg-[#EFE6D8] p-0.5 rounded-xl"
+              >
+                {(['auto', 'manual'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    id={`btn-notif-timing-${mode}`}
+                    type="button"
+                    role="radio"
+                    aria-checked={prefs.timingMode === mode}
+                    onClick={() => updatePrefs({ ...prefs, timingMode: mode })}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold cursor-pointer transition-all ${
+                      prefs.timingMode === mode
+                        ? 'bg-white text-[#3A312C] shadow-xs'
+                        : 'text-[#7E7067]'
+                    }`}
+                  >
+                    {t(mode === 'auto' ? 'notifications.timingAuto' : 'notifications.timingCustom')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {prefs.timingMode === 'auto' ? (
+              <p
+                id="notif-auto-time-info"
+                className="text-[10.5px] font-bold text-[#7E7067] leading-snug"
+              >
+                {t(timeInfo.learned ? 'notifications.autoLearned' : 'notifications.autoLearning', {
+                  time: timeInfo.time,
+                })}
+              </p>
+            ) : (
+              <input
+                id="input-reminder-time"
+                type="time"
+                aria-label={t('notifications.reminderTimeLabel')}
+                value={prefs.reminderTime}
+                onChange={(e) =>
+                  updatePrefs({ ...prefs, reminderTime: e.target.value || '19:00' })
+                }
+                className="self-end px-2.5 py-1 rounded-xl bg-white border border-[#E5DACB] text-[13px] font-black text-[#3A312C] tabular-nums"
+              />
+            )}
           </div>
 
           <div className="border-t border-[#EAE0D2] pt-2.5">
@@ -278,6 +323,12 @@ export const NotificationSettingsModal: React.FC<
           {(
             [
               {
+                id: 'streak' as NotificationCategory,
+                icon: <Flame className="w-4 h-4 text-[#E86A3B]" />,
+                labelKey: 'notifications.catStreakLabel',
+                descKey: 'notifications.catStreakDesc',
+              },
+              {
                 id: 'dailyPuzzle' as NotificationCategory,
                 icon: <Calendar className="w-4 h-4 text-[#E59C1E]" />,
                 labelKey: 'notifications.catDailyLabel',
@@ -350,7 +401,7 @@ export const NotificationSettingsModal: React.FC<
         <div className="rounded-2xl bg-[#F4EEFD] border border-[#DFD2F8] p-3 flex items-start gap-2 text-left">
           <Info className="w-4 h-4 text-[#7859C4] shrink-0 mt-0.5" />
           <p className="text-[10.5px] font-bold text-[#5E4B8E] leading-snug">
-            {t('notifications.browserOnlyNote')}
+            {t('notifications.smartRulesNote')} {t('notifications.browserOnlyNote')}
             {syncStatus === 'registered' && ` ${t('notifications.periodicSyncActive')}`}
           </p>
         </div>

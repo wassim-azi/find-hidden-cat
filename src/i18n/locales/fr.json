@@ -718,6 +718,27 @@
     "updateNowBtn": "Mettre à jour"
   },
   "notifications": {
+    "msg": {
+      "title": "Meowdoku 🐱",
+      "streak": "Garde ta série de {{count}} jours — la récompense du jour t'attend ! 🐟",
+      "daily_0": "La grille du Chat du Jour est prête 🐾",
+      "daily_1": "Une nouvelle grille 8×8 du Chat du Jour t'attend 🐱",
+      "golden": "Le défi hebdo du Chat Doré est encore ouvert ✨",
+      "continue": "Le niveau {{level}} t'attend 🐾"
+    },
+    "timingAuto": "Automatique",
+    "timingCustom": "Personnalisé",
+    "autoLearned": "Vers {{time}}, juste avant ton heure de jeu habituelle",
+    "autoLearning": "J'apprends tes horaires de jeu — {{time}} en attendant",
+    "catStreakLabel": "Sauve ta série",
+    "catStreakDesc": "Seulement quand ta série de récompenses quotidiennes va s'arrêter",
+    "smartRulesNote": "Aucun rappel les jours où tu as déjà joué. Si plusieurs restent sans réponse, ils s'espacent puis s'arrêtent.",
+    "keepAria": "Point sur les rappels",
+    "keepTitle": "Tu veux encore des rappels ?",
+    "keepDesc": "Tu as manqué quelques rappels, alors on les a mis en pause. Tu veux les réactiver ?",
+    "keepYes": "Garder les rappels",
+    "keepNo": "Les désactiver",
+    "keepToast": "Les rappels sont réactivés.",
     "onboardingAria": "Rappels quotidiens",
     "onboardingTitle": "Petits rappels quotidiens",
     "onboardingDesc": "Envie d'un petit rappel pour jouer au Chat du Jour ? Facultatif, respectueux des heures calmes et 100 % privé dans ton navigateur.",

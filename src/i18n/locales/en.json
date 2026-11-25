@@ -718,6 +718,27 @@
     "updateNowBtn": "Update"
   },
   "notifications": {
+    "msg": {
+      "title": "Meowdoku 🐱",
+      "streak": "Keep your {{count}}-day streak going — today's reward is waiting! 🐟",
+      "daily_0": "Today's Daily Kitty puzzle is ready 🐾",
+      "daily_1": "A fresh 8×8 Daily Kitty is waiting for you 🐱",
+      "golden": "This week's Golden Cat Trial is still open ✨",
+      "continue": "Level {{level}} is waiting for you 🐾"
+    },
+    "timingAuto": "Automatic",
+    "timingCustom": "Custom",
+    "autoLearned": "Around {{time}}, just before you usually play",
+    "autoLearning": "Learning when you play — {{time}} until then",
+    "catStreakLabel": "Streak Saver",
+    "catStreakDesc": "Only when your daily reward streak is about to lapse",
+    "smartRulesNote": "No reminder on days you've already played. If several go unanswered, they slow down and then stop.",
+    "keepAria": "Reminder check-in",
+    "keepTitle": "Still want reminders?",
+    "keepDesc": "You missed a few reminders, so we paused them. Want them back?",
+    "keepYes": "Keep reminders",
+    "keepNo": "Turn them off",
+    "keepToast": "Reminders are back on.",
     "onboardingAria": "Daily puzzle reminders",
     "onboardingTitle": "Cozy Daily Reminders",
     "onboardingDesc": "Want a gentle reminder to play the Daily Kitty? Optional, quiet-hours safe and 100% private in your browser.",

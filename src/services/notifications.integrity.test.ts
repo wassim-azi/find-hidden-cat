@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import swRaw from '../../public/sw.js?raw';
-import {
-  DEFAULT_NOTIFICATION_PREFS,
-  evaluateDueReminder,
-  mergeLastSentDates,
-} from './localNotifications';
+import { DEFAULT_NOTIFICATION_PREFS, mergeLastSentDates } from './localNotifications';
+import { ReminderPlanEntry, selectDueEntry } from './reminderPlanner';
 
 describe('Reminder duplicate prevention across page and Service Worker', () => {
   it('keeps the most recent send per category from either source', () => {
@@ -13,6 +10,7 @@ describe('Reminder duplicate prevention across page and Service Worker', () => {
       { dailyPuzzle: '2026-11-25', continueAdventure: '2026-11-20' }
     );
     expect(merged).toEqual({
+      streak: null,
       dailyPuzzle: '2026-11-25',
       continueAdventure: '2026-11-20',
       specialChallenges: '2026-11-25',
@@ -21,17 +19,15 @@ describe('Reminder duplicate prevention across page and Service Worker', () => {
 
   it('the page does not send again on a day the Service Worker already sent', () => {
     const now = new Date(2026, 10, 25, 20, 0);
-    const pagePrefs = { ...DEFAULT_NOTIFICATION_PREFS, enabled: true, quietHoursEnabled: false };
-    expect(evaluateDueReminder(pagePrefs, now).due).toBe(true);
-    const withSw = {
-      ...pagePrefs,
-      lastSentDateByCategory: mergeLastSentDates(pagePrefs.lastSentDateByCategory, {
-        continueAdventure: '2026-11-25',
-      }),
-    };
-    const ev = evaluateDueReminder(withSw, now);
-    expect(ev.due).toBe(false);
-    expect(ev.reason).toBe('already_sent_today');
+    const plan: ReminderPlanEntry[] = [
+      { dateKey: '2026-11-25', notBeforeMinutes: 19 * 60, kind: 'dailyPuzzle', route: 'daily', title: 't', body: 'b' },
+    ];
+    const quiet = { quietHoursEnabled: false, quietStartMinutes: 0, quietEndMinutes: 0 };
+    expect(selectDueEntry(plan, quiet, [], now)).not.toBeNull();
+    const merged = mergeLastSentDates(DEFAULT_NOTIFICATION_PREFS.lastSentDateByCategory, {
+      continueAdventure: '2026-11-25',
+    });
+    expect(selectDueEntry(plan, quiet, Object.values(merged), now)).toBeNull();
   });
 });
 
@@ -107,43 +103,64 @@ function loadServiceWorker(prefs: Record<string, unknown>, now: Date) {
   return { fire, shown, getStored: () => stored };
 }
 
-describe('Service Worker periodic reminder', () => {
+describe('Service Worker periodic reminder (delivers the on-device plan)', () => {
+  const entry = (dateKey: string, extra: Partial<ReminderPlanEntry> = {}): ReminderPlanEntry => ({
+    dateKey,
+    notBeforeMinutes: 19 * 60 + 30,
+    kind: 'streak',
+    route: 'rewards',
+    title: 'Meowdoku 🐱',
+    body: 'Garde ta série de 6 jours — la récompense du jour t’attend ! 🐟',
+    ...extra,
+  });
   const basePrefs = {
     ...DEFAULT_NOTIFICATION_PREFS,
     enabled: true,
     quietHoursEnabled: false,
     language: 'fr',
+    plan: [entry('2026-11-25'), entry('2026-11-26', { kind: 'dailyPuzzle', route: 'daily' })],
   };
 
-  it('sends at most one reminder per day, in the saved language', async () => {
+  it('delivers today’s planned message once, at or after its time, and records the send', async () => {
     const sw = loadServiceWorker(basePrefs, new Date(2026, 10, 25, 20, 0));
     await sw.fire();
     await sw.fire();
     await sw.fire();
     expect(sw.shown).toHaveLength(1);
-    expect(sw.shown[0]!.options.tag).toContain('2026-11-25');
-    const body = (sw.shown[0]!.options as unknown as { body: string }).body;
-    expect(body).toMatch(/[àâçéèêëîïôûùüÿœ]|chat|Chat|défi/);
-    const sent = Object.values(
-      (sw.getStored() as { lastSentDateByCategory: Record<string, string | null> }).lastSentDateByCategory
-    );
-    expect(sent).toContain('2026-11-25');
+    const shown = sw.shown[0]! as unknown as { title: string; options: { body: string; tag: string; data: { route: string } } };
+    expect(shown.options.body).toContain('série de 6 jours');
+    expect(shown.options.data.route).toBe('rewards');
+    expect(shown.options.tag).toContain('2026-11-25');
+    const stored = sw.getStored() as { sentLog: { dateKey: string }[]; lastSentDateByCategory: Record<string, string> };
+    expect(stored.sentLog.map((s) => s.dateKey)).toEqual(['2026-11-25']);
+    expect(stored.lastSentDateByCategory.streak).toBe('2026-11-25');
   });
 
-  it('does not send when the page already sent today, before the chosen time, or when disabled', async () => {
-    const alreadySent = loadServiceWorker(
-      { ...basePrefs, lastSentDateByCategory: { ...basePrefs.lastSentDateByCategory, specialChallenges: '2026-11-25' } },
-      new Date(2026, 10, 25, 21, 0)
-    );
-    await alreadySent.fire();
-    expect(alreadySent.shown).toHaveLength(0);
-
-    const early = loadServiceWorker(basePrefs, new Date(2026, 10, 25, 9, 0));
+  it('sends nothing before the planned time, on unplanned days, after a page send, or when disabled', async () => {
+    const early = loadServiceWorker(basePrefs, new Date(2026, 10, 25, 19, 0));
     await early.fire();
     expect(early.shown).toHaveLength(0);
+
+    const unplanned = loadServiceWorker(basePrefs, new Date(2026, 10, 27, 20, 0));
+    await unplanned.fire();
+    expect(unplanned.shown).toHaveLength(0);
+
+    const pageSent = loadServiceWorker(
+      { ...basePrefs, sentLog: [{ dateKey: '2026-11-25', sentAt: 1, kind: 'dailyPuzzle' }] },
+      new Date(2026, 10, 25, 21, 0)
+    );
+    await pageSent.fire();
+    expect(pageSent.shown).toHaveLength(0);
 
     const disabled = loadServiceWorker({ ...basePrefs, enabled: false }, new Date(2026, 10, 25, 21, 0));
     await disabled.fire();
     expect(disabled.shown).toHaveLength(0);
+
+    const quiet = loadServiceWorker(
+      { ...basePrefs, quietHoursEnabled: true, quietStart: '19:00', quietEnd: '08:00' },
+      new Date(2026, 10, 25, 20, 0)
+    );
+    await quiet.fire();
+    expect(quiet.shown).toHaveLength(0);
   });
 });

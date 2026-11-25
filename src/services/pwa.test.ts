@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import manifestRaw from '../../public/manifest.webmanifest?raw';
 import swRaw from '../../public/sw.js?raw';
-import {
-  DEFAULT_NOTIFICATION_PREFS,
-  evaluateDueReminder,
-  getLocalizedReminderCopy,
-  isWithinQuietHours,
-  NotificationPreferences,
-  parseTimeToMinutes,
-} from './localNotifications';
+import { isWithinQuietHours, makeReminderCopy, parseTimeToMinutes } from './localNotifications';
 import { detectIsIosSafari } from './pwaInstall';
 
 describe('PWA Manifest, Service Worker, & Browser-Only Notifications', () => {
@@ -80,68 +73,17 @@ describe('PWA Manifest, Service Worker, & Browser-Only Notifications', () => {
     ).toBe(true);
   });
 
-  it('enforces reminder time, quiet hours, disabled stop, and strict duplicate prevention', () => {
-    const basePrefs: NotificationPreferences = {
-      ...DEFAULT_NOTIFICATION_PREFS,
-      enabled: true,
-      reminderTime: '19:00',
-      quietHoursEnabled: true,
-      quietStart: '22:00',
-      quietEnd: '08:00',
-    };
-
-    // Disabled -> never fires
-    expect(
-      evaluateDueReminder({ ...basePrefs, enabled: false }, new Date(2026, 10, 25, 20, 0))
-        .reason
-    ).toBe('disabled');
-
-    // Before preferred time -> does not fire early
-    expect(
-      evaluateDueReminder(basePrefs, new Date(2026, 10, 25, 18, 30)).reason
-    ).toBe('before_time');
-
-    // Inside quiet hours -> suppressed
-    expect(
-      evaluateDueReminder(basePrefs, new Date(2026, 10, 25, 22, 30)).reason
-    ).toBe('quiet_hours');
-
-    // Due at 19:15 (outside quiet hours) -> fires once
-    const dueRes = evaluateDueReminder(basePrefs, new Date(2026, 10, 25, 19, 15));
-    expect(dueRes.due).toBe(true);
-    expect(dueRes.category).toBeTruthy();
-    expect(dueRes.dateKey).toBe('2026-11-25');
-
-    // Already sent today -> strictly blocked (zero duplicate reminders!)
-    const afterSent: NotificationPreferences = {
-      ...basePrefs,
-      lastSentDateByCategory: {
-        ...basePrefs.lastSentDateByCategory,
-        [dueRes.category!]: dueRes.dateKey,
-      },
-    };
-    expect(
-      evaluateDueReminder(afterSent, new Date(2026, 10, 25, 20, 45)).reason
-    ).toBe('already_sent_today');
-
-    // Next day -> eligible again!
-    const nextDay = evaluateDueReminder(afterSent, new Date(2026, 10, 26, 19, 5));
-    expect(nextDay.due).toBe(true);
-    expect(nextDay.dateKey).toBe('2026-11-26');
-  });
-
-  it('provides warm localized English and French reminder copy linked to valid game routes', () => {
-    const enDaily = getLocalizedReminderCopy('dailyPuzzle', 'en', new Date(2026, 10, 25));
-    const frDaily = getLocalizedReminderCopy('dailyPuzzle', 'fr', new Date(2026, 10, 25));
-    expect(enDaily.route).toBe('daily');
-    expect(frDaily.route).toBe('daily');
-    expect(enDaily.body).not.toBe(frDaily.body);
-    expect(frDaily.body.length).toBeGreaterThan(15);
-
-    const frAdv = getLocalizedReminderCopy('continueAdventure', 'fr', new Date(2026, 10, 25));
-    expect(frAdv.route).toBe('map');
-
-    const enSpec = getLocalizedReminderCopy('specialChallenges', 'en', new Date(2026, 10, 25));
-    expect(enSpec.route).toBe('missions');
+  it('provides localized English and French reminder copy for every reminder type', () => {
+    const en = makeReminderCopy('en');
+    const fr = makeReminderCopy('fr');
+    for (const kind of ['streak', 'dailyPuzzle', 'specialChallenges', 'continueAdventure'] as const) {
+      const e = en(kind, { count: 6, level: 7, variant: 1 });
+      const f = fr(kind, { count: 6, level: 7, variant: 1 });
+      expect(e.body).not.toMatch(/\{\{|notifications\./);
+      expect(f.body).not.toMatch(/\{\{|notifications\./);
+      expect(e.body).not.toBe(f.body);
+    }
+    expect(en('streak', { count: 6, variant: 0 }).body).toContain('6-day');
+    expect(fr('continueAdventure', { level: 7, variant: 0 }).body).toContain('niveau 7');
   });
 });

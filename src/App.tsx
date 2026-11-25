@@ -18,8 +18,19 @@ import {
 import {
   getBrowserNotificationPermission,
   loadNotificationPrefs,
+  markKeepRemindersAsked,
+  needsKeepRemindersCheckIn,
+  recordAppSession,
+  refreshReminderPlan,
+  saveNotificationPrefs,
+  setReminderContextProvider,
   startLocalReminderScheduler,
+  unregisterPeriodicSync,
 } from './services/localNotifications';
+import { getCurrentWeekKey } from './game/events';
+import { TOTAL_LEVELS } from './game/levels';
+import { ModalSheet } from './components/Modals/ModalSheet';
+import { TactileButton } from './components/Buttons/TactileButton';
 
 // Route-based & modal code splitting — keeps initial Welcome bundle ultra-light!
 const MapScreen = lazy(() =>
@@ -127,6 +138,7 @@ export const App: React.FC = () => {
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const [notifOnboardingOpen, setNotifOnboardingOpen] = useState(false);
   const [swUpdateReady, setSwUpdateReady] = useState(false);
+  const [keepRemindersOpen, setKeepRemindersOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(() =>
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
@@ -144,6 +156,9 @@ export const App: React.FC = () => {
       store.goToScreen('map');
     } else if (action === 'missions') {
       store.goToScreen('missions');
+    } else if (action === 'rewards') {
+      store.goToScreen('map');
+      store.setDailyCalendarOpen(true);
     }
   }, []);
 
@@ -169,6 +184,45 @@ export const App: React.FC = () => {
     } catch {
       // Ignore URL parsing errors
     }
+
+    // On-device reminder planning: the planner reads game state through this getter
+    setReminderContextProvider(() => {
+      const s = useGameStore.getState();
+      return {
+        completedDailyDates: s.completedDailyDates,
+        nextLevelId: Math.min(s.currentLevelId, s.unlockedLevelId, TOTAL_LEVELS),
+        allLevelsCompleted: Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1).every(
+          (id) => s.levelProgress[id]?.completed
+        ),
+        lastLoginClaimDateKey: s.dailyLogin.lastClaimDateKey,
+        loginStreak: s.dailyLogin.streakCount,
+        isGoldenDoneForDate: (date: Date) =>
+          s.completedDailyDates.includes(`golden-${getCurrentWeekKey(date)}`),
+      };
+    });
+    // Replan whenever progress that changes tomorrow's message happens
+    const unsubPlan = useGameStore.subscribe((s, prev) => {
+      if (
+        s.completedDailyDates !== prev.completedDailyDates ||
+        s.dailyLogin !== prev.dailyLogin ||
+        s.currentLevelId !== prev.currentLevelId ||
+        s.unlockedLevelId !== prev.unlockedLevelId
+      ) {
+        refreshReminderPlan();
+      }
+    });
+
+    // If reminders stopped because they kept going unanswered, ask once — decided BEFORE
+    // this visit is recorded (the visit itself counts as an answer and resumes them).
+    const askKeepReminders = needsKeepRemindersCheckIn();
+    recordAppSession();
+    const askTimer = askKeepReminders
+      ? window.setTimeout(() => setKeepRemindersOpen(true), 1200)
+      : null;
+    const onVisible = () => {
+      if (!document.hidden) recordAppSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
 
     // Start browser-only daily reminder scheduler (zero server)
     const stopScheduler = startLocalReminderScheduler((payload) => {
@@ -204,6 +258,10 @@ export const App: React.FC = () => {
       unsubRoute();
       unsubInstall();
       stopScheduler();
+      unsubPlan();
+      setReminderContextProvider(null);
+      document.removeEventListener('visibilitychange', onVisible);
+      if (askTimer !== null) window.clearTimeout(askTimer);
       window.clearTimeout(idleTimer);
     };
   }, [handleRouteAction, showToast]);
@@ -403,6 +461,52 @@ export const App: React.FC = () => {
               onClose={() => setNotifOnboardingOpen(false)}
               onToast={showToast}
             />
+          )}
+
+          {keepRemindersOpen && (
+            <ModalSheet
+              open={keepRemindersOpen}
+              onClose={() => {
+                markKeepRemindersAsked();
+                setKeepRemindersOpen(false);
+              }}
+              ariaLabel={t('notifications.keepAria')}
+            >
+              <div className="p-6 flex flex-col items-center text-center gap-2">
+                <h2 className="text-[19px] font-black text-[#3A312C]">
+                  {t('notifications.keepTitle')}
+                </h2>
+                <p className="text-[12.5px] font-semibold text-[#7E7067] mb-2">
+                  {t('notifications.keepDesc')}
+                </p>
+                <TactileButton
+                  id="btn-keep-reminders-yes"
+                  variant="primary"
+                  fullWidth
+                  onClick={() => {
+                    markKeepRemindersAsked();
+                    setKeepRemindersOpen(false);
+                    showToast(t('notifications.keepToast'));
+                  }}
+                >
+                  {t('notifications.keepYes')}
+                </TactileButton>
+                <TactileButton
+                  id="btn-keep-reminders-no"
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => {
+                    markKeepRemindersAsked();
+                    saveNotificationPrefs({ ...loadNotificationPrefs(), enabled: false });
+                    void unregisterPeriodicSync();
+                    setKeepRemindersOpen(false);
+                    showToast(t('notifications.disabledToast'));
+                  }}
+                >
+                  {t('notifications.keepNo')}
+                </TactileButton>
+              </div>
+            </ModalSheet>
           )}
 
           {notifSettingsOpen && (
