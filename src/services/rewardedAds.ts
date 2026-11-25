@@ -10,6 +10,8 @@
  *   provider in a future phase without changing any game economy or UI code.
  */
 
+import i18n from '../i18n';
+
 export type RewardedAdPlacement =
   | 'free_hint'
   | 'bonus_coins'
@@ -99,8 +101,7 @@ class PlaceholderRewardedAdProvider implements RewardedAdProvider {
       placement,
       status: 'NOT_IMPLEMENTED',
       granted: false,
-      message:
-        'Rewarded ads are coming in a future update. You can use Fish Coins or claim free Daily Missions right now!',
+      message: i18n.t('ads.notImplementedMsg'),
     };
   }
 }

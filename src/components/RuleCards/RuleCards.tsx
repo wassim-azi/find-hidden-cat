@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { RuleViolationType } from '../../game/gameTypes';
 
@@ -7,10 +8,8 @@ interface RuleCardsProps {
   onOpenTutorial: () => void;
 }
 
-/** Tiny 3x3 visual icons matching the Meowdoku rule card aesthetics */
 const RuleMiniIcon: React.FC<{ variant: RuleViolationType }> = ({ variant }) => {
   if (variant === 'region') {
-    // One colored L-region with 1 cat & X marks
     const colors = [
       '#E8C158', '#E8C158', '#E8C158',
       '#E8C158', '#E87E8E', '#86B4D0',
@@ -36,7 +35,6 @@ const RuleMiniIcon: React.FC<{ variant: RuleViolationType }> = ({ variant }) => 
   }
 
   if (variant === 'rowCol') {
-    // Center cat eliminating its row and column
     return (
       <div className="grid grid-cols-3 gap-[1.5px] w-7 h-7 shrink-0 rounded-md p-[1.5px] bg-[#EFE7DA]">
         {Array.from({ length: 9 }, (_, i) => {
@@ -63,7 +61,6 @@ const RuleMiniIcon: React.FC<{ variant: RuleViolationType }> = ({ variant }) => 
     );
   }
 
-  // Adjacent / No touching: center cat surrounded by 8 X's
   return (
     <div className="grid grid-cols-3 gap-[1.5px] w-7 h-7 shrink-0 rounded-md p-[1.5px] bg-[#EFE7DA]">
       {Array.from({ length: 9 }, (_, i) => {
@@ -89,23 +86,25 @@ const RuleMiniIcon: React.FC<{ variant: RuleViolationType }> = ({ variant }) => 
   );
 };
 
-const RULES: readonly { id: RuleViolationType; label: string }[] = [
-  { id: 'region', label: '1 cat per color' },
-  { id: 'rowCol', label: '1 per row & col' },
-  { id: 'adjacent', label: 'Cats never touch' },
+const RULES: readonly { id: RuleViolationType; key: string }[] = [
+  { id: 'region', key: 'rules.region' },
+  { id: 'rowCol', key: 'rules.rowCol' },
+  { id: 'adjacent', key: 'rules.adjacent' },
 ];
 
 export const RuleCards: React.FC<RuleCardsProps> = ({
   violatedRules,
   onOpenTutorial,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="px-3.5 py-1 shrink-0">
       <button
         id="btn-rules-bar"
         type="button"
         onClick={onOpenTutorial}
-        aria-label="View how to play rules"
+        aria-label={t('rules.viewRulesAria')}
         className="w-full meow-card rounded-2xl p-1.5 grid grid-cols-3 gap-1.5 text-left cursor-pointer active:scale-[0.99] transition-transform"
       >
         {RULES.map((rule) => {
@@ -130,11 +129,11 @@ export const RuleCards: React.FC<RuleCardsProps> = ({
             >
               <RuleMiniIcon variant={rule.id} />
               <span
-                className={`text-[10px] sm:text-[10.5px] font-extrabold leading-[1.15] tracking-tight ${
+                className={`text-[9.5px] sm:text-[10px] font-extrabold leading-[1.15] tracking-tight ${
                   isViolated ? 'text-[#C84444]' : 'text-[#5A4E47]'
                 }`}
               >
-                {rule.label}
+                {t(rule.key)}
               </span>
             </motion.div>
           );

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Eye,
+  Globe,
   Music,
   Smartphone,
   Sparkles,
@@ -12,6 +14,8 @@ import {
 import { ModalSheet } from '../../components/Modals/ModalSheet';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 import { PlayerSettings } from '../../game/gameTypes';
+import { AppLanguage, changeAppLanguage, getCurrentLanguage } from '../../i18n';
+import { soundManager } from '../../utils/sound';
 
 interface SettingsScreenProps {
   open: boolean;
@@ -54,7 +58,7 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-[14px] font-extrabold text-[#3A312C] leading-tight">
+        <div className="text-[13.5px] font-extrabold text-[#3A312C] leading-tight">
           {label}
         </div>
         <div className="text-[11px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
@@ -73,6 +77,11 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
   </button>
 );
 
+const LANGUAGE_OPTIONS: readonly { code: AppLanguage; flag: string; label: string }[] = [
+  { code: 'en', flag: '🇬🇧', label: 'English' },
+  { code: 'fr', flag: '🇫🇷', label: 'Français' },
+];
+
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   open,
   settings,
@@ -80,60 +89,107 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onResetProgress,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
+  const currentLang = getCurrentLanguage();
 
   const handleClose = () => {
     setConfirmReset(false);
     onClose();
   };
 
+  const handleSelectLanguage = (code: AppLanguage) => {
+    soundManager.play('button', settings.soundEnabled);
+    changeAppLanguage(code);
+  };
+
   return (
-    <ModalSheet open={open} onClose={handleClose} ariaLabel="Game settings">
-      <div className="p-5 flex flex-col max-h-[85dvh] soft-scroll">
+    <ModalSheet open={open} onClose={handleClose} ariaLabel={t('settings.dialogAria')}>
+      <div className="p-5 flex flex-col max-h-[86dvh] soft-scroll">
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="text-[20px] font-black text-[#3A312C] tracking-tight">
-            Settings
+            {t('settings.title')}
           </h2>
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Close settings"
+            aria-label={t('settings.closeAria')}
             className="w-8 h-8 rounded-full bg-[#F5EFE5] flex items-center justify-center text-[#7E7067] cursor-pointer active:scale-92"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Premium Tactile Language Selector */}
+        <div className="rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] p-3 mb-2.5">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#8366CC] shrink-0">
+              <Globe className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13.5px] font-extrabold text-[#3A312C] leading-tight">
+                {t('settings.languageLabel')}
+              </div>
+              <div className="text-[10.5px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
+                {t('settings.languageDesc')}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 bg-[#EFE6D8]/90 p-1 rounded-xl">
+            {LANGUAGE_OPTIONS.map((opt) => {
+              const active = currentLang === opt.code;
+              return (
+                <button
+                  key={opt.code}
+                  id={`btn-lang-${opt.code}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => handleSelectLanguage(opt.code)}
+                  className={`py-2 px-2.5 rounded-lg text-[13px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    active
+                      ? 'bg-white text-[#3A312C] shadow-[0_2px_8px_rgba(92,69,52,0.12)] ring-1 ring-[#FF8585]/40'
+                      : 'text-[#7E7067] hover:text-[#3A312C]'
+                  }`}
+                >
+                  <span aria-hidden="true">{opt.flag}</span>
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2">
           <ToggleRow
             id="toggle-auto-x"
             icon={<Wand2 className="w-4.5 h-4.5 text-[#E59C1E]" />}
-            label="Smart Auto-×"
-            description="Auto-mark × around valid cats"
+            label={t('settings.autoXLabel')}
+            description={t('settings.autoXDesc')}
             checked={settings.autoMarkX}
             onToggle={() => onUpdateSetting('autoMarkX', !settings.autoMarkX)}
           />
           <ToggleRow
             id="toggle-sound"
             icon={<Volume2 className="w-4.5 h-4.5" />}
-            label="Sound Effects"
-            description="Soft chimes, taps & purrs"
+            label={t('settings.soundLabel')}
+            description={t('settings.soundDesc')}
             checked={settings.soundEnabled}
             onToggle={() => onUpdateSetting('soundEnabled', !settings.soundEnabled)}
           />
           <ToggleRow
             id="toggle-music"
             icon={<Music className="w-4.5 h-4.5" />}
-            label="Cozy Music"
-            description="Gentle ambient lullaby"
+            label={t('settings.musicLabel')}
+            description={t('settings.musicDesc')}
             checked={settings.musicEnabled}
             onToggle={() => onUpdateSetting('musicEnabled', !settings.musicEnabled)}
           />
           <ToggleRow
             id="toggle-haptics"
             icon={<Smartphone className="w-4.5 h-4.5" />}
-            label="Haptic Feedback"
-            description="Subtle vibration on tap"
+            label={t('settings.hapticsLabel')}
+            description={t('settings.hapticsDesc')}
             checked={settings.hapticsEnabled}
             onToggle={() =>
               onUpdateSetting('hapticsEnabled', !settings.hapticsEnabled)
@@ -142,8 +198,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <ToggleRow
             id="toggle-reduced-motion"
             icon={<Sparkles className="w-4.5 h-4.5" />}
-            label="Reduced Motion"
-            description="Minimize bounce & particles"
+            label={t('settings.reducedMotionLabel')}
+            description={t('settings.reducedMotionDesc')}
             checked={settings.reducedMotion}
             onToggle={() =>
               onUpdateSetting('reducedMotion', !settings.reducedMotion)
@@ -152,8 +208,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <ToggleRow
             id="toggle-symbols"
             icon={<Eye className="w-4.5 h-4.5" />}
-            label="Region Symbols"
-            description="Add subtle icons to colors"
+            label={t('settings.symbolsLabel')}
+            description={t('settings.symbolsDesc')}
             checked={settings.showRegionSymbols}
             onToggle={() =>
               onUpdateSetting('showRegionSymbols', !settings.showRegionSymbols)
@@ -162,7 +218,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
 
         {/* Reset Progress Section */}
-        <div className="mt-5 pt-4 border-t border-[#EFE6D8]">
+        <div className="mt-4 pt-3.5 border-t border-[#EFE6D8]">
           {!confirmReset ? (
             <button
               id="btn-reset-progress"
@@ -171,12 +227,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[13px] font-extrabold text-[#C84E4E] bg-[#FFF0F0] hover:bg-[#FFE3E3] transition-colors cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
-              Reset All Progress
+              {t('settings.resetProgress')}
             </button>
           ) : (
             <div className="rounded-2xl bg-[#FFF0F0] p-3 text-center">
-              <p className="text-[12.5px] font-extrabold text-[#B23B3B] mb-2.5">
-                Clear all solved levels, stars, and best times?
+              <p className="text-[12px] font-extrabold text-[#B23B3B] mb-2.5">
+                {t('settings.resetConfirmTitle')}
               </p>
               <div className="flex gap-2">
                 <TactileButton
@@ -185,7 +241,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   fullWidth
                   onClick={() => setConfirmReset(false)}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </TactileButton>
                 <TactileButton
                   id="btn-confirm-reset"
@@ -197,7 +253,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     onResetProgress();
                   }}
                 >
-                  Yes, Reset
+                  {t('settings.resetConfirmYes')}
                 </TactileButton>
               </div>
             </div>

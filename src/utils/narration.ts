@@ -1,14 +1,23 @@
+import i18n, { AppLanguage, getCurrentLanguage } from '../i18n';
+
 /**
- * Synchronized tutorial voiceover player.
- * 1. First attempts to play ffmpeg-extracted MP3 narration clips from /media/audio/narration-step-{idx}.mp3
- * 2. Falls back cleanly to native Web Speech API (speechSynthesis) when custom MP3s aren't present.
+ * Bilingual synchronized tutorial voiceover & live-caption engine (en / fr-FR).
+ * 1. Checks locale-scoped pre-recorded MP3: /media/audio/{lang}/narration-step-{step}.mp3
+ *    (strictly scoped per language — never silently falls back to English audio when French is active).
+ * 2. Falls back to native Web Speech API selecting a matching fr-FR or en-US voice.
  */
 
-export const TUTORIAL_SCRIPTS: readonly string[] = [
-  'Rule one: One cat per color. Every colored region hides exactly one cat. Mark the empty tiles with an X to narrow it down!',
-  'Rule two: One cat per row and column. No two cats can share the same horizontal row or vertical column.',
-  'Rule three: Cats never touch. Keep all eight surrounding tiles clear around every cat, including diagonals!',
-];
+export function getTutorialVoiceScript(stepIndex: number): string {
+  const stepNum = stepIndex + 1;
+  return i18n.t(`tutorial.steps.${stepNum}.voice`);
+}
+
+export function getLocalizedNarrationClipUrl(
+  stepIndex: number,
+  lang: AppLanguage = getCurrentLanguage()
+): string {
+  return `/media/audio/${lang}/narration-step-${stepIndex + 1}.mp3`;
+}
 
 class TutorialNarrator {
   private audioEl: HTMLAudioElement | null = null;
@@ -35,14 +44,15 @@ class TutorialNarrator {
     onStateChange?: (speaking: boolean) => void
   ): Promise<void> {
     this.stop();
-    const script = TUTORIAL_SCRIPTS[stepIndex];
+    const lang = getCurrentLanguage();
+    const script = getTutorialVoiceScript(stepIndex);
     if (!script || typeof window === 'undefined') return;
 
     this.isSpeaking = true;
     onStateChange?.(true);
 
-    // Try synced ffmpeg-extracted narration MP3 first
-    const clipUrl = `/media/audio/narration-step-${stepIndex + 1}.mp3`;
+    // Try locale-matched ffmpeg-extracted narration MP3 first
+    const clipUrl = getLocalizedNarrationClipUrl(stepIndex, lang);
     try {
       const res = await fetch(clipUrl, { method: 'HEAD' });
       const contentType = res.headers.get('content-type') || '';
@@ -54,20 +64,41 @@ class TutorialNarrator {
           onStateChange?.(false);
         };
         audio.onerror = () => {
-          this.speakWithWebSpeech(script, onStateChange);
+          this.speakWithWebSpeech(script, lang, onStateChange);
         };
         await audio.play();
         return;
       }
     } catch {
-      // Fall through to Web Speech API
+      // Fall through to localized Web Speech API
     }
 
-    this.speakWithWebSpeech(script, onStateChange);
+    this.speakWithWebSpeech(script, lang, onStateChange);
+  }
+
+  private pickVoice(lang: AppLanguage): SpeechSynthesisVoice | null {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+
+    if (lang === 'fr') {
+      return (
+        voices.find((v) => v.lang.toLowerCase() === 'fr-fr') ??
+        voices.find((v) => v.lang.toLowerCase().startsWith('fr')) ??
+        null
+      );
+    }
+
+    return (
+      voices.find((v) => v.lang.toLowerCase() === 'en-us') ??
+      voices.find((v) => v.lang.toLowerCase().startsWith('en')) ??
+      null
+    );
   }
 
   private speakWithWebSpeech(
     text: string,
+    lang: AppLanguage,
     onStateChange?: (speaking: boolean) => void
   ): void {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -78,9 +109,15 @@ class TutorialNarrator {
 
     try {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.02;
-      utterance.pitch = 1.08;
-      utterance.lang = 'en-US';
+      utterance.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+      utterance.rate = lang === 'fr' ? 1.0 : 1.02;
+      utterance.pitch = 1.05;
+
+      const voice = this.pickVoice(lang);
+      if (voice) {
+        utterance.voice = voice;
+      }
+
       utterance.onend = () => {
         this.isSpeaking = false;
         onStateChange?.(false);

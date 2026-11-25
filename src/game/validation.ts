@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import {
   BoardGrid,
   CellCoord,
@@ -78,7 +79,7 @@ export function validateBoard(
       conflicts.push({
         rule: 'region',
         cells,
-        message: 'Only 1 cat can hide in each color region!',
+        message: i18n.t('validation.regionConflict'),
       });
     }
   }
@@ -91,7 +92,7 @@ export function validateBoard(
       conflicts.push({
         rule: 'rowCol',
         cells,
-        message: `Row ${row + 1} already has a cat — only 1 per row!`,
+        message: i18n.t('validation.rowConflict', { row: row + 1 }),
       });
     }
   }
@@ -104,7 +105,7 @@ export function validateBoard(
       conflicts.push({
         rule: 'rowCol',
         cells,
-        message: `Column ${col + 1} already has a cat — only 1 per column!`,
+        message: i18n.t('validation.colConflict', { col: col + 1 }),
       });
     }
   }
@@ -121,7 +122,7 @@ export function validateBoard(
         conflicts.push({
           rule: 'adjacent',
           cells: [a, b],
-          message: 'Oops! Cats need personal space and cannot touch, even diagonally.',
+          message: i18n.t('validation.adjacentConflict'),
         });
       }
     }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Gift, Sparkles, Trophy } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
@@ -8,6 +9,7 @@ import { FishCoinIcon } from '../Currency/FishCoinIcon';
 import { useGameStore } from '../../store/gameStore';
 
 export const CelebrationModals: React.FC = () => {
+  const { t } = useTranslation();
   const unlockedWorldModal = useGameStore((s) => s.unlockedWorldModal);
   const unlockedCatModal = useGameStore((s) => s.unlockedCatModal);
   const chestRevealModal = useGameStore((s) => s.chestRevealModal);
@@ -16,20 +18,27 @@ export const CelebrationModals: React.FC = () => {
   const dismissChestReveal = useGameStore((s) => s.dismissChestReveal);
   const selectMascotCat = useGameStore((s) => s.selectMascotCat);
 
+  const worldName = unlockedWorldModal
+    ? t(`worlds.${unlockedWorldModal.id}.name`)
+    : '';
+  const worldSubtitle = unlockedWorldModal
+    ? t(`worlds.${unlockedWorldModal.id}.subtitle`)
+    : '';
+
   return (
     <>
       {/* World Unlocked Celebration */}
       <ModalSheet
         open={Boolean(unlockedWorldModal)}
         onClose={dismissUnlockedWorld}
-        ariaLabel="New world unlocked"
+        ariaLabel={t('celebrations.newWorldBadge')}
       >
         {unlockedWorldModal && (
           <div className="overflow-hidden text-center">
             <div className="relative h-[145px] w-full">
               <img
                 src={unlockedWorldModal.bannerImage}
-                alt={unlockedWorldModal.name}
+                alt={worldName}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#FFFDF9] to-transparent" />
@@ -37,16 +46,16 @@ export const CelebrationModals: React.FC = () => {
             <div className="px-6 pb-6 -mt-3 relative">
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#FFF2D6] text-[#9A6514] text-[11px] font-black uppercase">
                 <Trophy className="w-3.5 h-3.5" />
-                New World Unlocked!
+                {t('celebrations.newWorldBadge')}
               </span>
               <h2 className="text-[24px] font-black text-[#3A312C] mt-2">
-                {unlockedWorldModal.name}
+                {worldName}
               </h2>
               <p className="text-[13px] font-bold text-[#7E7067] mt-1 mb-5">
-                {unlockedWorldModal.subtitle}
+                {worldSubtitle}
               </p>
               <TactileButton variant="primary" size="lg" fullWidth onClick={dismissUnlockedWorld}>
-                Explore {unlockedWorldModal.name}!
+                {t('celebrations.exploreWorld', { world: worldName })}
               </TactileButton>
             </div>
           </div>
@@ -57,13 +66,17 @@ export const CelebrationModals: React.FC = () => {
       <ModalSheet
         open={Boolean(unlockedCatModal)}
         onClose={dismissUnlockedCat}
-        ariaLabel="New cat companion unlocked"
+        ariaLabel={t('celebrations.newCatBadge', {
+          rarity: unlockedCatModal ? t(`cats.rarity.${unlockedCatModal.rarity}`) : '',
+        })}
       >
         {unlockedCatModal && (
           <div className="p-6 text-center flex flex-col items-center">
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F3ECFD] text-[#6B4EB5] text-[11px] font-black uppercase">
               <Sparkles className="w-3.5 h-3.5" />
-              New Cat Unlocked • {unlockedCatModal.rarity}
+              {t('celebrations.newCatBadge', {
+                rarity: t(`cats.rarity.${unlockedCatModal.rarity}`),
+              })}
             </span>
 
             <motion.div
@@ -83,10 +96,10 @@ export const CelebrationModals: React.FC = () => {
               {unlockedCatModal.name}
             </h2>
             <p className="text-[12px] font-extrabold text-[#FF7A7A] mt-1">
-              {unlockedCatModal.title}
+              {t(`cats.roster.${unlockedCatModal.id}.title`)}
             </p>
             <p className="text-[13px] font-semibold text-[#7E7067] mt-2 mb-5">
-              {unlockedCatModal.personality}
+              {t(`cats.roster.${unlockedCatModal.id}.personality`)}
             </p>
 
             <div className="w-full flex flex-col gap-2">
@@ -98,10 +111,10 @@ export const CelebrationModals: React.FC = () => {
                   dismissUnlockedCat();
                 }}
               >
-                Set as Map Companion
+                {t('celebrations.setAsCompanion')}
               </TactileButton>
               <TactileButton variant="ghost" size="sm" fullWidth onClick={dismissUnlockedCat}>
-                Awesome!
+                {t('common.awesome')}
               </TactileButton>
             </div>
           </div>
@@ -112,7 +125,7 @@ export const CelebrationModals: React.FC = () => {
       <ModalSheet
         open={Boolean(chestRevealModal)}
         onClose={dismissChestReveal}
-        ariaLabel="Treasure chest opened"
+        ariaLabel={chestRevealModal?.title ?? ''}
       >
         {chestRevealModal && (
           <div className="p-6 text-center flex flex-col items-center">
@@ -144,7 +157,7 @@ export const CelebrationModals: React.FC = () => {
             </div>
 
             <TactileButton variant="primary" fullWidth onClick={dismissChestReveal}>
-              Collect Treasure!
+              {t('celebrations.collectTreasure')}
             </TactileButton>
           </div>
         )}

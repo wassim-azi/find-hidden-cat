@@ -1,36 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Volume2, VolumeX, X } from 'lucide-react';
 import { ModalSheet } from '../../components/Modals/ModalSheet';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
-import { tutorialNarrator } from '../../utils/narration';
+import { getTutorialVoiceScript, tutorialNarrator } from '../../utils/narration';
 
 interface TutorialScreenProps {
   open: boolean;
   onClose: () => void;
 }
 
-const STEPS = [
-  {
-    badge: 'Rule 1 of 3',
-    title: 'One Cat per Color',
-    subtitle: 'Each colored area hides exactly one cat. Mark the rest with ×!',
-    demo: 'region' as const,
-  },
-  {
-    badge: 'Rule 2 of 3',
-    title: 'One per Row & Column',
-    subtitle: 'No two cats can share the same horizontal row or vertical column.',
-    demo: 'rowCol' as const,
-  },
-  {
-    badge: 'Rule 3 of 3',
-    title: 'Cats Never Touch',
-    subtitle: 'Cats love space! Keep all 8 surrounding tiles clear — even diagonally.',
-    demo: 'adjacent' as const,
-  },
-];
+const STEP_DEMOS = ['region', 'rowCol', 'adjacent'] as const;
 
 const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = ({
   demo,
@@ -58,7 +40,7 @@ const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = (
   const isHighlighted = (idx: number): boolean => idx === catIndex || isMarkedX(idx);
 
   return (
-    <div className="w-[196px] h-[196px] mx-auto bg-white p-2 rounded-[20px] border border-[#EAE0D2] shadow-[0_8px_20px_rgba(92,69,52,0.08)]">
+    <div className="w-[186px] h-[186px] mx-auto bg-white p-2 rounded-[20px] border border-[#EAE0D2] shadow-[0_8px_20px_rgba(92,69,52,0.08)]">
       <div className="grid grid-cols-4 grid-rows-4 gap-1.5 w-full h-full">
         {regionColors.map((bg, idx) => {
           const isCat = idx === catIndex;
@@ -116,9 +98,12 @@ const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = (
 };
 
 export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const current = STEPS[step]!;
+
+  const stepNum = step + 1;
+  const demo = STEP_DEMOS[step]!;
 
   useEffect(() => {
     if (!open) {
@@ -153,19 +138,19 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
   };
 
   return (
-    <ModalSheet open={open} onClose={handleClose} ariaLabel="How to play Meowdoku">
+    <ModalSheet open={open} onClose={handleClose} ariaLabel={t('tutorial.dialogAria')}>
       <div className="p-5 flex flex-col">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-black uppercase tracking-wider text-[#FF7A7A] bg-[#FFF0F0] px-2.5 py-1 rounded-full">
-              {current.badge}
+              {t(`tutorial.steps.${stepNum}.badge`)}
             </span>
             <button
               id="btn-tutorial-voice"
               type="button"
               onClick={handleToggleVoice}
-              aria-label={isSpeaking ? 'Stop voice explanation' : 'Listen to voice explanation'}
+              aria-label={isSpeaking ? t('tutorial.stopAria') : t('tutorial.listenAria')}
               className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
                 isSpeaking
                   ? 'bg-[#6EB58E] text-white'
@@ -175,12 +160,12 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
               {isSpeaking ? (
                 <>
                   <VolumeX className="w-3.5 h-3.5" />
-                  Stop
+                  {t('tutorial.stop')}
                 </>
               ) : (
                 <>
                   <Volume2 className="w-3.5 h-3.5" />
-                  Listen
+                  {t('tutorial.listen')}
                 </>
               )}
             </button>
@@ -189,7 +174,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Close tutorial"
+            aria-label={t('tutorial.closeAria')}
             className="w-8 h-8 rounded-full bg-[#F5EFE5] flex items-center justify-center text-[#7E7067] cursor-pointer active:scale-92"
           >
             <X className="w-4 h-4" />
@@ -206,31 +191,56 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
             transition={{ duration: 0.2 }}
             className="flex flex-col items-center text-center"
           >
-            <AnimatedRuleDemo demo={current.demo} />
+            <AnimatedRuleDemo demo={demo} />
 
-            <h2 className="text-[21px] font-black text-[#3A312C] mt-4 tracking-tight">
-              {current.title}
+            <h2 className="text-[20px] font-black text-[#3A312C] mt-3.5 tracking-tight">
+              {t(`tutorial.steps.${stepNum}.title`)}
             </h2>
-            <p className="text-[13.5px] font-semibold text-[#7E7067] mt-1.5 leading-snug max-w-[270px]">
-              {current.subtitle}
+            <p className="text-[13px] font-semibold text-[#7E7067] mt-1 leading-snug max-w-[275px]">
+              {t(`tutorial.steps.${stepNum}.subtitle`)}
             </p>
           </motion.div>
         </AnimatePresence>
 
+        {/* Synchronized Live Captions while Voice Guide is speaking */}
+        <AnimatePresence>
+          {isSpeaking && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-2.5 overflow-hidden"
+            >
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-2xl bg-[#3A312C] text-white px-3 py-2 text-[11px] font-bold leading-snug text-center shadow-sm"
+              >
+                <span className="text-[#FFE082] font-black uppercase text-[9.5px] tracking-wider block mb-0.5">
+                  {t('tutorial.captionLabel')}
+                </span>
+                “{getTutorialVoiceScript(step)}”
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Quick controls tip */}
-        <div className="mt-4 rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] px-3 py-2 text-center text-[11.5px] font-bold text-[#6E6057]">
-          Tap to select, tap again to place a cat. Drag across tiles in{' '}
-          <span className="text-[#3A312C] font-black">Mark ×</span> mode!
+        <div className="mt-3.5 rounded-2xl bg-[#FAF5EC] border border-[#EDE3D4] px-3 py-2 text-center text-[11px] font-bold text-[#6E6057]">
+          <Trans
+            i18nKey="tutorial.controlsTip"
+            components={{ bold: <span className="text-[#3A312C] font-black" /> }}
+          />
         </div>
 
         {/* Dots */}
-        <div className="flex items-center justify-center gap-2 my-4">
-          {STEPS.map((_, idx) => (
+        <div className="flex items-center justify-center gap-2 my-3.5">
+          {STEP_DEMOS.map((_, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => handleStepChange(idx)}
-              aria-label={`Step ${idx + 1}`}
+              aria-label={t('tutorial.stepAria', { num: idx + 1 })}
               className={`h-2 rounded-full transition-all cursor-pointer ${
                 idx === step ? 'w-6 bg-[#FF7A7A]' : 'w-2 bg-[#E3D8C8]'
               }`}
@@ -246,19 +256,19 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
               size="md"
               onClick={() => handleStepChange(step - 1)}
               className="px-3.5"
-              ariaLabel="Previous rule"
+              ariaLabel={t('tutorial.prevAria')}
             >
               <ChevronLeft className="w-4 h-4" />
             </TactileButton>
           )}
-          {step < STEPS.length - 1 ? (
+          {step < STEP_DEMOS.length - 1 ? (
             <TactileButton
               id="btn-tutorial-next"
               variant="primary"
               fullWidth
               onClick={() => handleStepChange(step + 1)}
             >
-              Next Rule
+              {t('tutorial.nextRule')}
               <ChevronRight className="w-4 h-4" />
             </TactileButton>
           ) : (
@@ -268,7 +278,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
               fullWidth
               onClick={handleClose}
             >
-              Got It, Let&apos;s Play!
+              {t('tutorial.done')}
             </TactileButton>
           )}
         </div>

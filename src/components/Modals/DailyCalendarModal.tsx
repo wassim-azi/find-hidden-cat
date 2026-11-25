@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, Flame, Gift, Shield, Sparkles, X } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
 import { TactileButton } from '../Buttons/TactileButton';
@@ -11,6 +12,7 @@ import { getTodayDateKey } from '../../game/levels';
 import { useGameStore } from '../../store/gameStore';
 
 export const DailyCalendarModal: React.FC = () => {
+  const { t } = useTranslation();
   const open = useGameStore((s) => s.isDailyCalendarOpen);
   const dailyLogin = useGameStore((s) => s.dailyLogin);
   const claimTodaysDailyReward = useGameStore((s) => s.claimTodaysDailyReward);
@@ -26,10 +28,11 @@ export const DailyCalendarModal: React.FC = () => {
   const handleClaim = () => {
     const res = claimTodaysDailyReward();
     if (res.claimed && res.reward) {
+      const rewardTitle = t(`dailyCalendar.days.${res.reward.day}.title`);
       setJustClaimedText(
         res.usedStreakShield
-          ? `Streak Shield saved your streak! Claimed ${res.reward.title}!`
-          : `Claimed Day ${res.reward.day}: ${res.reward.title}!`
+          ? t('dailyCalendar.shieldSavedToast', { title: rewardTitle })
+          : t('dailyCalendar.claimedToast', { day: res.reward.day, title: rewardTitle })
       );
     }
   };
@@ -40,7 +43,7 @@ export const DailyCalendarModal: React.FC = () => {
   };
 
   return (
-    <ModalSheet open={open} onClose={handleClose} ariaLabel="7-Day Daily Rewards Calendar">
+    <ModalSheet open={open} onClose={handleClose} ariaLabel={t('dailyCalendar.dialogAria')}>
       <div className="p-5 flex flex-col max-h-[86dvh] soft-scroll">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-3">
@@ -49,18 +52,18 @@ export const DailyCalendarModal: React.FC = () => {
               <Gift className="w-5 h-5" />
             </span>
             <div>
-              <h2 className="text-[19px] font-black text-[#3A312C] leading-none">
-                Daily Treats
+              <h2 className="text-[18.5px] font-black text-[#3A312C] leading-none">
+                {t('dailyCalendar.title')}
               </h2>
               <p className="text-[11px] font-bold text-[#8A7B70] mt-0.5">
-                Come back each day for bigger prizes!
+                {t('dailyCalendar.subtitle')}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Close daily rewards"
+            aria-label={t('common.close')}
             className="w-8 h-8 rounded-full bg-[#F5EFE5] flex items-center justify-center text-[#7E7067] cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -72,19 +75,23 @@ export const DailyCalendarModal: React.FC = () => {
           <div className="rounded-2xl bg-[#FFF5E4] border border-[#F3DCAD] px-3 py-2 flex items-center gap-2">
             <Flame className="w-4.5 h-4.5 text-[#E87A2A] shrink-0" />
             <div>
-              <div className="text-[14px] font-black text-[#3A312C] leading-none">
-                {dailyLogin.streakCount} Day{dailyLogin.streakCount === 1 ? '' : 's'}
+              <div className="text-[13.5px] font-black text-[#3A312C] leading-none">
+                {t('common.days', { count: dailyLogin.streakCount })}
               </div>
-              <div className="text-[10px] font-bold text-[#946C2B] mt-0.5">Login Streak</div>
+              <div className="text-[10px] font-bold text-[#946C2B] mt-0.5">
+                {t('dailyCalendar.loginStreak')}
+              </div>
             </div>
           </div>
           <div className="rounded-2xl bg-[#EBF7F0] border border-[#C3E5D1] px-3 py-2 flex items-center gap-2">
             <Shield className="w-4.5 h-4.5 text-[#3B8B61] shrink-0" />
             <div>
-              <div className="text-[14px] font-black text-[#3A312C] leading-none">
-                {dailyLogin.streakShields} Shield{dailyLogin.streakShields === 1 ? '' : 's'}
+              <div className="text-[13.5px] font-black text-[#3A312C] leading-none">
+                {t('common.shields', { count: dailyLogin.streakShields })}
               </div>
-              <div className="text-[10px] font-bold text-[#3D7A5A] mt-0.5">Streak Guard</div>
+              <div className="text-[10px] font-bold text-[#3D7A5A] mt-0.5">
+                {t('dailyCalendar.streakGuard')}
+              </div>
             </div>
           </div>
         </div>
@@ -92,15 +99,17 @@ export const DailyCalendarModal: React.FC = () => {
         {/* 7-Day Reward Grid */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           {SEVEN_DAY_REWARDS.map((slot, idx) => {
-            const isPast = claimable ? idx < activeDayIdx : idx < activeDayIdx || (activeDayIdx === 0 && dailyLogin.totalClaims > 0);
+            const isPast = claimable
+              ? idx < activeDayIdx
+              : idx < activeDayIdx || (activeDayIdx === 0 && dailyLogin.totalClaims > 0);
             const isToday = claimable && idx === activeDayIdx;
             const isGrand = slot.isGrandPrize;
 
             return (
               <div
                 key={slot.day}
-                className={`relative rounded-2xl p-2.5 border flex flex-col items-center text-center transition-all ${
-                  isGrand ? 'col-span-3 flex-row justify-between px-4 py-3 text-left' : ''
+                className={`relative rounded-2xl p-2 border flex flex-col items-center text-center transition-all ${
+                  isGrand ? 'col-span-3 flex-row justify-between px-3.5 py-3 text-left' : ''
                 } ${
                   isToday
                     ? 'bg-[#FFF8E6] border-[#F0B840] ring-2 ring-[#F0B840]/35 shadow-sm'
@@ -111,7 +120,7 @@ export const DailyCalendarModal: React.FC = () => {
               >
                 <div className={isGrand ? 'flex items-center gap-3' : 'flex flex-col items-center'}>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    className={`text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap ${
                       isToday
                         ? 'bg-[#F0B840] text-white'
                         : isPast
@@ -119,7 +128,7 @@ export const DailyCalendarModal: React.FC = () => {
                           : 'bg-[#EAE0D2] text-[#7E7067]'
                     }`}
                   >
-                    Day {slot.day}
+                    {t('dailyCalendar.dayBadge', { day: slot.day })}
                   </span>
 
                   <div className={isGrand ? '' : 'mt-1.5 flex flex-col items-center'}>
@@ -132,11 +141,11 @@ export const DailyCalendarModal: React.FC = () => {
                         )}
                       </div>
                     )}
-                    <div className="text-[12px] font-black text-[#3A312C] leading-tight">
-                      {slot.title}
+                    <div className="text-[11.5px] font-black text-[#3A312C] leading-tight">
+                      {t(`dailyCalendar.days.${slot.day}.title`)}
                     </div>
-                    <div className="text-[10px] font-bold text-[#8A7B70] mt-0.5 leading-tight">
-                      {slot.subtitle}
+                    <div className="text-[9.5px] font-bold text-[#8A7B70] mt-0.5 leading-tight">
+                      {t(`dailyCalendar.days.${slot.day}.subtitle`)}
                     </div>
                   </div>
                 </div>
@@ -167,16 +176,16 @@ export const DailyCalendarModal: React.FC = () => {
             size="lg"
             fullWidth
             onClick={handleClaim}
-            className="relative overflow-hidden btn-shimmer"
+            className="relative overflow-hidden btn-shimmer text-[15px]"
           >
-            <Gift className="w-5 h-5" />
-            Claim Day {activeDayIdx + 1} Reward
+            <Gift className="w-5 h-5 shrink-0" />
+            {t('dailyCalendar.claimButton', { day: activeDayIdx + 1 })}
           </TactileButton>
         ) : (
           <div className="flex flex-col gap-2">
             <TactileButton variant="secondary" size="md" fullWidth onClick={handleClose}>
-              <Check className="w-4 h-4 text-[#4B9B6E]" />
-              Claimed Today — See You Tomorrow!
+              <Check className="w-4 h-4 text-[#4B9B6E] shrink-0" />
+              {t('dailyCalendar.claimedToday')}
             </TactileButton>
             <button
               type="button"
@@ -184,9 +193,9 @@ export const DailyCalendarModal: React.FC = () => {
                 handleClose();
                 openRewardedAdPrompt('daily_bonus');
               }}
-              className="text-[11.5px] font-extrabold text-[#9B86D4] hover:underline py-1 cursor-pointer"
+              className="text-[11px] font-extrabold text-[#9B86D4] hover:underline py-1 cursor-pointer"
             >
-              Optional: Double Daily Bonus (Future Ad Preview)
+              {t('dailyCalendar.doubleBonusAd')}
             </button>
           </div>
         )}

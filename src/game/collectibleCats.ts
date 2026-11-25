@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { CatBreed } from '../styles/theme';
 import { LevelProgress } from './gameTypes';
 
@@ -34,7 +35,7 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     personality: 'Polite, curious, and always inspects every corner first.',
     unlockRequirementText: 'Starter companion',
     isUnlocked: () => true,
-    progressHint: () => 'Unlocked!',
+    progressHint: () => i18n.t('cats.progress.unlocked'),
   },
   {
     id: 'marmalade',
@@ -45,7 +46,7 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     personality: 'Warm-hearted ginger tabby who loves morning puzzles.',
     unlockRequirementText: 'Complete Level 1',
     isUnlocked: (ctx) => Boolean(ctx.levelProgress[1]?.completed),
-    progressHint: () => 'Complete Level 1 to befriend Marmalade',
+    progressHint: () => i18n.t('cats.progress.completeLvl1'),
   },
   {
     id: 'pebble',
@@ -56,7 +57,8 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     personality: 'Calm British Shorthair who never rushes a deduction.',
     unlockRequirementText: 'Earn 6 total stars',
     isUnlocked: (ctx) => ctx.totalStars >= 6,
-    progressHint: (ctx) => `${Math.max(0, 6 - ctx.totalStars)} more stars to unlock`,
+    progressHint: (ctx) =>
+      i18n.t('cats.progress.moreStars', { count: Math.max(0, 6 - ctx.totalStars) }),
   },
   {
     id: 'biscuit',
@@ -67,7 +69,7 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     personality: 'Golden kitten with an uncanny nose for hidden treasure chests.',
     unlockRequirementText: 'Complete Level 4 (Treasure Chest)',
     isUnlocked: (ctx) => Boolean(ctx.levelProgress[4]?.completed),
-    progressHint: () => 'Reach & clear Level 4 Treasure Chest',
+    progressHint: () => i18n.t('cats.progress.clearLvl4'),
   },
   {
     id: 'cleo',
@@ -79,7 +81,9 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     unlockRequirementText: 'Unlock World 2: Candy Garden',
     isUnlocked: (ctx) => ctx.unlockedLevelId >= 7,
     progressHint: (ctx) =>
-      `${Math.max(0, 7 - ctx.unlockedLevelId)} more levels until Candy Garden`,
+      i18n.t('cats.progress.untilWorld2', {
+        count: Math.max(0, 7 - ctx.unlockedLevelId),
+      }),
   },
   {
     id: 'luna',
@@ -90,7 +94,7 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     personality: 'Wears her favorite pink bow for every Daily Kitty puzzle.',
     unlockRequirementText: 'Complete 1 Daily Kitty Challenge',
     isUnlocked: (ctx) => ctx.completedDailyCount >= 1,
-    progressHint: () => 'Solve today’s Daily Kitty 8×8 puzzle',
+    progressHint: () => i18n.t('cats.progress.solveDaily'),
   },
   {
     id: 'patches',
@@ -101,7 +105,7 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     personality: 'Playful calico rescued in the heart of Candy Garden.',
     unlockRequirementText: 'Complete Level 9 (Cat Rescue)',
     isUnlocked: (ctx) => Boolean(ctx.levelProgress[9]?.completed),
-    progressHint: () => 'Rescue Patches on Level 9!',
+    progressHint: () => i18n.t('cats.progress.rescueLvl9'),
   },
   {
     id: 'snowbell',
@@ -113,7 +117,9 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     unlockRequirementText: 'Solve 3 levels without hints',
     isUnlocked: (ctx) => ctx.noHintSolves >= 3,
     progressHint: (ctx) =>
-      `${Math.max(0, 3 - ctx.noHintSolves)} more no-hint solves to unlock`,
+      i18n.t('cats.progress.noHintSolves', {
+        count: Math.max(0, 3 - ctx.noHintSolves),
+      }),
   },
   {
     id: 'nori',
@@ -125,7 +131,9 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     unlockRequirementText: 'Unlock World 3: Moonlit Valley',
     isUnlocked: (ctx) => ctx.unlockedLevelId >= 13,
     progressHint: (ctx) =>
-      `${Math.max(0, 13 - ctx.unlockedLevelId)} more levels until Moonlit Valley`,
+      i18n.t('cats.progress.untilWorld3', {
+        count: Math.max(0, 13 - ctx.unlockedLevelId),
+      }),
   },
   {
     id: 'aurelia',
@@ -138,7 +146,9 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
     isUnlocked: (ctx) =>
       ctx.unlockedAchievementsCount >= 5 || Boolean(ctx.levelProgress[24]?.completed),
     progressHint: (ctx) =>
-      `${Math.max(0, 5 - ctx.unlockedAchievementsCount)} more achievements to unlock`,
+      i18n.t('cats.progress.moreAch', {
+        count: Math.max(0, 5 - ctx.unlockedAchievementsCount),
+      }),
   },
 ] as const;
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import i18n from '../../i18n';
 import { CellValue, GridSize } from '../../game/gameTypes';
 import { getRegionTheme } from '../../styles/theme';
 import { CatIllustration } from '../Cat/CatIllustration';
@@ -82,13 +83,15 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
     const stateLabel =
       value === 'cat'
         ? isLocked
-          ? 'Locked starter cat'
+          ? i18n.t('game.cellStateLocked')
           : isConflicting
-            ? 'Cat in conflict'
-            : 'Cat placed'
+            ? i18n.t('game.cellStateConflict')
+            : i18n.t('game.cellStateCat')
         : value === 'x'
-          ? 'Marked eliminated'
-          : 'Empty';
+          ? i18n.t('game.cellStateX')
+          : i18n.t('game.cellStateEmpty');
+
+    const regName = i18n.t(`regions.${Math.abs(regionId) % 8}`);
 
     // Staggered living blink delay so cats blink naturally out of sync
     const blinkDelay = ((row * 3 + col * 7) % 9) * 0.45;
@@ -110,7 +113,12 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
             onCellTap(row, col);
           }
         }}
-        aria-label={`Row ${row + 1}, Column ${col + 1}, ${theme.name} region, ${stateLabel}`}
+        aria-label={i18n.t('game.cellAria', {
+          row: row + 1,
+          col: col + 1,
+          region: regName,
+          state: stateLabel,
+        })}
         aria-pressed={isSelected}
         style={{
           background: `linear-gradient(160deg, ${theme.bgLight}38 0%, ${theme.bg} 34%, ${theme.bg} 100%)`,

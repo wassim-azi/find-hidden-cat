@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Extract and normalize spoken tutorial audio from a black-screen narration video
+# Supports both English (en) and French (fr) voiceover tracks!
 # Usage:
-#   ./scripts/sync-narration-from-video.sh path/to/rule1.mp4 1
-#   ./scripts/sync-narration-from-video.sh path/to/rule2.mp4 2
-#   ./scripts/sync-narration-from-video.sh path/to/rule3.mp4 3
+#   ./scripts/sync-narration-from-video.sh path/to/rule1_fr.mp4 1 fr
+#   ./scripts/sync-narration-from-video.sh path/to/rule1_en.mp4 1 en
 set -euo pipefail
 
 if [ "$#" -lt 2 ]; then
-  echo "Usage: $0 <input-video-file> <step-number: 1|2|3>"
+  echo "Usage: $0 <input-video-file> <step-number: 1|2|3> [locale: en|fr]"
   exit 1
 fi
 
 INPUT_VIDEO="$1"
 STEP_NUM="$2"
-OUT_DIR="public/media/audio"
+LOCALE="${3:-en}"
+OUT_DIR="public/media/audio/${LOCALE}"
 mkdir -p "$OUT_DIR"
 
 OUT_FILE="${OUT_DIR}/narration-step-${STEP_NUM}.mp3"
@@ -24,4 +25,4 @@ ffmpeg -y -i "$INPUT_VIDEO" \
   -c:a libmp3lame -b:a 128k -ar 44100 \
   "$OUT_FILE"
 
-echo "Synced narration clip -> $OUT_FILE"
+echo "Synced [${LOCALE}] narration clip -> $OUT_FILE"

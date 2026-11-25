@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Lightbulb, Pencil, Redo2, RotateCcw, Undo2 } from 'lucide-react';
 
@@ -25,9 +26,11 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
   onHint,
   onReset,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <nav
-      aria-label="Game controls"
+      aria-label={t('game.toolbar.controlsAria')}
       className="px-3.5 pb-3 pt-1.5 shrink-0"
     >
       <div className="meow-toolbar rounded-[24px] px-2 py-2 grid grid-cols-5 gap-1 items-center">
@@ -38,7 +41,11 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           whileTap={{ scale: 0.92 }}
           onClick={onTogglePencil}
           aria-pressed={pencilMode}
-          aria-label={pencilMode ? 'Disable pencil X mode' : 'Enable pencil X mode'}
+          aria-label={
+            pencilMode
+              ? t('game.toolbar.disablePencilAria')
+              : t('game.toolbar.enablePencilAria')
+          }
           className={`
             relative flex flex-col items-center justify-center gap-0.5 py-2 rounded-[18px]
             transition-colors cursor-pointer select-none
@@ -59,8 +66,8 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
               ×
             </span>
           </div>
-          <span className="text-[10px] font-extrabold leading-none mt-0.5">
-            {pencilMode ? 'X On' : 'Mark X'}
+          <span className="text-[9.5px] min-[360px]:text-[10px] font-extrabold leading-none mt-0.5">
+            {pencilMode ? t('game.toolbar.xOn') : t('game.toolbar.markX')}
           </span>
         </motion.button>
 
@@ -71,11 +78,13 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           whileTap={canUndo ? { scale: 0.92 } : undefined}
           disabled={!canUndo}
           onClick={onUndo}
-          aria-label="Undo move"
+          aria-label={t('game.toolbar.undoAria')}
           className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-[18px] text-[#5A4E47] hover:bg-[#F7F1E6] disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer select-none transition-colors"
         >
           <Undo2 className="w-5 h-5" strokeWidth={2.3} />
-          <span className="text-[10px] font-extrabold leading-none mt-0.5">Undo</span>
+          <span className="text-[9.5px] min-[360px]:text-[10px] font-extrabold leading-none mt-0.5">
+            {t('game.toolbar.undo')}
+          </span>
         </motion.button>
 
         {/* Redo */}
@@ -85,11 +94,13 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           whileTap={canRedo ? { scale: 0.92 } : undefined}
           disabled={!canRedo}
           onClick={onRedo}
-          aria-label="Redo move"
+          aria-label={t('game.toolbar.redoAria')}
           className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-[18px] text-[#5A4E47] hover:bg-[#F7F1E6] disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer select-none transition-colors"
         >
           <Redo2 className="w-5 h-5" strokeWidth={2.3} />
-          <span className="text-[10px] font-extrabold leading-none mt-0.5">Redo</span>
+          <span className="text-[9.5px] min-[360px]:text-[10px] font-extrabold leading-none mt-0.5">
+            {t('game.toolbar.redo')}
+          </span>
         </motion.button>
 
         {/* Hint */}
@@ -98,11 +109,13 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           type="button"
           whileTap={{ scale: 0.92 }}
           onClick={onHint}
-          aria-label="Get a hint"
+          aria-label={t('game.toolbar.hintAria')}
           className="relative flex flex-col items-center justify-center gap-0.5 py-2 rounded-[18px] text-[#9A6818] bg-[#FFF6DF] hover:bg-[#FDEEC9] cursor-pointer select-none transition-colors"
         >
           <Lightbulb className="w-5 h-5 text-[#E5A024]" strokeWidth={2.4} />
-          <span className="text-[10px] font-extrabold leading-none mt-0.5">Hint</span>
+          <span className="text-[9.5px] min-[360px]:text-[10px] font-extrabold leading-none mt-0.5">
+            {t('game.toolbar.hint')}
+          </span>
           {hintsUsed > 0 && (
             <span className="absolute top-1 right-1.5 min-w-4 h-4 px-1 rounded-full bg-[#E5A024] text-white text-[9px] font-black flex items-center justify-center">
               {hintsUsed}
@@ -116,11 +129,13 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           type="button"
           whileTap={{ scale: 0.92 }}
           onClick={onReset}
-          aria-label="Reset current board"
+          aria-label={t('game.toolbar.resetAria')}
           className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-[18px] text-[#5A4E47] hover:bg-[#F7F1E6] cursor-pointer select-none transition-colors"
         >
           <RotateCcw className="w-5 h-5" strokeWidth={2.3} />
-          <span className="text-[10px] font-extrabold leading-none mt-0.5">Reset</span>
+          <span className="text-[9.5px] min-[360px]:text-[10px] font-extrabold leading-none mt-0.5">
+            {t('game.toolbar.reset')}
+          </span>
         </motion.button>
       </div>
     </nav>

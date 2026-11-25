@@ -11,6 +11,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'zustand'],
           'vendor-motion': ['framer-motion'],
           'vendor-icons': ['lucide-react'],
+          'vendor-i18n': ['i18next', 'react-i18next'],
         },
       },
     },

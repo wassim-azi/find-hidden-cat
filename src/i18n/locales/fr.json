@@ -1,0 +1,595 @@
+{
+  "meta": {
+    "title": "Meowdoku — Trouve les chats cachés"
+  },
+  "common": {
+    "level": "Niveau {{id}}",
+    "levelShort": "Niv. {{id}}",
+    "daily": "Défi",
+    "easy": "Facile",
+    "medium": "Moyen",
+    "hard": "Difficile",
+    "play": "Jouer",
+    "replay": "Rejouer",
+    "continue": "Continuer",
+    "claim": "Récupérer",
+    "claimed": "Reçu",
+    "opened": "Ouvert",
+    "openChest": "Ouvrir le coffre",
+    "inPlay": "En cours",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "view": "Voir",
+    "awesome": "Génial !",
+    "comingSoon": "Bientôt",
+    "fishCoins_one": "{{count}} pièce poisson",
+    "fishCoins_other": "{{count}} pièces poisson",
+    "fishCoinsLabel": "Pièces poisson",
+    "stars_one": "{{count}} étoile",
+    "stars_other": "{{count}} étoiles",
+    "days_one": "{{count}} jour",
+    "days_other": "{{count}} jours",
+    "shields_one": "{{count}} bouclier",
+    "shields_other": "{{count}} boucliers",
+    "levels_one": "{{count}} niveau",
+    "levels_other": "{{count}} niveaux"
+  },
+  "nav": {
+    "map": "Carte",
+    "cats": "Chats",
+    "missions": "Missions",
+    "shop": "Boutique",
+    "profile": "Profil",
+    "mainNavAria": "Navigation principale du jeu"
+  },
+  "welcome": {
+    "tagline": "Réfléchis bien. Trouve les chats.",
+    "playLevel1": "Jouer au niveau 1",
+    "continueLevel": "Continuer le niveau {{id}}",
+    "worldMap": "Carte",
+    "howToPlay": "Règles",
+    "dailyKittyTitle": "Chat du jour",
+    "dailyCoinsBadge": "+45 pièces",
+    "dailySolved": "Réussi aujourd'hui — rejouable !",
+    "dailyFresh": "Grille 8×8 • {{date}}",
+    "heroAlt": "Trois adorables chats observant des tuiles pastel de Meowdoku",
+    "openDailyAria": "Ouvrir le calendrier des cadeaux du jour",
+    "openSettingsAria": "Ouvrir les paramètres"
+  },
+  "map": {
+    "headerTitle": "Aventure Féline",
+    "completedAllNudge": "Grand Miaoumaître ! Rejoue pour décrocher 3 étoiles !",
+    "nextWorldNudge_one": "Plus que {{count}} niveau avant {{world}} !",
+    "nextWorldNudge_other": "Plus que {{count}} niveaux avant {{world}} !",
+    "summitNudge_one": "Plus que {{count}} niveau jusqu'au sommet étoilé !",
+    "summitNudge_other": "Plus que {{count}} niveaux jusqu'au sommet étoilé !",
+    "cloudSummitBadge": "Sommet des Nuages",
+    "cloudSummitTitle": "Paradis des Chats & Forêt Arc-en-ciel",
+    "cloudSummitSubtitle": "D'autres mondes magiques arrivent bientôt !",
+    "startOfJourney": "Départ de l'aventure",
+    "worldBadge": "Monde {{id}}",
+    "unlockPreviousHint": "Termine le niveau {{id}} pour débloquer",
+    "playTag": "JOUER !",
+    "lockedToast": "Termine d'abord le niveau {{prev}} pour débloquer le niveau {{next}} !",
+    "nodeAriaCompleted": "Niveau {{id}}, {{title}}, terminé avec {{stars}} étoiles",
+    "nodeAriaCurrent": "Niveau {{id}}, {{title}}, prochain niveau, touche pour jouer",
+    "nodeAriaLocked": "Niveau {{id}}, {{title}}, verrouillé, termine le niveau précédent d'abord",
+    "special": {
+      "treasure": "Coffre au trésor",
+      "boss_6": "Boss du village",
+      "rescue": "Sauvetage chat",
+      "boss_12": "Boss sucré",
+      "mystery": "Cadeau mystère",
+      "boss_18": "Boss lunaire",
+      "treasure_21": "Trésor royal",
+      "boss_24": "Grand Miaoumaître"
+    }
+  },
+  "worlds": {
+    "1": {
+      "name": "Village des Chatons",
+      "subtitle": "Prairies ensoleillées & grilles 6×6"
+    },
+    "2": {
+      "name": "Jardin Sucré",
+      "subtitle": "Sentiers pastel & défis gourmands"
+    },
+    "3": {
+      "name": "Vallée Lunaire",
+      "subtitle": "Toits au crépuscule & grilles 8×8"
+    },
+    "4": {
+      "name": "Château Étoilé",
+      "subtitle": "Épreuves royales de logique 8×8"
+    }
+  },
+  "levels": {
+    "1": "Étirement matinal",
+    "2": "Sieste au soleil",
+    "3": "Bol de lait",
+    "4": "Pelote de laine",
+    "5": "Rebord de fenêtre",
+    "6": "Traces de pattes",
+    "7": "Coussin douillet",
+    "8": "Jardin d'herbe à chat",
+    "9": "Labyrinthe à moustaches",
+    "10": "Saut sur les toits",
+    "11": "Chasse à la plume",
+    "12": "Ronde au garde-manger",
+    "13": "Grand Parc des Chats",
+    "14": "Pattes de velours",
+    "15": "Piste au thon",
+    "16": "Porche au clair de lune",
+    "17": "Ronde nocturne",
+    "18": "Malin Calico",
+    "19": "Énigme rousse",
+    "20": "Logique Tuxedo",
+    "21": "Ruelle secrète",
+    "22": "Ronron stellaire",
+    "23": "Neuf vies",
+    "24": "Grand Miaoumaître",
+    "dailyTitle": "Chat du jour • {{date}}",
+    "goldenTitle": "Chat Doré • {{week}}"
+  },
+  "regions": {
+    "0": "Miel",
+    "1": "Rose",
+    "2": "Bleu ciel",
+    "3": "Sauge",
+    "4": "Pêche",
+    "5": "Lavande",
+    "6": "Corail",
+    "7": "Turquoise"
+  },
+  "rules": {
+    "region": "1 chat par couleur",
+    "rowCol": "1 par ligne et col.",
+    "adjacent": "Ils ne se touchent pas",
+    "viewRulesAria": "Voir les règles du jeu"
+  },
+  "game": {
+    "progressAria": "Progression : {{found}} chats trouvés sur {{total}}",
+    "regionFound": "Zone {{name}} trouvée",
+    "regionUnfound": "Zone {{name}} à trouver",
+    "boardAria": "Grille Meowdoku de {{size}} par {{size}}",
+    "cellAria": "Ligne {{row}}, colonne {{col}}, zone {{region}}, {{state}}",
+    "cellStateLocked": "Chat de départ verrouillé",
+    "cellStateConflict": "Chat en conflit",
+    "cellStateCat": "Chat placé",
+    "cellStateX": "Case éliminée",
+    "cellStateEmpty": "Vide",
+    "celebrateBanner": "Miaou-gnifique ! Tous les chats sont trouvés !",
+    "shieldActiveBanner": "Bouclier d'erreur actif !",
+    "tipDragX": "Glisse sur les cases pour tracer des ×",
+    "tipTapAgain": "Touche encore pour placer un chat",
+    "itemsButton": "Bonus",
+    "openBoostersAria": "Ouvrir la barre des bonus",
+    "hintPlace": "Placer",
+    "hintFix": "Corriger",
+    "dismissHintAria": "Fermer l'indice",
+    "toolbar": {
+      "controlsAria": "Commandes de jeu",
+      "xOn": "× Actif",
+      "markX": "Croix ×",
+      "undo": "Annuler",
+      "redo": "Rétablir",
+      "hint": "Indice",
+      "reset": "Vider",
+      "enablePencilAria": "Activer le mode croix ×",
+      "disablePencilAria": "Désactiver le mode croix ×",
+      "undoAria": "Annuler le coup",
+      "redoAria": "Rétablir le coup",
+      "hintAria": "Obtenir un indice",
+      "resetAria": "Réinitialiser la grille"
+    },
+    "header": {
+      "backToMapAria": "Retour à la carte des mondes",
+      "pauseAria": "Mettre le jeu en pause",
+      "settingsAria": "Ouvrir les paramètres"
+    }
+  },
+  "validation": {
+    "regionConflict": "Un seul chat peut se cacher dans chaque zone de couleur !",
+    "rowConflict": "La ligne {{row}} a déjà un chat — un seul par ligne !",
+    "colConflict": "La colonne {{col}} a déjà un chat — un seul par colonne !",
+    "adjacentConflict": "Oups ! Les chats ont besoin d'espace et ne peuvent pas se toucher, même en diagonale."
+  },
+  "hints": {
+    "fixConflictTitle": "Corrige d'abord ce conflit",
+    "removeWrongTitle": "Vérifie bien ce chat",
+    "removeWrongMsg": "Ce chat semble bien placé, mais il bloque la suite. Essaie de le retirer !",
+    "regionDeductionTitle": "Déduction zone {{region}}",
+    "regionDeductionMsg": "Il ne reste qu'une seule case libre dans la zone {{region}} : un chat s'y cache !",
+    "rowDeductionTitle": "Déduction ligne {{row}}",
+    "rowDeductionMsg": "La ligne {{row}} n'a plus qu'une seule case valide. Place un chat ici !",
+    "colDeductionTitle": "Déduction colonne {{col}}",
+    "colDeductionMsg": "La colonne {{col}} n'a plus qu'une seule case valide. Place un chat ici !",
+    "spotTitle": "Piste en zone {{region}}",
+    "spotNearbyMsg": "Essaie la case {{region}} en ligne {{row}}, colonne {{col}} : elle respecte toutes les règles !",
+    "spotBasicMsg": "Un chat se cache dans la zone {{region}} en ligne {{row}}, colonne {{col}}."
+  },
+  "tutorial": {
+    "dialogAria": "Comment jouer à Meowdoku",
+    "closeAria": "Fermer le tutoriel",
+    "listen": "Écouter",
+    "stop": "Arrêter",
+    "listenAria": "Écouter l'explication vocale",
+    "stopAria": "Arrêter l'explication vocale",
+    "captionLabel": "Guide vocal",
+    "controlsTip": "Touche une case pour la choisir, touche encore pour placer un chat. Glisse en mode <bold>Croix ×</bold> !",
+    "nextRule": "Règle suivante",
+    "done": "C'est parti !",
+    "prevAria": "Règle précédente",
+    "stepAria": "Étape {{num}}",
+    "steps": {
+      "1": {
+        "badge": "Règle 1 sur 3",
+        "title": "1 chat par couleur",
+        "subtitle": "Chaque zone colorée cache exactement un chat. Marque les autres cases avec une × !",
+        "voice": "Règle numéro un : un chat par couleur. Chaque zone colorée cache exactement un seul chat. Marque les cases vides d'une croix pour t'aider !"
+      },
+      "2": {
+        "badge": "Règle 2 sur 3",
+        "title": "1 chat par ligne et colonne",
+        "subtitle": "Deux chats ne peuvent jamais se trouver sur la même ligne ni dans la même colonne.",
+        "voice": "Règle numéro deux : un chat par ligne et par colonne. Deux chats ne peuvent jamais partager la même ligne ni la même colonne."
+      },
+      "3": {
+        "badge": "Règle 3 sur 3",
+        "title": "Les chats ne se touchent pas",
+        "subtitle": "Les chats aiment leur espace ! Garde les 8 cases autour libres, même en diagonale.",
+        "voice": "Règle numéro trois : les chats ne se touchent pas. Garde toujours les huit cases autour d'un chat libres, y compris en diagonale !"
+      }
+    }
+  },
+  "pause": {
+    "dialogAria": "Jeu en pause",
+    "title": "Pause Sieste",
+    "resume": "Reprendre",
+    "restart": "Recommencer",
+    "howToPlay": "Comment jouer",
+    "backToMap": "Carte des mondes"
+  },
+  "victory": {
+    "challengeComplete": "Défi réussi !",
+    "levelComplete": "Niveau {{id}} terminé !",
+    "title": "Bravo, miaou-gnifique !",
+    "coinsEarned": "+{{count}} pièces poisson",
+    "unlockedWorld": "{{world}} débloqué !",
+    "unlockedCat": "Nouveau chat débloqué : {{cat}} !",
+    "time": "Temps",
+    "hints": "Indices",
+    "mistakes": "Erreurs",
+    "backToMap": "Retour à la carte",
+    "replayFrom1": "Rejouer depuis le niveau 1",
+    "nextLevel": "Niveau suivant ({{id}})",
+    "mapButton": "Carte",
+    "replayButton": "Rejouer",
+    "imgAlt": "Chats joyeux sautant parmi les étoiles et les cœurs"
+  },
+  "settings": {
+    "dialogAria": "Paramètres du jeu",
+    "title": "Paramètres",
+    "closeAria": "Fermer les paramètres",
+    "languageLabel": "Langue",
+    "languageDesc": "Change instantanément entre français et anglais",
+    "autoXLabel": "Croix auto ×",
+    "autoXDesc": "Place les × autour des chats valides",
+    "soundLabel": "Effets sonores",
+    "soundDesc": "Clochettes, clics et ronrons",
+    "musicLabel": "Musique douce",
+    "musicDesc": "Petite berceuse relaxante",
+    "hapticsLabel": "Vibrations",
+    "hapticsDesc": "Léger retour tactile au toucher",
+    "reducedMotionLabel": "Mouvement réduit",
+    "reducedMotionDesc": "Limite les rebonds et particules",
+    "symbolsLabel": "Symboles de couleur",
+    "symbolsDesc": "Ajoute des icônes sur les zones",
+    "resetProgress": "Réinitialiser ma progression",
+    "resetConfirmTitle": "Effacer tous les niveaux, étoiles, pièces poisson et chats ?",
+    "resetConfirmYes": "Oui, effacer"
+  },
+  "dailyCalendar": {
+    "dialogAria": "Calendrier des cadeaux sur 7 jours",
+    "title": "Cadeaux du jour",
+    "subtitle": "Reviens chaque jour pour des récompenses plus belles !",
+    "loginStreak": "Série de jours",
+    "streakGuard": "Bouclier série",
+    "dayBadge": "Jour {{day}}",
+    "claimButton": "Récupérer le cadeau du jour {{day}}",
+    "claimedToday": "Déjà récupéré — à demain !",
+    "doubleBonusAd": "Optionnel : doubler le cadeau (aperçu pub future)",
+    "claimedToast": "Jour {{day}} récupéré : {{title}} !",
+    "shieldSavedToast": "Ton bouclier a sauvé ta série ! {{title}} reçu !",
+    "days": {
+      "1": { "title": "25 pièces poisson", "subtitle": "Cadeau de bienvenue" },
+      "2": { "title": "1 Indice", "subtitle": "+10 pièces poisson" },
+      "3": { "title": "40 pièces poisson", "subtitle": "Trésor de mi-semaine" },
+      "4": { "title": "1 Super Indice", "subtitle": "Élimine les pièges !" },
+      "5": { "title": "60 pièces poisson", "subtitle": "Prise dorée" },
+      "6": { "title": "2 Indices + Bouclier", "subtitle": "Armure féline" },
+      "7": { "title": "Pack Bonus Chat", "subtitle": "100 pièces + Révéler + Bouclier" }
+    }
+  },
+  "missions": {
+    "headerTitle": "Missions & Événements",
+    "dailyRewardsBannerTitle": "Cadeaux sur 7 jours",
+    "dailyRewardsReady": "Cadeau du jour {{day}} prêt à récupérer !",
+    "dailyRewardsStreak": "Série de {{count}} jour(s) en cours",
+    "claimExclaim": "Prendre !",
+    "tabDaily": "Du jour",
+    "tabEvents": "Événements",
+    "tabBadges": "Succès",
+    "tabBadgesCount": "Succès ({{count}})",
+    "progressLabel": "Progression",
+    "items": {
+      "levels_completed": {
+        "title": "Explorateur douillet",
+        "desc": "Termine {{target}} niveaux"
+      },
+      "place_cats": {
+        "title": "Détective félin",
+        "desc": "Place {{target}} chats valides sur la grille"
+      },
+      "no_hint_level": {
+        "title": "Instinct affûté",
+        "desc": "Termine 1 niveau sans utiliser d'indice"
+      },
+      "earn_stars": {
+        "title": "Chasseur d'étoiles",
+        "desc": "Gagne {{target}} étoiles dans les niveaux"
+      },
+      "fast_solve": {
+        "title": "Pattes rapides",
+        "desc": "Termine une grille en moins de 3 minutes"
+      },
+      "no_mistake_level": {
+        "title": "Précision parfaite",
+        "desc": "Termine un niveau sans aucune erreur"
+      },
+      "improve_score": {
+        "title": "Bats ton record",
+        "desc": "Rejoue un niveau ou établis un nouveau record"
+      }
+    }
+  },
+  "events": {
+    "daily_cat": {
+      "badge": "Quotidien",
+      "title": "Défi Chat du jour",
+      "subtitle": "Une nouvelle grille 8×8 à solution unique chaque jour.",
+      "reward": "+45 pièces poisson & progrès Luna"
+    },
+    "treasure_hunt": {
+      "badge": "Coffre",
+      "title": "Chasse au Trésor",
+      "subtitle": "Termine 3 niveaux de l'aventure pour ouvrir le coffre doré.",
+      "reward": "+75 pièces poisson + 1 Révéler un chat"
+    },
+    "golden_cat": {
+      "badge": "Hebdo",
+      "title": "Épreuve du Chat Doré",
+      "subtitle": "Une grille 8×8 retorse de la semaine pour les pros.",
+      "reward": "+80 pièces poisson + 1 Super Indice"
+    },
+    "perfect_week": {
+      "badge": "Hebdo",
+      "title": "Semaine Ronronnante",
+      "subtitle": "Récupère 3 cadeaux du jour pour gagner un lot de bonus.",
+      "reward": "+60 pièces poisson + 1 Révéler une zone"
+    },
+    "chestOpenedTitle": "{{title}} ouvert !"
+  },
+  "achievements": {
+    "unlockedToast": "Succès débloqué : {{title}} !",
+    "first_purr": {
+      "title": "Premier Ronron",
+      "desc": "Termine ton tout premier niveau."
+    },
+    "perfect_paws": {
+      "title": "Pattes Parfaites",
+      "desc": "Termine un niveau sans aucune erreur."
+    },
+    "sharp_whiskers": {
+      "title": "Moustaches Fines",
+      "desc": "Résous 5 niveaux sans utiliser d'indice."
+    },
+    "treasure_hunter": {
+      "title": "Chasseur de Trésors",
+      "desc": "Termine un niveau Trésor, Sauvetage ou Boss."
+    },
+    "world_traveler": {
+      "title": "Grand Voyageur",
+      "desc": "Débloque le Monde 2 : Jardin Sucré."
+    },
+    "star_gazer": {
+      "title": "Rêveur d'Étoiles",
+      "desc": "Récolte 15 étoiles sur la carte."
+    },
+    "cat_collector": {
+      "title": "Ami des Chats",
+      "desc": "Débloque 5 compagnons chats."
+    },
+    "puzzle_master": {
+      "title": "Maître du Puzzle",
+      "desc": "Gagne 30 étoiles au fil de l'aventure."
+    }
+  },
+  "cats": {
+    "headerTitle": "Mes Chats",
+    "collectedCount": "{{owned}} / {{total}} chats adoptés",
+    "tapToSelect": "Touche un chat débloqué pour qu'il t'accompagne sur la carte !",
+    "activeBadge": "Actif",
+    "mysteryName": "???",
+    "rarity": {
+      "common": "Commun",
+      "rare": "Rare",
+      "epic": "Épique",
+      "legendary": "Légendaire"
+    },
+    "progress": {
+      "unlocked": "Débloqué !",
+      "completeLvl1": "Termine le niveau 1 pour rencontrer Marmalade",
+      "moreStars_one": "Plus que {{count}} étoile à gagner",
+      "moreStars_other": "Plus que {{count}} étoiles à gagner",
+      "clearLvl4": "Atteins et réussis le Coffre du niveau 4",
+      "untilWorld2_one": "Plus que {{count}} niveau avant le Jardin Sucré",
+      "untilWorld2_other": "Plus que {{count}} niveaux avant le Jardin Sucré",
+      "solveDaily": "Résous le Défi Chat du jour (8×8)",
+      "rescueLvl9": "Sauve Patches au niveau 9 !",
+      "noHintSolves_one": "Plus que {{count}} niveau sans indice",
+      "noHintSolves_other": "Plus que {{count}} niveaux sans indice",
+      "untilWorld3_one": "Plus que {{count}} niveau avant la Vallée Lunaire",
+      "untilWorld3_other": "Plus que {{count}} niveaux avant la Vallée Lunaire",
+      "moreAch_one": "Plus que {{count}} succès à débloquer",
+      "moreAch_other": "Plus que {{count}} succès à débloquer"
+    },
+    "roster": {
+      "mochi": {
+        "title": "Détective Tuxedo",
+        "personality": "Poli, curieux, il inspecte toujours chaque recoin en premier.",
+        "req": "Compagnon de départ"
+      },
+      "marmalade": {
+        "title": "Roi de la Sieste",
+        "personality": "Petit chat roux tout doux qui adore les énigmes du matin.",
+        "req": "Terminer le niveau 1"
+      },
+      "pebble": {
+        "title": "Pattes de Nuage",
+        "personality": "British Shorthair zen qui ne se précipite jamais.",
+        "req": "Gagner 6 étoiles"
+      },
+      "biscuit": {
+        "title": "Flair à Trésors",
+        "personality": "Chaton doré imbattable pour dénicher les coffres cachés.",
+        "req": "Terminer le niveau 4 (Coffre)"
+      },
+      "cleo": {
+        "title": "Siamois Érudit",
+        "personality": "Élégant siamois fan de logique limpide et de lignes nettes.",
+        "req": "Débloquer le Jardin Sucré"
+      },
+      "luna": {
+        "title": "Rêveuse au Ruban",
+        "personality": "Porte son nœud rose préféré pour chaque Défi du jour.",
+        "req": "Réussir 1 Défi Chat du jour"
+      },
+      "patches": {
+        "title": "Acrobate Calico",
+        "personality": "Chatte calico espiègle sauvée au cœur du Jardin Sucré.",
+        "req": "Terminer le niveau 9 (Sauvetage)"
+      },
+      "snowbell": {
+        "title": "Sage de Logique",
+        "personality": "Ragdoll aux yeux bleus qui résout les grilles sans aucun indice.",
+        "req": "Réussir 3 niveaux sans indice"
+      },
+      "nori": {
+        "title": "Éclaireur Lunaire",
+        "personality": "Explorateur agile des toits qui guide dans les grilles 8×8.",
+        "req": "Débloquer la Vallée Lunaire"
+      },
+      "aurelia": {
+        "title": "Grand Miaoumaître",
+        "personality": "Gardienne légendaire du Château Étoilé et maîtresse des grilles.",
+        "req": "Débloquer 5 succès ou finir le niv. 24"
+      }
+    }
+  },
+  "shop": {
+    "headerTitle": "Boutique",
+    "yourCoins": "Tes pièces poisson",
+    "nudgeNextItem": "Plus que {{diff}} pièces poisson pour {{item}} !",
+    "nudgeDefault": "Échange tes pièces poisson contre des bonus utiles !",
+    "optionalRewardsTitle": "Récompenses gratuites",
+    "optionalRewardsDesc": "Jamais imposées : regarde une courte pub dans une future mise à jour pour des cadeaux.",
+    "adCoinsBtn": "Pub +30 pièces",
+    "adHintBtn": "Pub 1 Indice",
+    "badges": {
+      "popular": "Populaire",
+      "best": "Top"
+    },
+    "items": {
+      "hint": {
+        "name": "Indice",
+        "short": "Indice",
+        "desc": "Met en lumière une case logique et t'explique pourquoi."
+      },
+      "superHint": {
+        "name": "Super Indice",
+        "short": "Super",
+        "desc": "Trouve une case sûre ET efface les cases impossibles avec des ×."
+      },
+      "revealCat": {
+        "name": "Révéler un chat",
+        "short": "Chat",
+        "desc": "Place immédiatement un chat 100 % valide sur la grille."
+      },
+      "undoToken": {
+        "name": "Retour malin",
+        "short": "Retour",
+        "desc": "Revient instantanément au dernier état sans erreur de ta grille."
+      },
+      "mistakeShield": {
+        "name": "Bouclier d'erreur",
+        "short": "Bouclier",
+        "desc": "Absorbe ta prochaine erreur sans aucune pénalité d'étoiles."
+      },
+      "revealRegion": {
+        "name": "Révéler une zone",
+        "short": "Zone",
+        "desc": "Marque d'une × toutes les cases pièges d'une zone de couleur."
+      }
+    }
+  },
+  "ads": {
+    "badge": "Récompense optionnelle",
+    "watchPrompt": "Regarde une courte publicité optionnelle pour obtenir <bold>{{reward}}</bold>.",
+    "watchAdBtn": "Regarder une pub",
+    "checkingBtn": "Vérification en cours...",
+    "useCoinsBtn": "Utiliser {{cost}} pièces poisson",
+    "maybeLater": "Plus tard",
+    "notImplementedMsg": "Les publicités avec récompense arrivent dans une prochaine mise à jour. Tu peux utiliser tes pièces poisson ou tes missions du jour !",
+    "offers": {
+      "free_hint": { "headline": "Besoin d'un coup de patte ?", "reward": "1 indice gratuit" },
+      "bonus_coins": { "headline": "Envie de pièces poisson ?", "reward": "+30 pièces poisson" },
+      "extra_undo": { "headline": "Besoin d'un Retour malin ?", "reward": "1 jeton Retour malin" },
+      "daily_bonus": { "headline": "Doubler le cadeau du jour ?", "reward": "Cadeau du jour ×2" },
+      "booster_pack": { "headline": "Prêt pour les grilles corsées ?", "reward": "1 Bouclier d'erreur" },
+      "challenge_retry": { "headline": "Envie d'un coup de pouce ?", "reward": "1 Super Indice gratuit" }
+    }
+  },
+  "profile": {
+    "headerTitle": "Mon Profil",
+    "keeperTitle": "Compagnon de {{name}}",
+    "keeperStats": "{{cats}} chats cachés trouvés • {{badges}}/{{totalBadges}} succès",
+    "changeCompanionAria": "Changer de chat compagnon",
+    "levelsSolved": "Niveaux réussis",
+    "starsEarned": "Étoiles gagnées",
+    "worldsReached": "Mondes atteints",
+    "zeroMistakeWins": "Sans faute",
+    "catsCollected": "Chats adoptés",
+    "loginStreak": "Série de jours",
+    "howToPlayBtn": "Règles & Guide vocal",
+    "settingsBtn": "Paramètres & Langue"
+  },
+  "celebrations": {
+    "newWorldBadge": "Nouveau monde débloqué !",
+    "exploreWorld": "Explorer {{world}} !",
+    "newCatBadge": "Nouveau chat • {{rarity}}",
+    "setAsCompanion": "Choisir sur la carte",
+    "collectTreasure": "Prendre le trésor !"
+  },
+  "toasts": {
+    "boughtBooster": "1 {{name}} ajouté à ton sac !",
+    "needMoreCoins": "Il te manque {{diff}} pièces poisson !",
+    "claimedCoins": "+{{coins}} pièces poisson reçues !",
+    "shieldAbsorbed": "Le Bouclier d'erreur a annulé la pénalité !",
+    "shieldAlreadyActive": "Un Bouclier d'erreur est déjà actif sur cette grille !",
+    "shieldArmed": "Bouclier d'erreur activé ! Ta prochaine erreur est protégée.",
+    "boardAlreadyClean": "Ta grille est déjà sans erreur !",
+    "smartRewindDone": "Retour malin effectué vers le dernier état propre !",
+    "regionCleared": "Cases pièges effacées dans la zone {{region}} !"
+  }
+}

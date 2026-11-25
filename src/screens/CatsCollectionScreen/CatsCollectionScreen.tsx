@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Check, Lock, Sparkles } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
@@ -10,14 +11,15 @@ import {
 import { CatIllustration, CatSilhouette } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 
-const RARITY_STYLES: Record<CatRarity, { bg: string; text: string; label: string }> = {
-  common: { bg: 'bg-[#EEF4F0]', text: 'text-[#4B7B5D]', label: 'Common' },
-  rare: { bg: 'bg-[#EAF3FB]', text: 'text-[#3B76A8]', label: 'Rare' },
-  epic: { bg: 'bg-[#F3ECFD]', text: 'text-[#6D4EB8]', label: 'Epic' },
-  legendary: { bg: 'bg-[#FFF3D1]', text: 'text-[#A66E12]', label: 'Legendary' },
+const RARITY_STYLES: Record<CatRarity, { bg: string; text: string }> = {
+  common: { bg: 'bg-[#EEF4F0]', text: 'text-[#4B7B5D]' },
+  rare: { bg: 'bg-[#EAF3FB]', text: 'text-[#3B76A8]' },
+  epic: { bg: 'bg-[#F3ECFD]', text: 'text-[#6D4EB8]' },
+  legendary: { bg: 'bg-[#FFF3D1]', text: 'text-[#A66E12]' },
 };
 
 export const CatsCollectionScreen: React.FC = () => {
+  const { t } = useTranslation();
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const levelProgress = useGameStore((s) => s.levelProgress);
@@ -41,24 +43,25 @@ export const CatsCollectionScreen: React.FC = () => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
-      <HubHeader title="Cat Friends" />
+      <HubHeader title={t('cats.headerTitle')} />
 
-      {/* Collection Progress Pill */}
       <div className="px-3.5 pb-2.5 shrink-0">
         <div className="meow-card rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3">
           <div>
             <div className="text-[14px] font-black text-[#3A312C] leading-none">
-              {unlockedCatIds.length} / {COLLECTIBLE_CATS.length} Cats Collected
+              {t('cats.collectedCount', {
+                owned: unlockedCatIds.length,
+                total: COLLECTIBLE_CATS.length,
+              })}
             </div>
             <p className="text-[11px] font-bold text-[#8A7B70] mt-1">
-              Tap any unlocked cat to travel with you on the Map!
+              {t('cats.tapToSelect')}
             </p>
           </div>
           <Sparkles className="w-5 h-5 text-[#9B86D4] shrink-0" />
         </div>
       </div>
 
-      {/* Cat Cards Grid */}
       <div className="flex-1 soft-scroll px-3.5 pb-4">
         <div className="grid grid-cols-2 gap-2.5">
           {COLLECTIBLE_CATS.map((cat) => {
@@ -81,24 +84,22 @@ export const CatsCollectionScreen: React.FC = () => {
                       : 'bg-[#F5EFE6]/85 border-[#E7DDD0] cursor-default'
                 }`}
               >
-                {/* Rarity + Active badge */}
                 <div className="w-full flex items-center justify-between mb-1.5">
                   <span
-                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full leading-none ${rarity.bg} ${rarity.text}`}
+                    className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded-full leading-none ${rarity.bg} ${rarity.text}`}
                   >
-                    {rarity.label}
+                    {t(`cats.rarity.${cat.rarity}`)}
                   </span>
                   {isActive ? (
                     <span className="inline-flex items-center gap-0.5 text-[9px] font-black text-white bg-[#6EB58E] px-1.5 py-0.5 rounded-full leading-none">
                       <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                      Active
+                      {t('cats.activeBadge')}
                     </span>
                   ) : !unlocked ? (
                     <Lock className="w-3.5 h-3.5 text-[#A99B90]" />
                   ) : null}
                 </div>
 
-                {/* Cat Illustration or Mysterious Silhouette */}
                 <div
                   className={`w-18 h-18 rounded-2xl flex items-center justify-center mb-2 ${
                     unlocked
@@ -118,14 +119,18 @@ export const CatsCollectionScreen: React.FC = () => {
                 </div>
 
                 <h3 className="text-[15px] font-black text-[#3A312C] leading-tight">
-                  {unlocked ? cat.name : '???'}
+                  {unlocked ? cat.name : t('cats.mysteryName')}
                 </h3>
                 <p className="text-[10.5px] font-extrabold text-[#FF7A7A] mt-0.5 leading-tight">
-                  {unlocked ? cat.title : cat.unlockRequirementText}
+                  {unlocked
+                    ? t(`cats.roster.${cat.id}.title`)
+                    : t(`cats.roster.${cat.id}.req`)}
                 </p>
 
                 <p className="text-[10.5px] font-semibold text-[#7E7067] mt-1.5 leading-snug line-clamp-2">
-                  {unlocked ? cat.personality : cat.progressHint(ctx)}
+                  {unlocked
+                    ? t(`cats.roster.${cat.id}.personality`)
+                    : cat.progressHint(ctx)}
                 </p>
               </motion.button>
             );

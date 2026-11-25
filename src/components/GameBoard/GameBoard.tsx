@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import i18n from '../../i18n';
 import {
   BoardGrid,
   CellCoord,
@@ -169,7 +170,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
       >
         <div
           role="grid"
-          aria-label={`${size} by ${size} Meowdoku cat puzzle board`}
+          aria-label={i18n.t('game.boardAria', { size })}
           onPointerMove={handleGridPointerMove}
           style={{
             width: 'min(calc(100cqw - 28px), calc(100cqh - 8px), 392px)',

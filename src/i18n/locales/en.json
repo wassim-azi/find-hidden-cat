@@ -1,0 +1,595 @@
+{
+  "meta": {
+    "title": "Meowdoku — Find the Hidden Cats"
+  },
+  "common": {
+    "level": "Level {{id}}",
+    "levelShort": "Lvl {{id}}",
+    "daily": "Daily",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "play": "Play",
+    "replay": "Replay",
+    "continue": "Continue",
+    "claim": "Claim",
+    "claimed": "Done",
+    "opened": "Opened",
+    "openChest": "Open Chest",
+    "inPlay": "In Play",
+    "cancel": "Cancel",
+    "close": "Close",
+    "view": "View",
+    "awesome": "Awesome!",
+    "comingSoon": "Coming Soon",
+    "fishCoins_one": "{{count}} Fish Coin",
+    "fishCoins_other": "{{count}} Fish Coins",
+    "fishCoinsLabel": "Fish Coins",
+    "stars_one": "{{count}} Star",
+    "stars_other": "{{count}} Stars",
+    "days_one": "{{count}} Day",
+    "days_other": "{{count}} Days",
+    "shields_one": "{{count}} Shield",
+    "shields_other": "{{count}} Shields",
+    "levels_one": "{{count}} level",
+    "levels_other": "{{count}} levels"
+  },
+  "nav": {
+    "map": "Map",
+    "cats": "Cats",
+    "missions": "Missions",
+    "shop": "Shop",
+    "profile": "Profile",
+    "mainNavAria": "Main game navigation"
+  },
+  "welcome": {
+    "tagline": "Think smart. Find the cats.",
+    "playLevel1": "Play Level 1",
+    "continueLevel": "Continue Level {{id}}",
+    "worldMap": "World Map",
+    "howToPlay": "How to Play",
+    "dailyKittyTitle": "Daily Kitty",
+    "dailyCoinsBadge": "+45 Coins",
+    "dailySolved": "Solved today — replay anytime!",
+    "dailyFresh": "Fresh 8×8 • {{date}}",
+    "heroAlt": "Three adorable cats peeking over pastel Meowdoku puzzle tiles",
+    "openDailyAria": "Open daily rewards calendar",
+    "openSettingsAria": "Open settings"
+  },
+  "map": {
+    "headerTitle": "Cat Journey",
+    "completedAllNudge": "Grand Meowster! Replay any stop for 3 stars!",
+    "nextWorldNudge_one": "Only {{count}} more level until {{world}}!",
+    "nextWorldNudge_other": "Only {{count}} more levels until {{world}}!",
+    "summitNudge_one": "Only {{count}} more level to the Starlight Summit!",
+    "summitNudge_other": "Only {{count}} more levels to the Starlight Summit!",
+    "cloudSummitBadge": "Cloud Summit",
+    "cloudSummitTitle": "Cat Paradise & Rainbow Forest",
+    "cloudSummitSubtitle": "More magical worlds coming soon!",
+    "startOfJourney": "Start of Journey",
+    "worldBadge": "World {{id}}",
+    "unlockPreviousHint": "Complete Level {{id}} to unlock",
+    "playTag": "PLAY!",
+    "lockedToast": "Complete Level {{prev}} first to unlock Level {{next}}!",
+    "nodeAriaCompleted": "Level {{id}}, {{title}}, completed with {{stars}} stars",
+    "nodeAriaCurrent": "Level {{id}}, {{title}}, current next level, tap to play",
+    "nodeAriaLocked": "Level {{id}}, {{title}}, locked, complete previous level first",
+    "special": {
+      "treasure": "Treasure Chest",
+      "boss_6": "Village Boss",
+      "rescue": "Cat Rescue",
+      "boss_12": "Garden Boss",
+      "mystery": "Mystery Gift",
+      "boss_18": "Valley Boss",
+      "treasure_21": "Royal Vault",
+      "boss_24": "Grand Meowster"
+    }
+  },
+  "worlds": {
+    "1": {
+      "name": "Kitty Village",
+      "subtitle": "Sunlit meadows & cozy 6×6 starts"
+    },
+    "2": {
+      "name": "Candy Garden",
+      "subtitle": "Sweet pastel paths & clever twists"
+    },
+    "3": {
+      "name": "Moonlit Valley",
+      "subtitle": "Twilight rooftops & 8×8 grids"
+    },
+    "4": {
+      "name": "Starlight Castle",
+      "subtitle": "Royal 8×8 logic challenges"
+    }
+  },
+  "levels": {
+    "1": "Morning Stretch",
+    "2": "Sunbeam Nap",
+    "3": "Milk Bowl",
+    "4": "Yarn Tangle",
+    "5": "Window Sill",
+    "6": "Paw Prints",
+    "7": "Cozy Cushion",
+    "8": "Catnip Garden",
+    "9": "Whisker Maze",
+    "10": "Rooftop Leap",
+    "11": "Feather Chase",
+    "12": "Pantry Sneak",
+    "13": "Big Kitty Park",
+    "14": "Velvet Paws",
+    "15": "Tuna Trails",
+    "16": "Moonlit Porch",
+    "17": "Shadow Prowl",
+    "18": "Clever Calico",
+    "19": "Ginger Riddle",
+    "20": "Tuxedo Logic",
+    "21": "Alleyway Puzzle",
+    "22": "Starlight Purr",
+    "23": "Nine Lives",
+    "24": "Grand Meowster",
+    "dailyTitle": "Daily Kitty • {{date}}",
+    "goldenTitle": "Golden Cat • {{week}}"
+  },
+  "regions": {
+    "0": "Honey",
+    "1": "Rose",
+    "2": "Sky",
+    "3": "Sage",
+    "4": "Peach",
+    "5": "Lavender",
+    "6": "Coral",
+    "7": "Teal"
+  },
+  "rules": {
+    "region": "1 cat per color",
+    "rowCol": "1 per row & col",
+    "adjacent": "Cats never touch",
+    "viewRulesAria": "View how to play rules"
+  },
+  "game": {
+    "progressAria": "Progress: {{found}} of {{total}} cats found",
+    "regionFound": "{{name}} region found",
+    "regionUnfound": "{{name}} region unfound",
+    "boardAria": "{{size}} by {{size}} Meowdoku cat puzzle board",
+    "cellAria": "Row {{row}}, Column {{col}}, {{region}} region, {{state}}",
+    "cellStateLocked": "Locked starter cat",
+    "cellStateConflict": "Cat in conflict",
+    "cellStateCat": "Cat placed",
+    "cellStateX": "Marked eliminated",
+    "cellStateEmpty": "Empty",
+    "celebrateBanner": "Purr-fect! Every hidden cat found!",
+    "shieldActiveBanner": "Mistake Shield active!",
+    "tipDragX": "Drag across tiles to paint ×",
+    "tipTapAgain": "Tap again to place a cat",
+    "itemsButton": "Items",
+    "openBoostersAria": "Open boosters tray",
+    "hintPlace": "Place",
+    "hintFix": "Fix",
+    "dismissHintAria": "Dismiss hint",
+    "toolbar": {
+      "controlsAria": "Game controls",
+      "xOn": "X On",
+      "markX": "Mark X",
+      "undo": "Undo",
+      "redo": "Redo",
+      "hint": "Hint",
+      "reset": "Reset",
+      "enablePencilAria": "Enable pencil X mode",
+      "disablePencilAria": "Disable pencil X mode",
+      "undoAria": "Undo move",
+      "redoAria": "Redo move",
+      "hintAria": "Get a hint",
+      "resetAria": "Reset current board"
+    },
+    "header": {
+      "backToMapAria": "Back to world map",
+      "pauseAria": "Pause game",
+      "settingsAria": "Open settings"
+    }
+  },
+  "validation": {
+    "regionConflict": "Only 1 cat can hide in each color region!",
+    "rowConflict": "Row {{row}} already has a cat — only 1 per row!",
+    "colConflict": "Column {{col}} already has a cat — only 1 per column!",
+    "adjacentConflict": "Oops! Cats need space and cannot touch, even diagonally."
+  },
+  "hints": {
+    "fixConflictTitle": "Fix a Conflict First",
+    "removeWrongTitle": "Double-Check This Cat",
+    "removeWrongMsg": "This cat looks happy now, but it blocks a valid solution later. Try removing it!",
+    "regionDeductionTitle": "{{region}} Region Deduction",
+    "regionDeductionMsg": "Only one safe spot remains in the {{region}} region — a cat must hide here!",
+    "rowDeductionTitle": "Row {{row}} Deduction",
+    "rowDeductionMsg": "Row {{row}} has only one valid cell left. Place a cat here!",
+    "colDeductionTitle": "Column {{col}} Deduction",
+    "colDeductionMsg": "Column {{col}} has only one valid cell left. Place a cat here!",
+    "spotTitle": "Spot in {{region}} Region",
+    "spotNearbyMsg": "Try the {{region}} tile at row {{row}}, col {{col}} — it keeps every row, column, and neighbor clear!",
+    "spotBasicMsg": "A cat belongs in the {{region}} region at row {{row}}, col {{col}}."
+  },
+  "tutorial": {
+    "dialogAria": "How to play Meowdoku",
+    "closeAria": "Close tutorial",
+    "listen": "Listen",
+    "stop": "Stop",
+    "listenAria": "Listen to voice explanation",
+    "stopAria": "Stop voice explanation",
+    "captionLabel": "Voice Guide",
+    "controlsTip": "Tap to select, tap again to place a cat. Drag across tiles in <bold>Mark ×</bold> mode!",
+    "nextRule": "Next Rule",
+    "done": "Got It, Let's Play!",
+    "prevAria": "Previous rule",
+    "stepAria": "Step {{num}}",
+    "steps": {
+      "1": {
+        "badge": "Rule 1 of 3",
+        "title": "One Cat per Color",
+        "subtitle": "Each colored area hides exactly one cat. Mark the rest with ×!",
+        "voice": "Rule one: One cat per color. Every colored region hides exactly one cat. Mark the empty tiles with an X to narrow it down!"
+      },
+      "2": {
+        "badge": "Rule 2 of 3",
+        "title": "One per Row & Column",
+        "subtitle": "No two cats can share the same horizontal row or vertical column.",
+        "voice": "Rule two: One cat per row and column. No two cats can share the same horizontal row or vertical column."
+      },
+      "3": {
+        "badge": "Rule 3 of 3",
+        "title": "Cats Never Touch",
+        "subtitle": "Cats love space! Keep all 8 surrounding tiles clear — even diagonally.",
+        "voice": "Rule three: Cats never touch. Keep all eight surrounding tiles clear around every cat, including diagonals!"
+      }
+    }
+  },
+  "pause": {
+    "dialogAria": "Game paused",
+    "title": "Cat Nap Break",
+    "resume": "Resume Game",
+    "restart": "Restart Level",
+    "howToPlay": "How to Play",
+    "backToMap": "World Map"
+  },
+  "victory": {
+    "challengeComplete": "Challenge Complete!",
+    "levelComplete": "Level {{id}} Complete!",
+    "title": "Purr-fect Solve!",
+    "coinsEarned": "+{{count}} Fish Coins",
+    "unlockedWorld": "Unlocked {{world}}!",
+    "unlockedCat": "New Cat Unlocked: {{cat}}!",
+    "time": "Time",
+    "hints": "Hints",
+    "mistakes": "Mistakes",
+    "backToMap": "Back to Map",
+    "replayFrom1": "Replay from Level 1",
+    "nextLevel": "Next Level ({{id}})",
+    "mapButton": "Map",
+    "replayButton": "Replay",
+    "imgAlt": "Celebrating cats jumping with stars and hearts"
+  },
+  "settings": {
+    "dialogAria": "Game settings",
+    "title": "Settings",
+    "closeAria": "Close settings",
+    "languageLabel": "Language",
+    "languageDesc": "Switch instantly between English & French",
+    "autoXLabel": "Smart Auto-×",
+    "autoXDesc": "Auto-mark × around valid cats",
+    "soundLabel": "Sound Effects",
+    "soundDesc": "Soft chimes, taps & purrs",
+    "musicLabel": "Cozy Music",
+    "musicDesc": "Gentle ambient lullaby",
+    "hapticsLabel": "Haptic Feedback",
+    "hapticsDesc": "Subtle vibration on tap",
+    "reducedMotionLabel": "Reduced Motion",
+    "reducedMotionDesc": "Minimize bounce & particles",
+    "symbolsLabel": "Region Symbols",
+    "symbolsDesc": "Add subtle icons to colors",
+    "resetProgress": "Reset All Progress",
+    "resetConfirmTitle": "Clear all solved levels, stars, Fish Coins, and cats?",
+    "resetConfirmYes": "Yes, Reset"
+  },
+  "dailyCalendar": {
+    "dialogAria": "7-Day Daily Rewards Calendar",
+    "title": "Daily Treats",
+    "subtitle": "Come back each day for bigger prizes!",
+    "loginStreak": "Login Streak",
+    "streakGuard": "Streak Guard",
+    "dayBadge": "Day {{day}}",
+    "claimButton": "Claim Day {{day}} Reward",
+    "claimedToday": "Claimed Today — See You Tomorrow!",
+    "doubleBonusAd": "Optional: Double Daily Bonus (Future Ad Preview)",
+    "claimedToast": "Claimed Day {{day}}: {{title}}!",
+    "shieldSavedToast": "Streak Shield saved your streak! Claimed {{title}}!",
+    "days": {
+      "1": { "title": "25 Fish Coins", "subtitle": "Welcome treat" },
+      "2": { "title": "1 Hint", "subtitle": "+10 Fish Coins" },
+      "3": { "title": "40 Fish Coins", "subtitle": "Mid-week stash" },
+      "4": { "title": "1 Super Hint", "subtitle": "Clears decoys!" },
+      "5": { "title": "60 Fish Coins", "subtitle": "Golden catch" },
+      "6": { "title": "2 Hints + Shield", "subtitle": "Puzzle armor" },
+      "7": { "title": "Cat Booster Pack", "subtitle": "100 Coins + Reveal + Shield" }
+    }
+  },
+  "missions": {
+    "headerTitle": "Missions & Events",
+    "dailyRewardsBannerTitle": "7-Day Daily Rewards",
+    "dailyRewardsReady": "Day {{day}} treat ready to claim!",
+    "dailyRewardsStreak": "{{count}}-day streak active",
+    "claimExclaim": "Claim!",
+    "tabDaily": "Daily",
+    "tabEvents": "Events",
+    "tabBadges": "Badges",
+    "tabBadgesCount": "Badges ({{count}})",
+    "progressLabel": "Progress",
+    "items": {
+      "levels_completed": {
+        "title": "Cozy Explorer",
+        "desc": "Complete {{target}} puzzle levels"
+      },
+      "place_cats": {
+        "title": "Cat Finder",
+        "desc": "Place {{target}} valid cats on the board"
+      },
+      "no_hint_level": {
+        "title": "Sharp Instincts",
+        "desc": "Finish 1 level without using hints"
+      },
+      "earn_stars": {
+        "title": "Star Collector",
+        "desc": "Earn {{target}} stars across any levels"
+      },
+      "fast_solve": {
+        "title": "Quick Paws",
+        "desc": "Finish a puzzle in under 3 minutes"
+      },
+      "no_mistake_level": {
+        "title": "Purr-fect Accuracy",
+        "desc": "Complete a level with zero mistakes"
+      },
+      "improve_score": {
+        "title": "Beat Your Best",
+        "desc": "Replay a level or set a new personal best"
+      }
+    }
+  },
+  "events": {
+    "daily_cat": {
+      "badge": "Daily",
+      "title": "Daily Kitty Challenge",
+      "subtitle": "A fresh 8×8 unique-solution puzzle every day.",
+      "reward": "+45 Fish Coins & Luna progress"
+    },
+    "treasure_hunt": {
+      "badge": "Chest",
+      "title": "Village Treasure Hunt",
+      "subtitle": "Complete 3 campaign levels to open the golden chest.",
+      "reward": "+75 Fish Coins + 1 Reveal Cat"
+    },
+    "golden_cat": {
+      "badge": "Weekly",
+      "title": "Golden Cat Trial",
+      "subtitle": "A special tricky 8×8 weekly puzzle for bold detectives.",
+      "reward": "+80 Fish Coins + 1 Super Hint"
+    },
+    "perfect_week": {
+      "badge": "Weekly",
+      "title": "Cozy Streak Week",
+      "subtitle": "Claim 3 Daily Login Rewards to earn a Booster Bundle.",
+      "reward": "+60 Fish Coins + 1 Reveal Region"
+    },
+    "chestOpenedTitle": "{{title}} Opened!"
+  },
+  "achievements": {
+    "unlockedToast": "Achievement Unlocked: {{title}}!",
+    "first_purr": {
+      "title": "First Purr",
+      "desc": "Complete your very first puzzle level."
+    },
+    "perfect_paws": {
+      "title": "Perfect Paws",
+      "desc": "Complete a level with zero mistakes."
+    },
+    "sharp_whiskers": {
+      "title": "Sharp Whiskers",
+      "desc": "Solve 5 levels without using any hints."
+    },
+    "treasure_hunter": {
+      "title": "Treasure Hunter",
+      "desc": "Complete a special Treasure, Rescue, or Boss level."
+    },
+    "world_traveler": {
+      "title": "World Traveler",
+      "desc": "Unlock World 2: Candy Garden."
+    },
+    "star_gazer": {
+      "title": "Star Gazer",
+      "desc": "Collect 15 total stars across the map."
+    },
+    "cat_collector": {
+      "title": "Cat Collector",
+      "desc": "Unlock 5 adorable cat companions."
+    },
+    "puzzle_master": {
+      "title": "Puzzle Master",
+      "desc": "Earn 30 total stars across your journey."
+    }
+  },
+  "cats": {
+    "headerTitle": "Cat Friends",
+    "collectedCount": "{{owned}} / {{total}} Cats Collected",
+    "tapToSelect": "Tap any unlocked cat to travel with you on the Map!",
+    "activeBadge": "Active",
+    "mysteryName": "???",
+    "rarity": {
+      "common": "Common",
+      "rare": "Rare",
+      "epic": "Epic",
+      "legendary": "Legendary"
+    },
+    "progress": {
+      "unlocked": "Unlocked!",
+      "completeLvl1": "Complete Level 1 to befriend Marmalade",
+      "moreStars_one": "{{count}} more star to unlock",
+      "moreStars_other": "{{count}} more stars to unlock",
+      "clearLvl4": "Reach & clear Level 4 Treasure Chest",
+      "untilWorld2_one": "{{count}} more level until Candy Garden",
+      "untilWorld2_other": "{{count}} more levels until Candy Garden",
+      "solveDaily": "Solve today's Daily Kitty 8×8 puzzle",
+      "rescueLvl9": "Rescue Patches on Level 9!",
+      "noHintSolves_one": "{{count}} more no-hint solve to unlock",
+      "noHintSolves_other": "{{count}} more no-hint solves to unlock",
+      "untilWorld3_one": "{{count}} more level until Moonlit Valley",
+      "untilWorld3_other": "{{count}} more levels until Moonlit Valley",
+      "moreAch_one": "{{count}} more achievement to unlock",
+      "moreAch_other": "{{count}} more achievements to unlock"
+    },
+    "roster": {
+      "mochi": {
+        "title": "Tuxedo Detective",
+        "personality": "Polite, curious, and always inspects every corner first.",
+        "req": "Starter companion"
+      },
+      "marmalade": {
+        "title": "Sunbeam Napper",
+        "personality": "Warm-hearted ginger tabby who loves morning puzzles.",
+        "req": "Complete Level 1"
+      },
+      "pebble": {
+        "title": "Cloud Paws",
+        "personality": "Calm British Shorthair who never rushes a deduction.",
+        "req": "Earn 6 total stars"
+      },
+      "biscuit": {
+        "title": "Treasure Sniffer",
+        "personality": "Golden kitten with an uncanny nose for hidden treasure chests.",
+        "req": "Complete Level 4 (Treasure Chest)"
+      },
+      "cleo": {
+        "title": "Velvet Scholar",
+        "personality": "Graceful Siamese who adores clean logic and tidy rows.",
+        "req": "Unlock World 2: Candy Garden"
+      },
+      "luna": {
+        "title": "Ribbon Dreamer",
+        "personality": "Wears her favorite pink bow for every Daily Kitty puzzle.",
+        "req": "Complete 1 Daily Kitty Challenge"
+      },
+      "patches": {
+        "title": "Candy Acrobat",
+        "personality": "Playful calico rescued in the heart of Candy Garden.",
+        "req": "Complete Level 9 (Cat Rescue)"
+      },
+      "snowbell": {
+        "title": "Pure Logic Sage",
+        "personality": "Serene blue-eyed Ragdoll who solves puzzles with zero hints.",
+        "req": "Solve 3 levels without hints"
+      },
+      "nori": {
+        "title": "Moonlight Scout",
+        "personality": "Agile rooftop explorer who guides travelers through 8×8 grids.",
+        "req": "Unlock World 3: Moonlit Valley"
+      },
+      "aurelia": {
+        "title": "Grand Meowster",
+        "personality": "Legendary guardian of Starlight Castle and master of all grids.",
+        "req": "Unlock 5 achievements or clear Level 24"
+      }
+    }
+  },
+  "shop": {
+    "headerTitle": "Kitty Shop",
+    "yourCoins": "Your Fish Coins",
+    "nudgeNextItem": "Only {{diff}} more Fish Coins for {{item}}!",
+    "nudgeDefault": "Spend Fish Coins on handy puzzle boosters anytime!",
+    "optionalRewardsTitle": "Optional Free Rewards",
+    "optionalRewardsDesc": "Never forced — optionally watch a short clip in a future update for extra treats.",
+    "adCoinsBtn": "+30 Coins Ad",
+    "adHintBtn": "Free Hint Ad",
+    "badges": {
+      "popular": "Popular",
+      "best": "Best"
+    },
+    "items": {
+      "hint": {
+        "name": "Hint",
+        "short": "Hint",
+        "desc": "Highlights a logical next tile and explains why it matters."
+      },
+      "superHint": {
+        "name": "Super Hint",
+        "short": "Super",
+        "desc": "Deduces a safe cat spot AND auto-clears impossible tiles with ×."
+      },
+      "revealCat": {
+        "name": "Reveal Cat",
+        "short": "Cat",
+        "desc": "Instantly finds and places one guaranteed valid cat on the board."
+      },
+      "undoToken": {
+        "name": "Smart Rewind",
+        "short": "Rewind",
+        "desc": "Rewinds back to your last clean, mistake-free board state."
+      },
+      "mistakeShield": {
+        "name": "Mistake Shield",
+        "short": "Shield",
+        "desc": "Absorbs your next conflict mistake with zero penalty to stars."
+      },
+      "revealRegion": {
+        "name": "Reveal Region",
+        "short": "Region",
+        "desc": "Marks all empty decoy tiles in an unsolved color region with ×."
+      }
+    }
+  },
+  "ads": {
+    "badge": "Optional Reward",
+    "watchPrompt": "Watch an optional short video to receive <bold>{{reward}}</bold>.",
+    "watchAdBtn": "Watch Ad",
+    "checkingBtn": "Checking Ad Provider...",
+    "useCoinsBtn": "Use {{cost}} Fish Coins",
+    "maybeLater": "Maybe Later",
+    "notImplementedMsg": "Rewarded ads are coming in a future update. You can use Fish Coins or claim free Daily Missions right now!",
+    "offers": {
+      "free_hint": { "headline": "Need a little help?", "reward": "1 Free Hint" },
+      "bonus_coins": { "headline": "Want extra Fish Coins?", "reward": "+30 Fish Coins" },
+      "extra_undo": { "headline": "Need a Smart Rewind?", "reward": "1 Smart Rewind Token" },
+      "daily_bonus": { "headline": "Double Today's Treat?", "reward": "2× Daily Login Bonus" },
+      "booster_pack": { "headline": "Stock Up for Tough Grids?", "reward": "1 Mistake Shield" },
+      "challenge_retry": { "headline": "Try Again Fresh?", "reward": "1 Free Super Hint" }
+    }
+  },
+  "profile": {
+    "headerTitle": "Player Profile",
+    "keeperTitle": "{{name}}'s Keeper",
+    "keeperStats": "{{cats}} hidden cats discovered • {{badges}}/{{totalBadges}} badges",
+    "changeCompanionAria": "Change companion cat",
+    "levelsSolved": "Levels Solved",
+    "starsEarned": "Stars Earned",
+    "worldsReached": "Worlds Reached",
+    "zeroMistakeWins": "Zero-Mistake Wins",
+    "catsCollected": "Cats Collected",
+    "loginStreak": "Login Streak",
+    "howToPlayBtn": "How to Play & Voice Guide",
+    "settingsBtn": "Game Settings & Preferences"
+  },
+  "celebrations": {
+    "newWorldBadge": "New World Unlocked!",
+    "exploreWorld": "Explore {{world}}!",
+    "newCatBadge": "New Cat Unlocked • {{rarity}}",
+    "setAsCompanion": "Set as Map Companion",
+    "collectTreasure": "Collect Treasure!"
+  },
+  "toasts": {
+    "boughtBooster": "Bought 1 {{name}}!",
+    "needMoreCoins": "Need {{diff}} more Fish Coins!",
+    "claimedCoins": "Claimed +{{coins}} Fish Coins!",
+    "shieldAbsorbed": "Mistake Shield absorbed the penalty!",
+    "shieldAlreadyActive": "Mistake Shield is already active on this board!",
+    "shieldArmed": "Mistake Shield armed! Next conflict has 0 penalty.",
+    "boardAlreadyClean": "Board is already clean — no rewind needed!",
+    "smartRewindDone": "Smart Rewind restored your last clean state!",
+    "regionCleared": "Cleared decoys in the {{region}} region!"
+  }
+}

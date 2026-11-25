@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Calendar,
   Check,
@@ -18,7 +19,6 @@ import { ACHIEVEMENTS, AchievementDefinition } from '../../game/achievements';
 import { getCurrentWeekKey, WORLD_EVENTS } from '../../game/events';
 import { canClaimDailyReward } from '../../game/dailyRewards';
 import { getTodayDateKey } from '../../game/levels';
-import { getShopItem } from '../../game/economy';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
 import { TactileButton } from '../../components/Buttons/TactileButton';
@@ -37,6 +37,7 @@ const ACH_ICONS: Record<AchievementDefinition['icon'], React.ReactNode> = {
 };
 
 export const MissionsScreen: React.FC = () => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<MissionsTab>('daily');
 
   const dailyMissions = useGameStore((s) => s.dailyMissions);
@@ -83,7 +84,7 @@ export const MissionsScreen: React.FC = () => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
-      <HubHeader title="Missions & Events" />
+      <HubHeader title={t('missions.headerTitle')} />
 
       {/* Daily Calendar Quick Banner */}
       <div className="px-3.5 pb-2 shrink-0">
@@ -93,29 +94,27 @@ export const MissionsScreen: React.FC = () => {
           onClick={() => setDailyCalendarOpen(true)}
           className="w-full rounded-2xl bg-gradient-to-r from-[#FFF3D1] to-[#FFE4D4] border border-[#F2CFA0] px-3.5 py-2.5 flex items-center justify-between gap-2 text-left cursor-pointer active:scale-[0.98] transition-transform"
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-9 h-9 rounded-xl bg-white/90 text-[#D9821E] flex items-center justify-center shadow-xs shrink-0">
               <Gift className="w-5 h-5" />
             </span>
-            <div>
-              <div className="text-[13.5px] font-black text-[#3A312C] leading-tight">
-                7-Day Daily Rewards
+            <div className="min-w-0">
+              <div className="text-[13px] font-black text-[#3A312C] leading-tight truncate">
+                {t('missions.dailyRewardsBannerTitle')}
               </div>
-              <div className="text-[11px] font-bold text-[#8A6128] mt-0.5">
+              <div className="text-[10.5px] font-bold text-[#8A6128] mt-0.5 truncate">
                 {dailyClaimable
-                  ? `Day ${dailyLogin.currentDayIndex + 1} treat ready to claim!`
-                  : `${dailyLogin.streakCount}-day streak active`}
+                  ? t('missions.dailyRewardsReady', { day: dailyLogin.currentDayIndex + 1 })
+                  : t('missions.dailyRewardsStreak', { count: dailyLogin.streakCount })}
               </div>
             </div>
           </div>
           <span
-            className={`text-[11px] font-black px-2.5 py-1 rounded-full shrink-0 ${
-              dailyClaimable
-                ? 'bg-[#FF6B6B] text-white'
-                : 'bg-white/90 text-[#6E5C4F]'
+            className={`text-[11px] font-black px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap ${
+              dailyClaimable ? 'bg-[#FF6B6B] text-white' : 'bg-white/90 text-[#6E5C4F]'
             }`}
           >
-            {dailyClaimable ? 'Claim!' : 'View'}
+            {dailyClaimable ? t('missions.claimExclaim') : t('common.view')}
           </span>
         </button>
       </div>
@@ -125,26 +124,29 @@ export const MissionsScreen: React.FC = () => {
         <div className="grid grid-cols-3 gap-1 bg-[#EFE6D8]/85 p-1 rounded-2xl">
           {(
             [
-              { id: 'daily', label: 'Daily' },
-              { id: 'events', label: 'Events' },
+              { id: 'daily', label: t('missions.tabDaily') },
+              { id: 'events', label: t('missions.tabEvents') },
               {
                 id: 'achievements',
-                label: claimableAchCount > 0 ? `Badges (${claimableAchCount})` : 'Badges',
+                label:
+                  claimableAchCount > 0
+                    ? t('missions.tabBadgesCount', { count: claimableAchCount })
+                    : t('missions.tabBadges'),
               },
             ] as const
-          ).map((t) => (
+          ).map((tItem) => (
             <button
-              key={t.id}
-              id={`missions-tab-${t.id}`}
+              key={tItem.id}
+              id={`missions-tab-${tItem.id}`}
               type="button"
-              onClick={() => setTab(t.id)}
-              className={`py-1.5 rounded-xl text-[12px] font-extrabold transition-all cursor-pointer ${
-                tab === t.id
+              onClick={() => setTab(tItem.id)}
+              className={`py-1.5 rounded-xl text-[11.5px] font-extrabold transition-all cursor-pointer truncate px-1 ${
+                tab === tItem.id
                   ? 'bg-white text-[#3A312C] shadow-xs'
                   : 'text-[#7E7067]'
               }`}
             >
-              {t.label}
+              {tItem.label}
             </button>
           ))}
         </div>
@@ -163,11 +165,11 @@ export const MissionsScreen: React.FC = () => {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-[14.5px] font-black text-[#3A312C] leading-tight">
-                      {m.title}
+                    <h3 className="text-[14px] font-black text-[#3A312C] leading-tight">
+                      {t(`missions.items.${m.metric}.title`)}
                     </h3>
                     <p className="text-[11.5px] font-bold text-[#7E7067] mt-0.5">
-                      {m.description}
+                      {t(`missions.items.${m.metric}.desc`, { target: m.target })}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 bg-[#FFF6E4] border border-[#F0DCAD] px-2 py-0.5 rounded-full shrink-0">
@@ -178,11 +180,10 @@ export const MissionsScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Progress bar + Claim */}
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1">
                     <div className="flex justify-between text-[10.5px] font-extrabold text-[#8A7B70] mb-1">
-                      <span>Progress</span>
+                      <span>{t('missions.progressLabel')}</span>
                       <span className="tabular-nums">
                         {m.progress} / {m.target}
                       </span>
@@ -198,20 +199,20 @@ export const MissionsScreen: React.FC = () => {
                   {m.claimed ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#4B9B6E] bg-[#E8F7EE] px-2.5 py-1.5 rounded-xl shrink-0">
                       <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                      Done
+                      {t('common.claimed')}
                     </span>
                   ) : isComplete ? (
                     <TactileButton
                       variant="primary"
                       size="sm"
                       onClick={() => claimMissionReward(m.id)}
-                      className="h-8 px-3 text-[12px]"
+                      className="h-8 px-3 text-[11.5px]"
                     >
-                      Claim
+                      {t('common.claim')}
                     </TactileButton>
                   ) : (
-                    <span className="text-[11px] font-extrabold text-[#A99B90] px-2">
-                      In Play
+                    <span className="text-[10.5px] font-extrabold text-[#A99B90] px-1.5 whitespace-nowrap">
+                      {t('common.inPlay')}
                     </span>
                   )}
                 </div>
@@ -241,24 +242,22 @@ export const MissionsScreen: React.FC = () => {
                 key={ev.id}
                 className={`rounded-[22px] p-3.5 border border-[#EAE0D2] bg-gradient-to-br ${ev.accentGradient} shadow-xs`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="inline-flex items-center gap-1 text-[9.5px] font-black uppercase px-2 py-0.5 rounded-full bg-white/85 text-[#5A4E47]">
-                      <Calendar className="w-3 h-3" />
-                      {ev.badge}
-                    </span>
-                    <h3 className="text-[15.5px] font-black text-[#3A312C] mt-1.5 leading-tight">
-                      {ev.title}
-                    </h3>
-                    <p className="text-[11.5px] font-bold text-[#6E6057] mt-0.5">
-                      {ev.subtitle}
-                    </p>
-                  </div>
+                <div>
+                  <span className="inline-flex items-center gap-1 text-[9.5px] font-black uppercase px-2 py-0.5 rounded-full bg-white/85 text-[#5A4E47]">
+                    <Calendar className="w-3 h-3" />
+                    {t(`events.${ev.id}.badge`)}
+                  </span>
+                  <h3 className="text-[15px] font-black text-[#3A312C] mt-1.5 leading-tight">
+                    {t(`events.${ev.id}.title`)}
+                  </h3>
+                  <p className="text-[11.5px] font-bold text-[#6E6057] mt-0.5">
+                    {t(`events.${ev.id}.subtitle`)}
+                  </p>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-black text-[#6B4812] bg-white/80 px-2.5 py-1 rounded-full">
-                    {ev.rewardSummary}
+                  <span className="text-[10.5px] font-black text-[#6B4812] bg-white/80 px-2.5 py-1 rounded-full truncate">
+                    {t(`events.${ev.id}.reward`)}
                   </span>
 
                   {ev.type === 'playable_puzzle' ? (
@@ -271,15 +270,17 @@ export const MissionsScreen: React.FC = () => {
                           ? startDailyChallenge()
                           : startGoldenCatTrial()
                       }
-                      className="h-8.5 px-3.5 text-[12px]"
+                      className="h-8.5 px-3 text-[11.5px] shrink-0"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      {isDailySolved || isGoldenSolved ? 'Replay' : 'Play'}
+                      {isDailySolved || isGoldenSolved
+                        ? t('common.replay')
+                        : t('common.play')}
                     </TactileButton>
                   ) : chestClaimed ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#3B8B61] bg-white/90 px-2.5 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#3B8B61] bg-white/90 px-2.5 py-1 rounded-full shrink-0">
                       <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                      Opened
+                      {t('common.opened')}
                     </span>
                   ) : chestReady ? (
                     <TactileButton
@@ -287,13 +288,13 @@ export const MissionsScreen: React.FC = () => {
                       variant="primary"
                       size="sm"
                       onClick={() => claimEventChest(ev.id)}
-                      className="h-8.5 px-3.5 text-[12px]"
+                      className="h-8.5 px-3 text-[11px] shrink-0"
                     >
                       <Gift className="w-3.5 h-3.5" />
-                      Open Chest
+                      {t('common.openChest')}
                     </TactileButton>
                   ) : (
-                    <span className="text-[11.5px] font-black text-[#6E6057] bg-white/75 px-2.5 py-1 rounded-full tabular-nums">
+                    <span className="text-[11.5px] font-black text-[#6E6057] bg-white/75 px-2.5 py-1 rounded-full tabular-nums shrink-0">
                       {Math.min(chestProgress, ev.targetCount)} / {ev.targetCount}
                     </span>
                   )}
@@ -327,14 +328,14 @@ export const MissionsScreen: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
                     <h3 className="text-[13.5px] font-black text-[#3A312C] truncate">
-                      {ach.title}
+                      {t(`achievements.${ach.id}.title`)}
                     </h3>
                     <span className="text-[10.5px] font-black text-[#8A7B70] tabular-nums shrink-0">
                       {current}/{ach.target}
                     </span>
                   </div>
                   <p className="text-[11px] font-semibold text-[#7E7067] leading-tight mt-0.5">
-                    {ach.description}
+                    {t(`achievements.${ach.id}.desc`)}
                   </p>
                   <div className="w-full h-1.5 bg-[#F2E9DC] rounded-full overflow-hidden mt-1.5">
                     <div
@@ -367,7 +368,7 @@ export const MissionsScreen: React.FC = () => {
                       </span>
                       {ach.rewardBooster && (
                         <span className="text-[#8366CC] text-[9px]">
-                          +{getShopItem(ach.rewardBooster).shortName}
+                          +{t(`shop.items.${ach.rewardBooster}.short`)}
                         </span>
                       )}
                     </div>

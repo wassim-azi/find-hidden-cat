@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface FishCoinIconProps {
   className?: string;
@@ -34,7 +35,6 @@ export const FishCoinIcon: React.FC<FishCoinIconProps> = React.memo(
         strokeWidth="1.2"
         opacity="0.7"
       />
-      {/* Cute plump fish silhouette inside coin */}
       <path
         d="M25.5 18 C23.5 13.5 17 12.2 13 15.2 L9.5 12.5 L10.5 18 L9.5 23.5 L13 20.8 C17 23.8 23.5 22.5 25.5 18 Z"
         fill="#FFFDF5"
@@ -57,6 +57,8 @@ export const FishCoinPill: React.FC<FishCoinPillProps> = ({
   onClick,
   compact = false,
 }) => {
+  const { t } = useTranslation();
+
   const inner = (
     <span
       className={`inline-flex items-center gap-1.5 bg-white/95 border border-[#ECDAB8] rounded-full shadow-[0_2px_8px_rgba(92,69,52,0.08)] ${
@@ -79,7 +81,7 @@ export const FishCoinPill: React.FC<FishCoinPillProps> = ({
       <button
         type="button"
         onClick={onClick}
-        aria-label={`${coins} Fish Coins. Tap to open shop`}
+        aria-label={t('common.fishCoins', { count: coins })}
         className="cursor-pointer active:scale-94 transition-transform"
       >
         {inner}

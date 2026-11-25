@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import i18n from '../i18n';
 import {
   BoardGrid,
   CellCoord,
@@ -445,7 +446,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (!isUnlocked) {
       soundManager.play('error', state.settings.soundEnabled);
       triggerHaptic('error', state.settings.hapticsEnabled);
-      state.showToast(`Complete Level ${clampedId - 1} first to unlock Level ${clampedId}!`);
+      state.showToast(
+        i18n.t('map.lockedToast', { prev: clampedId - 1, next: clampedId })
+      );
       return;
     }
 
@@ -741,7 +744,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         nextShieldActive = false;
         soundManager.play('hint', state.settings.soundEnabled);
         triggerHaptic('hint', state.settings.hapticsEnabled);
-        state.showToast('Mistake Shield absorbed the penalty!');
+        state.showToast(i18n.t('toasts.shieldAbsorbed'));
         // Automatically revert the conflicting cat so player stays clean
         set({
           isMistakeShieldActive: false,
@@ -997,7 +1000,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         celebrationTimer = null;
         set({ isCelebratingBoard: false, victorySummary: summary });
         if (newlyUnlockedAchs.length > 0) {
-          get().showToast(`Achievement Unlocked: ${newlyUnlockedAchs[0]!.title}!`);
+          const achTitle = i18n.t(`achievements.${newlyUnlockedAchs[0]!.id}.title`);
+          get().showToast(i18n.t('achievements.unlockedToast', { title: achTitle }));
         }
       }, delayMs);
 
@@ -1167,7 +1171,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     if (boosterId === 'mistakeShield') {
       if (state.isMistakeShieldActive) {
-        state.showToast('Mistake Shield is already active on this board!');
+        state.showToast(i18n.t('toasts.shieldAlreadyActive'));
         return false;
       }
       soundManager.play('hint', state.settings.soundEnabled);
@@ -1176,7 +1180,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         boosters: consume(),
         isMistakeShieldActive: true,
       });
-      state.showToast('Mistake Shield armed! Next conflict has 0 penalty.');
+      state.showToast(i18n.t('toasts.shieldArmed'));
       persistFromState(get());
       return true;
     }
@@ -1191,7 +1195,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         }
       }
       if (cleanIdx === -1) {
-        state.showToast('Board is already clean — no rewind needed!');
+        state.showToast(i18n.t('toasts.boardAlreadyClean'));
         return false;
       }
       const targetSnap = state.undoStack[cleanIdx]!;
@@ -1205,7 +1209,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         redoStack: [],
         activeHint: null,
       });
-      state.showToast('Smart Rewind restored your last clean state!');
+      state.showToast(i18n.t('toasts.smartRewindDone'));
       persistFromState(get());
       return true;
     }
@@ -1264,7 +1268,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
       soundManager.play('hint', state.settings.soundEnabled);
       triggerHaptic('hint', state.settings.hapticsEnabled);
-      const theme = getRegionTheme(unsolvedReg);
+      const regionName = i18n.t(`regions.${Math.abs(unsolvedReg) % 8}`);
       set({
         boosters: consume(),
         board: nextBoard,
@@ -1276,7 +1280,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         ],
         redoStack: [],
       });
-      state.showToast(`Cleared decoys in the ${theme.name} region!`);
+      state.showToast(i18n.t('toasts.regionCleared', { region: regionName }));
       persistFromState(get());
       return true;
     }
@@ -1390,10 +1394,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   purchaseBooster: (boosterId) => {
     const state = get();
     const item = getShopItem(boosterId);
+    const localizedName = i18n.t(`shop.items.${boosterId}.name`);
     if (state.fishCoins < item.priceCoins) {
       soundManager.play('error', state.settings.soundEnabled);
       triggerHaptic('error', state.settings.hapticsEnabled);
-      state.showToast(`Need ${item.priceCoins - state.fishCoins} more Fish Coins!`);
+      state.showToast(
+        i18n.t('toasts.needMoreCoins', { diff: item.priceCoins - state.fishCoins })
+      );
       return false;
     }
 
@@ -1407,7 +1414,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         [boosterId]: state.boosters[boosterId] + 1,
       },
     });
-    state.showToast(`Bought 1 ${item.name}!`);
+    state.showToast(i18n.t('toasts.boughtBooster', { name: localizedName }));
     persistFromState(get());
     return true;
   },
@@ -1467,7 +1474,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       fishCoins: state.fishCoins + target.rewardCoins,
       boosters: nextBoosters,
     });
-    state.showToast(`Claimed +${target.rewardCoins} Fish Coins!`);
+    state.showToast(i18n.t('toasts.claimedCoins', { coins: target.rewardCoins }));
     persistFromState(get());
     return true;
   },
@@ -1497,7 +1504,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       fishCoins: state.fishCoins + def.rewardCoins,
       boosters: nextBoosters,
     });
-    state.showToast(`${def.title}: +${def.rewardCoins} Fish Coins!`);
+    state.showToast(
+      `${i18n.t(`achievements.${def.id}.title`)} : +${def.rewardCoins} ${i18n.t('common.fishCoinsLabel')}`
+    );
     persistFromState(get());
     return true;
   },
@@ -1522,20 +1531,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     let boosterLabel: string | undefined;
     if (ev.rewardBooster) {
       nextBoosters[ev.rewardBooster] += 1;
-      boosterLabel = `1 ${getShopItem(ev.rewardBooster).name}`;
+      boosterLabel = `1 ${i18n.t(`shop.items.${ev.rewardBooster}.name`)}`;
     }
 
     soundManager.play('victory', state.settings.soundEnabled);
     triggerHaptic('victory', state.settings.hapticsEnabled);
     particleBus.victoryFountain();
 
+    const evTitle = i18n.t(`events.${ev.id}.title`);
+    const evSub = i18n.t(`events.${ev.id}.subtitle`);
+
     set({
       claimedEventIds: [...state.claimedEventIds, claimKey],
       fishCoins: state.fishCoins + ev.rewardCoins,
       boosters: nextBoosters,
       chestRevealModal: {
-        title: `${ev.title} Opened!`,
-        subtitle: ev.subtitle,
+        title: i18n.t('events.chestOpenedTitle', { title: evTitle }),
+        subtitle: evSub,
         coins: ev.rewardCoins,
         boosterLabel,
       },
@@ -1719,3 +1731,13 @@ export function hasClaimableDailyOrMission(state: GameStoreState): {
   ).length;
   return { dailyClaimable, missionsClaimableCount, achievementsClaimableCount };
 }
+
+i18n.on('languageChanged', () => {
+  const state = useGameStore.getState();
+  const nextValidation = validateBoard(state.puzzle, state.board);
+  const nextHint = state.activeHint ? getNextHint(state.puzzle, state.board) : null;
+  useGameStore.setState({
+    validation: nextValidation,
+    activeHint: nextHint,
+  });
+});

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   Crown,
@@ -26,16 +27,14 @@ const NODE_STEP_Y = 98;
 const WORLD_BANNER_EXTRA_H = 126;
 const TOP_SUMMIT_PAD = 118;
 const BOTTOM_START_PAD = 104;
-
-// Winding horizontal S-curve percentages (0..100 across 360px logical SVG width)
 const X_PATTERN_PCT = [50, 74, 30, 72, 28, 56];
 
 interface PositionedNode {
   levelId: number;
   title: string;
   size: 6 | 8;
-  xPct: number; // 0..100
-  y: number; // px from top of map canvas
+  xPct: number;
+  y: number;
   world: WorldDefinition;
 }
 
@@ -46,10 +45,6 @@ interface WorldZoneLayout {
   bannerY: number;
 }
 
-/**
- * Pure layout builder: positions levels 1..24 from BOTTOM (Level 1) to TOP (Level 24)
- * with themed World zones and smooth winding S-curve coordinates.
- */
 function buildJourneyLayout(): {
   totalHeight: number;
   nodes: PositionedNode[];
@@ -59,7 +54,6 @@ function buildJourneyLayout(): {
   const nodes: PositionedNode[] = [];
   const zones: WorldZoneLayout[] = [];
 
-  // Build from top (World 4) down to bottom (World 1) so Level 1 is near the bottom
   let cursorY = TOP_SUMMIT_PAD;
   const worldsTopToBottom = [...WORLDS].reverse();
 
@@ -68,7 +62,6 @@ function buildJourneyLayout(): {
     const bannerY = cursorY + 12;
     cursorY += WORLD_BANNER_EXTRA_H;
 
-    // Levels inside this world from highest (top) to lowest (bottom)
     const worldLevels = levels
       .filter((l) => l.id >= world.levelStart && l.id <= world.levelEnd)
       .sort((a, b) => b.id - a.id);
@@ -97,7 +90,6 @@ function buildJourneyLayout(): {
     cursorY = zoneBottomY;
   }
 
-  // Sort nodes ascending 1..24 for path drawing
   nodes.sort((a, b) => a.levelId - b.levelId);
 
   return {
@@ -117,6 +109,20 @@ function buildSmoothPath(points: { x: number; y: number }[]): string {
     d += ` C ${prev.x} ${midY}, ${curr.x} ${midY}, ${curr.x} ${curr.y}`;
   }
   return d;
+}
+
+function getSpecialLabelKey(levelId: number): string {
+  const map: Record<number, string> = {
+    4: 'map.special.treasure',
+    6: 'map.special.boss_6',
+    9: 'map.special.rescue',
+    12: 'map.special.boss_12',
+    15: 'map.special.mystery',
+    18: 'map.special.boss_18',
+    21: 'map.special.treasure_21',
+    24: 'map.special.boss_24',
+  };
+  return map[levelId] ?? '';
 }
 
 const WorldDecorations: React.FC<{ decorType: WorldDefinition['decorType'] }> = React.memo(
@@ -164,6 +170,7 @@ const WorldDecorations: React.FC<{ decorType: WorldDefinition['decorType'] }> = 
 WorldDecorations.displayName = 'WorldDecorations';
 
 export const MapScreen: React.FC = () => {
+  const { t } = useTranslation();
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
@@ -176,7 +183,6 @@ export const MapScreen: React.FC = () => {
   const layout = useMemo(() => buildJourneyLayout(), []);
   const activeMascot = getCollectibleCat(activeMascotCatId);
 
-  // Auto-center the map smoothly on the current unlocked level when opening Map
   useEffect(() => {
     const timer = window.setTimeout(() => {
       currentNodeRef.current?.scrollIntoView({
@@ -187,13 +193,11 @@ export const MapScreen: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [unlockedLevelId, reducedMotion]);
 
-  // Compute gentle motivating next-milestone nudge
   const currentWorld = getWorldForLevel(unlockedLevelId);
   const nextWorld = getNextWorldAfter(currentWorld.id);
   const levelsLeftInWorld = Math.max(0, currentWorld.levelEnd - unlockedLevelId + 1);
   const completedAll = Boolean(levelProgress[TOTAL_LEVELS]?.completed);
 
-  // SVG path points on a 360px logical width
   const allPoints = useMemo(
     () => layout.nodes.map((n) => ({ x: (n.xPct / 100) * 360, y: n.y })),
     [layout.nodes]
@@ -212,19 +216,22 @@ export const MapScreen: React.FC = () => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden relative">
-      <HubHeader title="Cat Journey" />
+      <HubHeader title={t('map.headerTitle')} />
 
       {/* Gentle Engagement Nudge Strip */}
       <div className="px-3.5 pb-1.5 shrink-0 z-20">
         <div className="meow-card rounded-2xl px-3 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="w-3.5 h-3.5 text-[#FF7A7A] shrink-0" />
-            <p className="text-[11.5px] font-extrabold text-[#5A4E47] truncate">
+            <p className="text-[11px] font-extrabold text-[#5A4E47] truncate">
               {completedAll
-                ? 'Grand Meowster! Replay any stop for 3 stars!'
+                ? t('map.completedAllNudge')
                 : nextWorld
-                  ? `Only ${levelsLeftInWorld} level${levelsLeftInWorld === 1 ? '' : 's'} until ${nextWorld.name}!`
-                  : `${levelsLeftInWorld} level${levelsLeftInWorld === 1 ? '' : 's'} to the Starlight Summit!`}
+                  ? t('map.nextWorldNudge', {
+                      count: levelsLeftInWorld,
+                      world: t(`worlds.${nextWorld.id}.name`),
+                    })
+                  : t('map.summitNudge', { count: levelsLeftInWorld })}
             </p>
           </div>
           <button
@@ -233,24 +240,20 @@ export const MapScreen: React.FC = () => {
             onClick={() =>
               currentNodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }
-            className="text-[10.5px] font-black text-[#E85E6B] bg-[#FFF0F0] px-2 py-0.5 rounded-full shrink-0 cursor-pointer active:scale-95"
+            className="text-[10.5px] font-black text-[#E85E6B] bg-[#FFF0F0] px-2 py-0.5 rounded-full shrink-0 cursor-pointer active:scale-95 whitespace-nowrap"
           >
-            Lvl {unlockedLevelId}
+            {t('common.levelShort', { id: unlockedLevelId })}
           </button>
         </div>
       </div>
 
       {/* Scrollable Vertical Winding World Canvas */}
-      <div
-        ref={scrollRef}
-        id="level-map-scroll"
-        className="flex-1 soft-scroll relative w-full"
-      >
+      <div ref={scrollRef} id="level-map-scroll" className="flex-1 soft-scroll relative w-full">
         <div
           className="relative w-full mx-auto overflow-hidden"
           style={{ height: `${layout.totalHeight}px` }}
         >
-          {/* Summit Cloud Banner (Future Worlds Teaser!) */}
+          {/* Summit Cloud Banner */}
           <div
             className="absolute inset-x-0 top-0 flex flex-col items-center justify-center px-5 text-center"
             style={{
@@ -260,13 +263,13 @@ export const MapScreen: React.FC = () => {
           >
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/85 text-[#6E56B2] text-[10px] font-black uppercase tracking-wider shadow-xs">
               <Crown className="w-3 h-3" />
-              Cloud Summit
+              {t('map.cloudSummitBadge')}
             </span>
-            <p className="text-[14px] font-black text-[#4A3C6E] mt-1">
-              Cat Paradise &amp; Rainbow Forest
+            <p className="text-[13.5px] font-black text-[#4A3C6E] mt-1">
+              {t('map.cloudSummitTitle')}
             </p>
             <p className="text-[11px] font-bold text-[#7B6DA0]">
-              More magical worlds coming soon!
+              {t('map.cloudSummitSubtitle')}
             </p>
           </div>
 
@@ -278,6 +281,8 @@ export const MapScreen: React.FC = () => {
               (_, i) => levelProgress[world.levelStart + i]?.stars ?? 0
             ).reduce((a, b) => a + b, 0);
             const maxWorldStars = (world.levelEnd - world.levelStart + 1) * 3;
+            const worldName = t(`worlds.${world.id}.name`);
+            const worldSubtitle = t(`worlds.${world.id}.subtitle`);
 
             return (
               <div
@@ -291,11 +296,7 @@ export const MapScreen: React.FC = () => {
               >
                 <WorldDecorations decorType={world.decorType} />
 
-                {/* Illustrated World Milestone Header Banner */}
-                <div
-                  style={{ top: `${bannerY - topY}px` }}
-                  className="absolute inset-x-3.5 z-10"
-                >
+                <div style={{ top: `${bannerY - topY}px` }} className="absolute inset-x-3.5 z-10">
                   <div
                     className={`relative h-[94px] rounded-[22px] overflow-hidden border-2 shadow-[0_8px_20px_rgba(74,56,42,0.12)] ${
                       isWorldUnlocked
@@ -305,7 +306,7 @@ export const MapScreen: React.FC = () => {
                   >
                     <img
                       src={world.bannerImage}
-                      alt={world.name}
+                      alt={worldName}
                       loading="lazy"
                       decoding="async"
                       className="w-full h-full object-cover"
@@ -316,7 +317,7 @@ export const MapScreen: React.FC = () => {
                         <span
                           className={`text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${world.badgeBg} ${world.badgeText}`}
                         >
-                          World {world.id}
+                          {t('map.worldBadge', { id: world.id })}
                         </span>
                         <span className="inline-flex items-center gap-1 text-[11px] font-black text-white bg-[#2D241E]/55 backdrop-blur-xs px-2 py-0.5 rounded-full tabular-nums">
                           <Star className="w-3 h-3 text-[#F4B942] fill-[#F4B942]" />
@@ -325,12 +326,12 @@ export const MapScreen: React.FC = () => {
                       </div>
                       <div>
                         <h2 className="text-[17px] font-black text-white leading-tight drop-shadow-xs">
-                          {world.name}
+                          {worldName}
                         </h2>
                         <p className="text-[11px] font-bold text-white/90 leading-tight">
                           {isWorldUnlocked
-                            ? world.subtitle
-                            : `Complete Level ${world.levelStart - 1} to unlock`}
+                            ? worldSubtitle
+                            : t('map.unlockPreviousHint', { id: world.levelStart - 1 })}
                         </p>
                       </div>
                     </div>
@@ -349,7 +350,7 @@ export const MapScreen: React.FC = () => {
             }}
           >
             <span className="text-[11px] font-black uppercase tracking-wider text-[#5A8565] bg-white/80 px-3 py-1 rounded-full shadow-xs">
-              Start of Journey
+              {t('map.startOfJourney')}
             </span>
           </div>
 
@@ -360,7 +361,6 @@ export const MapScreen: React.FC = () => {
             className="absolute inset-0 w-full h-full pointer-events-none z-10"
             aria-hidden="true"
           >
-            {/* Soft path drop border */}
             <path
               d={fullPathD}
               fill="none"
@@ -368,7 +368,6 @@ export const MapScreen: React.FC = () => {
               strokeWidth="26"
               strokeLinecap="round"
             />
-            {/* Cream cobblestone ribbon */}
             <path
               d={fullPathD}
               fill="none"
@@ -376,7 +375,6 @@ export const MapScreen: React.FC = () => {
               strokeWidth="20"
               strokeLinecap="round"
             />
-            {/* Dashed stepping trail */}
             <path
               d={fullPathD}
               fill="none"
@@ -385,7 +383,6 @@ export const MapScreen: React.FC = () => {
               strokeDasharray="7 10"
               strokeLinecap="round"
             />
-            {/* Unlocked glowing golden-coral progression trail */}
             {unlockedPathD && (
               <path
                 d={unlockedPathD}
@@ -406,8 +403,9 @@ export const MapScreen: React.FC = () => {
             const isCurrent = node.levelId === unlockedLevelId;
             const special = getSpecialNodeInfo(node.levelId);
             const isSpecial = special.type !== 'normal';
+            const specialKey = getSpecialLabelKey(node.levelId);
+            const localizedTitle = t(`levels.${node.levelId}`, { defaultValue: node.title });
 
-            // Choose node color styling
             const bgColor = !isUnlocked
               ? '#E3DBD0'
               : isCurrent
@@ -442,39 +440,32 @@ export const MapScreen: React.FC = () => {
               <div
                 key={node.levelId}
                 ref={isCurrent ? currentNodeRef : undefined}
-                style={{
-                  left: `${node.xPct}%`,
-                  top: `${node.y}px`,
-                }}
+                style={{ left: `${node.xPct}%`, top: `${node.y}px` }}
                 className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
               >
-                {/* Floating "PLAY!" Pill above Current Level */}
                 {isCurrent && (
                   <motion.div
                     animate={reducedMotion ? undefined : { y: [0, -4, 0] }}
                     transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
                     className="mb-1.5 px-2.5 py-0.5 rounded-full bg-[#FF6B6B] text-white text-[10px] font-black uppercase tracking-wider shadow-[0_4px_10px_rgba(255,107,107,0.4)] border border-white/80 whitespace-nowrap"
                   >
-                    PLAY!
+                    {t('map.playTag')}
                   </motion.div>
                 )}
 
-                {/* Special Node Mini Label (when not current) */}
-                {!isCurrent && isSpecial && (
+                {!isCurrent && isSpecial && specialKey && (
                   <span
-                    className={`mb-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight whitespace-nowrap shadow-xs ${
+                    className={`mb-1 px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-tight whitespace-nowrap shadow-xs ${
                       isUnlocked
                         ? 'bg-white/95 text-[#5A4E47]'
                         : 'bg-white/70 text-[#9B8E82]'
                     }`}
                   >
-                    {special.label}
+                    {t(specialKey)}
                   </span>
                 )}
 
-                {/* Main Node Button + Active Mascot Companion */}
                 <div className="relative flex items-center justify-center">
-                  {/* Pulsing aura on current unlocked level */}
                   {isCurrent && !reducedMotion && (
                     <motion.span
                       aria-hidden="true"
@@ -484,7 +475,6 @@ export const MapScreen: React.FC = () => {
                     />
                   )}
 
-                  {/* Player's Active Cat Mascot perched beside current level! */}
                   {isCurrent && (
                     <motion.div
                       animate={reducedMotion ? undefined : { y: [0, -5, 0], rotate: [-3, 3, -3] }}
@@ -506,13 +496,23 @@ export const MapScreen: React.FC = () => {
                     type="button"
                     whileTap={{ scale: 0.91 }}
                     onClick={() => startLevel(node.levelId, isCurrent)}
-                    aria-label={`Level ${node.levelId}, ${node.title}, ${
+                    aria-label={
                       isCompleted
-                        ? `completed with ${prog?.stars ?? 0} stars`
+                        ? t('map.nodeAriaCompleted', {
+                            id: node.levelId,
+                            title: localizedTitle,
+                            stars: prog?.stars ?? 0,
+                          })
                         : isCurrent
-                          ? 'current next level, tap to play'
-                          : 'locked, complete previous level first'
-                    }`}
+                          ? t('map.nodeAriaCurrent', {
+                              id: node.levelId,
+                              title: localizedTitle,
+                            })
+                          : t('map.nodeAriaLocked', {
+                              id: node.levelId,
+                              title: localizedTitle,
+                            })
+                    }
                     style={{
                       width: `${nodeDim}px`,
                       height: `${nodeDim}px`,
@@ -555,7 +555,6 @@ export const MapScreen: React.FC = () => {
                   </motion.button>
                 </div>
 
-                {/* Earned Stars Row under Completed Nodes */}
                 {isCompleted && (
                   <div className="flex items-center justify-center gap-0.5 mt-1.5 bg-white/92 px-2 py-0.5 rounded-full shadow-xs border border-[#EAE0D2]">
                     {[1, 2, 3].map((s) => {

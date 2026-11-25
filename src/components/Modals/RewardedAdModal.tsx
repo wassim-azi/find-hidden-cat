@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { AlertCircle, Film, X } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
 import { TactileButton } from '../Buttons/TactileButton';
@@ -15,6 +16,7 @@ const PLACEMENT_TO_BOOSTER: Partial<Record<RewardedAdPlacement, BoosterId>> = {
 };
 
 export const RewardedAdModal: React.FC = () => {
+  const { t } = useTranslation();
   const placement = useGameStore((s) => s.rewardedAdPlacement);
   const lastAdFeedback = useGameStore((s) => s.lastAdFeedback);
   const fishCoins = useGameStore((s) => s.fishCoins);
@@ -27,6 +29,8 @@ export const RewardedAdModal: React.FC = () => {
   if (!placement) return null;
   const offer = REWARDED_AD_OFFERS[placement];
   const boosterId = PLACEMENT_TO_BOOSTER[placement];
+  const headline = t(`ads.offers.${placement}.headline`);
+  const rewardLabel = t(`ads.offers.${placement}.reward`);
 
   const handleWatchAd = async () => {
     setChecking(true);
@@ -45,14 +49,14 @@ export const RewardedAdModal: React.FC = () => {
     <ModalSheet
       open={Boolean(placement)}
       onClose={closeRewardedAdPrompt}
-      ariaLabel={offer.headline}
+      ariaLabel={headline}
     >
       <div className="p-5 flex flex-col text-center">
         <div className="flex justify-end -mb-2">
           <button
             type="button"
             onClick={closeRewardedAdPrompt}
-            aria-label="Close reward prompt"
+            aria-label={t('common.close')}
             className="w-8 h-8 rounded-full bg-[#F5EFE5] flex items-center justify-center text-[#7E7067] cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -64,18 +68,20 @@ export const RewardedAdModal: React.FC = () => {
         </div>
 
         <span className="text-[10.5px] font-black uppercase tracking-wider text-[#8366CC] bg-[#F3ECFD] px-2.5 py-0.5 rounded-full mx-auto">
-          Optional Reward
+          {t('ads.badge')}
         </span>
 
-        <h2 className="text-[21px] font-black text-[#3A312C] mt-2 tracking-tight">
-          {offer.headline}
+        <h2 className="text-[20px] font-black text-[#3A312C] mt-2 tracking-tight">
+          {headline}
         </h2>
         <p className="text-[13px] font-bold text-[#7E7067] mt-1">
-          Watch an optional short video to receive{' '}
-          <span className="text-[#3A312C] font-black">{offer.rewardLabel}</span>.
+          <Trans
+            i18nKey="ads.watchPrompt"
+            values={{ reward: rewardLabel }}
+            components={{ bold: <span className="text-[#3A312C] font-black" /> }}
+          />
         </p>
 
-        {/* Honest NOT_IMPLEMENTED / SDK unavailable feedback */}
         {lastAdFeedback && (
           <div
             role="status"
@@ -97,7 +103,7 @@ export const RewardedAdModal: React.FC = () => {
             onClick={() => void handleWatchAd()}
           >
             <Film className="w-4.5 h-4.5" />
-            {checking ? 'Checking Ad Provider...' : 'Watch Ad'}
+            {checking ? t('ads.checkingBtn') : t('ads.watchAdBtn')}
           </TactileButton>
 
           {boosterId && offer.coinAlternativeCost > 0 && (
@@ -109,7 +115,7 @@ export const RewardedAdModal: React.FC = () => {
               onClick={handleUseCoins}
             >
               <FishCoinIcon className="w-5 h-5" />
-              Use {offer.coinAlternativeCost} Fish Coins
+              {t('ads.useCoinsBtn', { cost: offer.coinAlternativeCost })}
             </TactileButton>
           )}
 
@@ -120,7 +126,7 @@ export const RewardedAdModal: React.FC = () => {
             fullWidth
             onClick={closeRewardedAdPrompt}
           >
-            Maybe Later
+            {t('ads.maybeLater')}
           </TactileButton>
         </div>
       </div>

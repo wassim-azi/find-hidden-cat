@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -13,12 +14,14 @@ import {
 import { useGameStore } from '../../store/gameStore';
 import { getTodayDateKey } from '../../game/levels';
 import { canClaimDailyReward } from '../../game/dailyRewards';
+import { formatLocalizedDate } from '../../i18n';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { MeowdokuLogo } from '../../components/Cat/MeowdokuLogo';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 import { FishCoinPill } from '../../components/Currency/FishCoinIcon';
 
 export const WelcomeScreen: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const fishCoins = useGameStore((s) => s.fishCoins);
@@ -35,6 +38,10 @@ export const WelcomeScreen: React.FC = () => {
   const completedCount = Object.values(levelProgress).filter((p) => p.completed).length;
   const hasStarted = completedCount > 0 || unlockedLevelId > 1;
   const todayKey = getTodayDateKey();
+  const formattedToday = formatLocalizedDate(
+    todayKey,
+    i18n.language.startsWith('fr') ? 'fr' : 'en'
+  );
   const dailySolved = completedDailyDates.includes(todayKey);
   const dailyRewardReady = canClaimDailyReward(dailyLogin, todayKey);
 
@@ -49,7 +56,7 @@ export const WelcomeScreen: React.FC = () => {
             id="btn-welcome-daily-gift"
             type="button"
             onClick={() => setDailyCalendarOpen(true)}
-            aria-label="Open daily rewards calendar"
+            aria-label={t('welcome.openDailyAria')}
             className={`relative w-10 h-10 rounded-full border shadow-[0_3px_10px_rgba(92,69,52,0.08)] flex items-center justify-center active:scale-92 transition-transform cursor-pointer ${
               dailyRewardReady
                 ? 'bg-gradient-to-b from-[#FFE39A] to-[#F7BD48] border-[#E8A328] text-[#6B4209]'
@@ -66,7 +73,7 @@ export const WelcomeScreen: React.FC = () => {
             id="btn-welcome-settings"
             type="button"
             onClick={() => setSettingsOpen(true)}
-            aria-label="Open settings"
+            aria-label={t('welcome.openSettingsAria')}
             className="w-10 h-10 rounded-full bg-white border border-[#EAE0D2] shadow-[0_3px_10px_rgba(92,69,52,0.07)] flex items-center justify-center text-[#5A4E47] active:scale-92 transition-transform cursor-pointer"
           >
             <Settings className="w-5 h-5" />
@@ -74,7 +81,7 @@ export const WelcomeScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Hero Showcase with Gemini Nano Banana Storybook Key Art & Animated Cinemagraph */}
+      {/* Hero Showcase */}
       <div className="flex flex-col items-center text-center my-auto py-1">
         <div className="relative w-full max-w-[330px] mb-3.5">
           <div
@@ -92,7 +99,7 @@ export const WelcomeScreen: React.FC = () => {
               {reducedMotion ? (
                 <img
                   src="/media/images/intro-hero.webp"
-                  alt="Three adorable cats peeking over pastel Meowdoku puzzle tiles"
+                  alt={t('welcome.heroAlt')}
                   className="w-full h-full object-cover"
                   fetchPriority="high"
                 />
@@ -104,7 +111,7 @@ export const WelcomeScreen: React.FC = () => {
                   loop
                   muted
                   playsInline
-                  aria-label="Animated intro showing adorable cats peeking over pastel Meowdoku puzzle tiles"
+                  aria-label={t('welcome.heroAlt')}
                   className="w-full h-full object-cover"
                 />
               )}
@@ -118,7 +125,7 @@ export const WelcomeScreen: React.FC = () => {
 
         <MeowdokuLogo />
         <p className="text-[14.5px] font-bold text-[#7E7067] mt-1 tracking-tight">
-          Think smart. Find the cats.
+          {t('welcome.tagline')}
         </p>
 
         {/* Daily Kitty Challenge Card */}
@@ -140,15 +147,19 @@ export const WelcomeScreen: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-[13.5px] font-black text-[#3A312C] leading-none">
-                  Daily Kitty
+                  {t('welcome.dailyKittyTitle')}
                 </span>
-                <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded-full bg-[#FEF2DC] text-[#A46D1A] leading-none">
-                  +45 Coins
+                <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded-full bg-[#FEF2DC] text-[#A46D1A] leading-none whitespace-nowrap">
+                  {t('welcome.dailyCoinsBadge')}
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[11px] font-bold text-[#8A7B70] mt-1 leading-none">
-                <Calendar className="w-3 h-3" />
-                {dailySolved ? 'Solved today — replay anytime!' : `Fresh 8×8 • ${todayKey}`}
+                <Calendar className="w-3 h-3 shrink-0" />
+                <span className="truncate">
+                  {dailySolved
+                    ? t('welcome.dailySolved')
+                    : t('welcome.dailyFresh', { date: formattedToday })}
+                </span>
               </div>
             </div>
           </div>
@@ -173,10 +184,12 @@ export const WelcomeScreen: React.FC = () => {
           size="lg"
           fullWidth
           onClick={continueGame}
-          className="relative overflow-hidden btn-shimmer"
+          className="relative overflow-hidden btn-shimmer text-[16px]"
         >
-          <Play className="w-5 h-5 fill-current" />
-          {hasStarted ? `Continue Level ${unlockedLevelId}` : 'Play Level 1'}
+          <Play className="w-5 h-5 fill-current shrink-0" />
+          {hasStarted
+            ? t('welcome.continueLevel', { id: unlockedLevelId })
+            : t('welcome.playLevel1')}
         </TactileButton>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -187,8 +200,8 @@ export const WelcomeScreen: React.FC = () => {
             fullWidth
             onClick={() => goToScreen('map')}
           >
-            <Map className="w-4.5 h-4.5 text-[#FF7A7A]" />
-            World Map
+            <Map className="w-4.5 h-4.5 text-[#FF7A7A] shrink-0" />
+            {t('welcome.worldMap')}
           </TactileButton>
 
           <TactileButton
@@ -198,8 +211,8 @@ export const WelcomeScreen: React.FC = () => {
             fullWidth
             onClick={() => setTutorialOpen(true)}
           >
-            <BookOpen className="w-4.5 h-4.5 text-[#9B86D4]" />
-            How to Play
+            <BookOpen className="w-4.5 h-4.5 text-[#9B86D4] shrink-0" />
+            {t('welcome.howToPlay')}
           </TactileButton>
         </div>
       </div>

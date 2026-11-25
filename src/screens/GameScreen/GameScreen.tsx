@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -16,6 +17,7 @@ import { useGameStore } from '../../store/gameStore';
 import { useGameTimer } from '../../hooks/useGameTimer';
 import { CellCoord } from '../../game/gameTypes';
 import { BoosterId } from '../../game/economy';
+import { formatLocalizedDate } from '../../i18n';
 import { GameHeader } from '../../components/GameHeader/GameHeader';
 import { ProgressIndicator } from '../../components/ProgressIndicator/ProgressIndicator';
 import { RuleCards } from '../../components/RuleCards/RuleCards';
@@ -26,42 +28,36 @@ import { VictoryScreen } from '../VictoryScreen/VictoryScreen';
 
 const LIVE_BOOSTERS: readonly {
   id: BoosterId;
-  label: string;
   color: string;
   bg: string;
   icon: React.ReactNode;
 }[] = [
   {
     id: 'superHint',
-    label: 'Super',
     color: '#7B5CC7',
     bg: '#F3ECFD',
     icon: <Sparkles className="w-4 h-4" />,
   },
   {
     id: 'revealCat',
-    label: 'Cat',
     color: '#DF5E70',
     bg: '#FFF0F3',
     icon: <Cat className="w-4 h-4" />,
   },
   {
     id: 'revealRegion',
-    label: 'Region',
     color: '#CE6F38',
     bg: '#FFF2E8',
     icon: <Grid className="w-4 h-4" />,
   },
   {
     id: 'mistakeShield',
-    label: 'Shield',
     color: '#3B8B61',
     bg: '#E8F7EE',
     icon: <Shield className="w-4 h-4" />,
   },
   {
     id: 'undoToken',
-    label: 'Rewind',
     color: '#4384A6',
     bg: '#EAF5FB',
     icon: <RotateCcw className="w-4 h-4" />,
@@ -70,6 +66,7 @@ const LIVE_BOOSTERS: readonly {
 
 export const GameScreen: React.FC = () => {
   useGameTimer();
+  const { t, i18n } = useTranslation();
   const [boostersOpen, setBoostersOpen] = useState(false);
 
   const puzzle = useGameStore((s) => s.puzzle);
@@ -135,9 +132,15 @@ export const GameScreen: React.FC = () => {
     boosters.mistakeShield +
     boosters.undoToken;
 
+  const lang = i18n.language.startsWith('fr') ? 'fr' : 'en';
+  const localizedLevelTitle = puzzle.dailyDateKey
+    ? puzzle.dailyDateKey.startsWith('golden-')
+      ? t('levels.goldenTitle', { week: puzzle.dailyDateKey.replace('golden-', '') })
+      : t('levels.dailyTitle', { date: formatLocalizedDate(puzzle.dailyDateKey, lang) })
+    : t(`levels.${puzzle.id}`, { defaultValue: puzzle.title });
+
   return (
     <div className="relative h-full w-full flex flex-col justify-between overflow-hidden">
-      {/* Top Bar */}
       <GameHeader
         levelId={puzzle.id}
         dailyDateKey={puzzle.dailyDateKey}
@@ -147,20 +150,17 @@ export const GameScreen: React.FC = () => {
         onLogoClick={handleGoMap}
       />
 
-      {/* Cat Silhouette Progress Tracker */}
       <ProgressIndicator
         size={puzzle.size}
         placedCount={validation.placedCatsCount}
         completedRegions={validation.completedRegions}
       />
 
-      {/* Three Compact Visual Rule Cards */}
       <RuleCards
         violatedRules={validation.violatedRules}
         onOpenTutorial={handleOpenTutorial}
       />
 
-      {/* Centerpiece Responsive 120fps Puzzle Board */}
       <main className="w-full flex-1 min-h-0 flex flex-col items-center justify-center relative">
         <GameBoard
           puzzle={puzzle}
@@ -180,7 +180,6 @@ export const GameScreen: React.FC = () => {
           onEndDragMark={endDragMark}
         />
 
-        {/* Compact Collapsible Boosters Tray floating above banner when opened */}
         <AnimatePresence>
           {boostersOpen && (
             <motion.div
@@ -205,8 +204,8 @@ export const GameScreen: React.FC = () => {
                     className="relative flex flex-col items-center justify-center py-1.5 rounded-xl cursor-pointer active:scale-92 transition-transform"
                   >
                     {b.icon}
-                    <span className="text-[9.5px] font-black leading-none mt-1">
-                      {b.label}
+                    <span className="text-[9px] min-[360px]:text-[9.5px] font-black leading-none mt-1 truncate max-w-full px-0.5">
+                      {t(`shop.items.${b.id}.short`)}
                     </span>
                     <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#3A312C] text-white text-[9px] font-black flex items-center justify-center border border-white tabular-nums">
                       {qty}
@@ -219,7 +218,6 @@ export const GameScreen: React.FC = () => {
         </AnimatePresence>
       </main>
 
-      {/* Fixed-height Contextual Feedback / Hint / Boosters Row */}
       <div className="px-3.5 h-[50px] flex items-center justify-between gap-2 shrink-0">
         <div className="flex-1 min-w-0">
           <AnimatePresence mode="wait">
@@ -231,9 +229,9 @@ export const GameScreen: React.FC = () => {
                 exit={{ opacity: 0 }}
                 className="w-full rounded-2xl bg-[#E8F7EE] border border-[#9FD7B5] px-3 py-2 flex items-center justify-center gap-2"
               >
-                <Sparkles className="w-4 h-4 text-[#3A9462]" />
-                <p className="text-[12.5px] font-black text-[#2C784E]">
-                  Purr-fect! Every hidden cat found!
+                <Sparkles className="w-4 h-4 text-[#3A9462] shrink-0" />
+                <p className="text-[12px] font-black text-[#2C784E] truncate">
+                  {t('game.celebrateBanner')}
                 </p>
               </motion.div>
             ) : activeHint ? (
@@ -246,7 +244,7 @@ export const GameScreen: React.FC = () => {
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Lightbulb className="w-4 h-4 text-[#DF991E] shrink-0" />
-                  <p className="text-[11px] font-bold text-[#6E4D12] leading-tight line-clamp-2">
+                  <p className="text-[10.5px] font-bold text-[#6E4D12] leading-tight line-clamp-2">
                     {activeHint.message}
                   </p>
                 </div>
@@ -256,16 +254,18 @@ export const GameScreen: React.FC = () => {
                       id="btn-apply-hint"
                       type="button"
                       onClick={applyActiveHint}
-                      className="px-2 py-1 rounded-xl bg-[#E8A328] text-white text-[10.5px] font-black inline-flex items-center gap-0.5 cursor-pointer active:scale-95"
+                      className="px-2 py-1 rounded-xl bg-[#E8A328] text-white text-[10px] font-black inline-flex items-center gap-0.5 cursor-pointer active:scale-95"
                     >
                       <Check className="w-3 h-3" strokeWidth={3} />
-                      {activeHint.applyValue === 'cat' ? 'Place' : 'Fix'}
+                      {activeHint.applyValue === 'cat'
+                        ? t('game.hintPlace')
+                        : t('game.hintFix')}
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={dismissHint}
-                    aria-label="Dismiss hint"
+                    aria-label={t('game.dismissHintAria')}
                     className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[#9A7A3A] cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -283,7 +283,7 @@ export const GameScreen: React.FC = () => {
                 className="w-full rounded-2xl bg-[#FFF0F0] border border-[#F5B5B5] px-3 py-2 flex items-center gap-2"
               >
                 <AlertCircle className="w-4 h-4 text-[#D94B4B] shrink-0" />
-                <p className="text-[11.5px] font-extrabold text-[#B53D3D] leading-tight truncate">
+                <p className="text-[11px] font-extrabold text-[#B53D3D] leading-tight truncate">
                   {validation.primaryMessage}
                 </p>
               </motion.div>
@@ -298,19 +298,19 @@ export const GameScreen: React.FC = () => {
                 {isMistakeShieldActive ? (
                   <>
                     <Shield className="w-3.5 h-3.5 text-[#3B8B61] shrink-0" />
-                    <p className="text-[11.5px] font-extrabold text-[#2D754E] truncate">
-                      Mistake Shield active!
+                    <p className="text-[11px] font-extrabold text-[#2D754E] truncate">
+                      {t('game.shieldActiveBanner')}
                     </p>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5 text-[#FF8585] shrink-0" />
-                    <p className="text-[11.5px] font-bold text-[#7E7067] truncate">
+                    <p className="text-[11px] font-bold text-[#7E7067] truncate">
                       {pencilMode
-                        ? 'Drag across tiles to paint ×'
+                        ? t('game.tipDragX')
                         : selectedCell
-                          ? 'Tap again to place a cat'
-                          : `${puzzle.title}`}
+                          ? t('game.tipTapAgain')
+                          : localizedLevelTitle}
                     </p>
                   </>
                 )}
@@ -319,13 +319,12 @@ export const GameScreen: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Sleek Boosters Drawer Trigger */}
         <button
           id="btn-open-boosters"
           type="button"
           onClick={() => setBoostersOpen((v) => !v)}
           aria-expanded={boostersOpen}
-          aria-label="Open boosters tray"
+          aria-label={t('game.openBoostersAria')}
           className={`relative h-9 px-2.5 rounded-2xl border flex items-center gap-1 text-[11px] font-black shrink-0 cursor-pointer active:scale-94 transition-all ${
             boostersOpen
               ? 'bg-[#7B5CC7] border-[#7B5CC7] text-white'
@@ -333,7 +332,7 @@ export const GameScreen: React.FC = () => {
           }`}
         >
           <Wand2 className="w-3.5 h-3.5" />
-          <span>Items</span>
+          <span>{t('game.itemsButton')}</span>
           {totalExtraBoosters > 0 && (
             <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF7A7A] text-white text-[9px] font-black flex items-center justify-center">
               {totalExtraBoosters}
@@ -342,7 +341,6 @@ export const GameScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Floating Bottom Toolbar */}
       <BottomToolbar
         pencilMode={pencilMode}
         canUndo={canUndo}
@@ -355,11 +353,10 @@ export const GameScreen: React.FC = () => {
         onReset={restartLevel}
       />
 
-      {/* Pause Overlay */}
       <PauseModal
         open={isPaused}
         levelId={puzzle.id}
-        levelTitle={puzzle.title}
+        levelTitle={localizedLevelTitle}
         onResume={handleClosePause}
         onRestart={restartLevel}
         onOpenRules={() => {
@@ -369,7 +366,6 @@ export const GameScreen: React.FC = () => {
         onExitToLevels={handleGoMap}
       />
 
-      {/* Victory Celebration Overlay */}
       <VictoryScreen
         summary={victorySummary}
         reducedMotion={reducedMotion}

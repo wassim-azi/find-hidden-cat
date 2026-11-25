@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import {
   BoardGrid,
   CellCoord,
@@ -6,11 +7,14 @@ import {
   cellKey,
   coordsEqual,
 } from './gameTypes';
-import { getRegionTheme } from '../styles/theme';
 import { areCellsTouching, getPlacedCats, isPlacementSafe, validateBoard } from './validation';
 
+function localizedRegionName(regionId: number): string {
+  return i18n.t(`regions.${Math.abs(regionId) % 8}`);
+}
+
 /**
- * Generates a helpful, human-friendly logical hint for the current board state
+ * Generates a localized, human-friendly logical hint for the current board state
  * without spoiling the entire solution.
  */
 export function getNextHint(
@@ -20,7 +24,7 @@ export function getNextHint(
   const validation = validateBoard(puzzle, board);
   if (validation.isSolved) return null;
 
-  // 1. If there are active rule conflicts, point out the first conflict cleanly
+  // 1. Active conflicts first
   if (validation.conflicts.length > 0) {
     const firstConflict = validation.conflicts[0]!;
     const target = firstConflict.cells[firstConflict.cells.length - 1]!;
@@ -28,14 +32,14 @@ export function getNextHint(
       type: 'fix-conflict',
       targetCell: target,
       relatedCells: firstConflict.cells,
-      title: 'Fix a Conflict First',
+      title: i18n.t('hints.fixConflictTitle'),
       message: firstConflict.message,
       canApply: true,
       applyValue: 'empty',
     };
   }
 
-  // 2. Check if any currently placed cat is not part of the unique solution
+  // 2. Check if any placed cat doesn't match the unique solution
   const placedCats = getPlacedCats(board);
   for (const cat of placedCats) {
     const isCorrect = puzzle.solution.some((s) => coordsEqual(s, cat));
@@ -44,23 +48,21 @@ export function getNextHint(
         type: 'remove-wrong-cat',
         targetCell: cat,
         relatedCells: [cat],
-        title: 'Double-Check This Cat',
-        message:
-          'This cat looks happy now, but it blocks a valid solution later. Try removing it!',
+        title: i18n.t('hints.removeWrongTitle'),
+        message: i18n.t('hints.removeWrongMsg'),
         canApply: true,
         applyValue: 'empty',
       };
     }
   }
 
-  // 3. Collect remaining solution cats not yet placed
+  // 3. Remaining solution cats
   const placedSet = new Set(placedCats.map((c) => cellKey(c.row, c.col)));
   const missingSolutionCats = puzzle.solution.filter(
     (s) => !placedSet.has(cellKey(s.row, s.col))
   );
   if (missingSolutionCats.length === 0) return null;
 
-  // Compute all currently safe (non-conflicting, not X-marked, empty) cells
   const safeCells: CellCoord[] = [];
   for (let r = 0; r < puzzle.size; r++) {
     for (let c = 0; c < puzzle.size; c++) {
@@ -70,7 +72,7 @@ export function getNextHint(
     }
   }
 
-  // 4. Look for a region with only 1 safe empty spot left (immediate deduction!)
+  // 4. Region with only 1 safe empty spot
   for (let regId = 0; regId < puzzle.size; regId++) {
     if (validation.completedRegions.has(regId)) continue;
     const regionSafe = safeCells.filter(
@@ -79,13 +81,13 @@ export function getNextHint(
     if (regionSafe.length === 1) {
       const target = regionSafe[0]!;
       if (puzzle.solution.some((s) => coordsEqual(s, target))) {
-        const theme = getRegionTheme(regId);
+        const regName = localizedRegionName(regId);
         return {
           type: 'place-cat',
           targetCell: target,
           relatedCells: [target],
-          title: `${theme.name} Region Deduction`,
-          message: `Only one safe spot remains in the ${theme.name.toLowerCase()} region — a cat must hide here!`,
+          title: i18n.t('hints.regionDeductionTitle', { region: regName }),
+          message: i18n.t('hints.regionDeductionMsg', { region: regName.toLowerCase() }),
           canApply: true,
           applyValue: 'cat',
         };
@@ -93,7 +95,7 @@ export function getNextHint(
     }
   }
 
-  // 5. Look for a row with only 1 safe empty spot left
+  // 5. Row with only 1 safe empty spot
   for (let r = 0; r < puzzle.size; r++) {
     if (placedCats.some((c) => c.row === r)) continue;
     const rowSafe = safeCells.filter((cell) => cell.row === r);
@@ -104,8 +106,8 @@ export function getNextHint(
           type: 'place-cat',
           targetCell: target,
           relatedCells: [target],
-          title: `Row ${r + 1} Deduction`,
-          message: `Row ${r + 1} has only one valid cell left. Place a cat here!`,
+          title: i18n.t('hints.rowDeductionTitle', { row: r + 1 }),
+          message: i18n.t('hints.rowDeductionMsg', { row: r + 1 }),
           canApply: true,
           applyValue: 'cat',
         };
@@ -113,7 +115,7 @@ export function getNextHint(
     }
   }
 
-  // 6. Look for a column with only 1 safe empty spot left
+  // 6. Column with only 1 safe empty spot
   for (let c = 0; c < puzzle.size; c++) {
     if (placedCats.some((cat) => cat.col === c)) continue;
     const colSafe = safeCells.filter((cell) => cell.col === c);
@@ -124,8 +126,8 @@ export function getNextHint(
           type: 'place-cat',
           targetCell: target,
           relatedCells: [target],
-          title: `Column ${c + 1} Deduction`,
-          message: `Column ${c + 1} has only one valid cell left. Place a cat here!`,
+          title: i18n.t('hints.colDeductionTitle', { col: c + 1 }),
+          message: i18n.t('hints.colDeductionMsg', { col: c + 1 }),
           canApply: true,
           applyValue: 'cat',
         };
@@ -133,7 +135,7 @@ export function getNextHint(
     }
   }
 
-  // 7. Look for a missing cat in the smallest remaining region (most helpful reveal)
+  // 7. Smallest remaining region reveal
   const regionSizes = new Array<number>(puzzle.size).fill(0);
   for (let r = 0; r < puzzle.size; r++) {
     for (let c = 0; c < puzzle.size; c++) {
@@ -148,21 +150,31 @@ export function getNextHint(
   })[0]!;
 
   const targetRegion = puzzle.regions[bestTarget.row]![bestTarget.col]!;
-  const theme = getRegionTheme(targetRegion);
+  const regName = localizedRegionName(targetRegion);
 
-  // Check if any existing cat is nearby to explain the context naturally
   const nearbyBlocked = placedCats.some(
-    (c) => Math.abs(c.row - bestTarget.row) <= 2 && Math.abs(c.col - bestTarget.col) <= 2 && !areCellsTouching(c, bestTarget)
+    (c) =>
+      Math.abs(c.row - bestTarget.row) <= 2 &&
+      Math.abs(c.col - bestTarget.col) <= 2 &&
+      !areCellsTouching(c, bestTarget)
   );
 
   return {
     type: 'place-cat',
     targetCell: bestTarget,
     relatedCells: [bestTarget],
-    title: `Spot in ${theme.name} Region`,
+    title: i18n.t('hints.spotTitle', { region: regName }),
     message: nearbyBlocked
-      ? `Try the ${theme.name.toLowerCase()} tile at row ${bestTarget.row + 1}, column ${bestTarget.col + 1} — it keeps every row, column, and neighbor clear!`
-      : `A cat belongs in the ${theme.name.toLowerCase()} region at row ${bestTarget.row + 1}, column ${bestTarget.col + 1}.`,
+      ? i18n.t('hints.spotNearbyMsg', {
+          region: regName.toLowerCase(),
+          row: bestTarget.row + 1,
+          col: bestTarget.col + 1,
+        })
+      : i18n.t('hints.spotBasicMsg', {
+          region: regName.toLowerCase(),
+          row: bestTarget.row + 1,
+          col: bestTarget.col + 1,
+        }),
     canApply: true,
     applyValue: 'cat',
   };

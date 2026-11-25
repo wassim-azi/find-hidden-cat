@@ -1,5 +1,6 @@
 import React from 'react';
-import { BookOpen, Grid2x2, Play, RotateCcw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { BookOpen, Map, Play, RotateCcw } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
 import { TactileButton } from '../Buttons/TactileButton';
 import { CatIllustration } from '../Cat/CatIllustration';
@@ -25,20 +26,26 @@ export const PauseModal: React.FC<PauseModalProps> = ({
   onOpenRules,
   onExitToLevels,
 }) => {
+  const { t } = useTranslation();
   const elapsedSec = useGameStore((s) => (open ? s.elapsedSec : 0));
 
+  const subtitle =
+    levelId <= 0
+      ? `${levelTitle} • ${formatTime(elapsedSec)}`
+      : `${t('common.level', { id: levelId })} • ${t(`levels.${levelId}`, { defaultValue: levelTitle })} • ${formatTime(elapsedSec)}`;
+
   return (
-    <ModalSheet open={open} onClose={onResume} ariaLabel="Game paused">
+    <ModalSheet open={open} onClose={onResume} ariaLabel={t('pause.dialogAria')}>
       <div className="p-6 flex flex-col items-center text-center">
         <div className="w-16 h-16 rounded-2xl bg-[#FAF2E4] flex items-center justify-center mb-3 shadow-inner">
           <CatIllustration breed="cream" mood="idle" className="w-14 h-14" />
         </div>
 
         <h2 className="text-[22px] font-black text-[#3A312C] tracking-tight">
-          Cat Nap Break
+          {t('pause.title')}
         </h2>
-        <p className="text-[13px] font-bold text-[#8A7B70] mt-0.5 mb-5">
-          {levelId === 0 ? levelTitle : `Level ${levelId} • ${levelTitle}`} • {formatTime(elapsedSec)}
+        <p className="text-[12.5px] font-bold text-[#8A7B70] mt-0.5 mb-5">
+          {subtitle}
         </p>
 
         <div className="w-full flex flex-col gap-2.5">
@@ -49,7 +56,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
             onClick={onResume}
           >
             <Play className="w-4 h-4 fill-current" />
-            Resume Game
+            {t('pause.resume')}
           </TactileButton>
 
           <TactileButton
@@ -59,7 +66,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
             onClick={onRestart}
           >
             <RotateCcw className="w-4 h-4" />
-            Restart Level
+            {t('pause.restart')}
           </TactileButton>
 
           <TactileButton
@@ -69,7 +76,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
             onClick={onOpenRules}
           >
             <BookOpen className="w-4 h-4" />
-            How to Play
+            {t('pause.howToPlay')}
           </TactileButton>
 
           <TactileButton
@@ -78,8 +85,8 @@ export const PauseModal: React.FC<PauseModalProps> = ({
             fullWidth
             onClick={onExitToLevels}
           >
-            <Grid2x2 className="w-4 h-4" />
-            Level Selection
+            <Map className="w-4 h-4" />
+            {t('pause.backToMap')}
           </TactileButton>
         </div>
       </div>

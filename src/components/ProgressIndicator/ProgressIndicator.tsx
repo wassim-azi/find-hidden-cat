@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { GridSize } from '../../game/gameTypes';
 import { getRegionTheme } from '../../styles/theme';
@@ -15,21 +16,22 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
   placedCount,
   completedRegions,
 }) => {
+  const { t } = useTranslation();
   const validFound = completedRegions.size;
   const pct = Math.min(100, Math.round((validFound / size) * 100));
 
   return (
     <section
-      aria-label={`Progress: ${validFound} of ${size} cats found`}
+      aria-label={t('game.progressAria', { found: validFound, total: size })}
       className="px-3.5 py-1 shrink-0"
     >
       <div className="meow-card rounded-2xl px-3 py-2 flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          {/* Colored Region Cat Trackers (Meowdoku signature visual!) */}
           <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
             {Array.from({ length: size }, (_, regId) => {
               const theme = getRegionTheme(regId);
               const isFound = completedRegions.has(regId);
+              const regName = t(`regions.${regId % 8}`);
               return (
                 <motion.div
                   key={regId}
@@ -40,7 +42,9 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
                     width: size === 8 ? '26px' : '30px',
                     height: size === 8 ? '26px' : '30px',
                   }}
-                  title={`${theme.name} region ${isFound ? 'found' : 'unfound'}`}
+                  title={t(isFound ? 'game.regionFound' : 'game.regionUnfound', {
+                    name: regName,
+                  })}
                 >
                   {isFound ? (
                     <CatIllustration
@@ -59,7 +63,6 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
             })}
           </div>
 
-          {/* Numeric Pill */}
           <div className="flex items-center gap-1 bg-[#FAF5EC] border border-[#EDE3D4] rounded-full px-2.5 py-0.5 shrink-0">
             <span className="text-[14px] font-black text-[#4B9B6E] tabular-nums">
               {validFound}
@@ -69,15 +72,11 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
               {size}
             </span>
             {placedCount > validFound && (
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-[#EE6C6C] ml-0.5"
-                title="Conflict present"
-              />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#EE6C6C] ml-0.5" />
             )}
           </div>
         </div>
 
-        {/* Sleek animated progress bar */}
         <div className="w-full h-1.5 bg-[#F2E9DC] rounded-full overflow-hidden">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-[#FF8B8B] via-[#F4B942] to-[#6EC194]"
