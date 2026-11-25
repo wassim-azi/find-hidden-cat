@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from './gameStore';
+import { getEventRewardPreview, WORLD_EVENTS } from '../game/events';
 import { calculateLevelCoinReward } from '../game/economy';
 import { canClaimDailyReward, claimDailyRewardPure, INITIAL_DAILY_LOGIN } from '../game/dailyRewards';
 import { coordsEqual } from '../game/gameTypes';
@@ -199,5 +200,19 @@ describe('Economy integrity', () => {
     S().startLevel(2, false);
     solveWithElapsed(1);
     expect(S().totalStarsEarnedEver).toBe(starsAfterFirst);
+  });
+
+  it('Golden Cat Trial 3-star first clear pays exactly preview.maxCoins and +1 superHint (#6)', () => {
+    const goldenEvent = WORLD_EVENTS.find((e) => e.id === 'golden_cat')!;
+    const preview = getEventRewardPreview(goldenEvent);
+
+    const coinsBefore = S().fishCoins;
+    const superHintsBefore = S().boosters.superHint;
+
+    S().startGoldenCatTrial();
+    solveWithElapsed(1);
+
+    expect(S().fishCoins).toBe(coinsBefore + preview.maxCoins);
+    expect(S().boosters.superHint).toBe(superHintsBefore + 1);
   });
 });

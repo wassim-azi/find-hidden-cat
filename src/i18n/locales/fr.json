@@ -453,27 +453,26 @@
     "daily_cat": {
       "badge": "Quotidien",
       "title": "Défi Chat du jour",
-      "subtitle": "Une nouvelle grille 8×8 à solution unique chaque jour.",
-      "reward": "+45 pièces poisson & progrès Luna"
+      "subtitle": "Une nouvelle grille 8×8 à solution unique chaque jour."
     },
     "treasure_hunt": {
       "badge": "Coffre",
       "title": "Chasse au Trésor",
-      "subtitle": "Termine 3 niveaux de l'aventure pour ouvrir le coffre doré.",
-      "reward": "+75 pièces poisson + 1 Révéler un chat"
+      "subtitle": "Termine 3 niveaux de l'aventure pour ouvrir le coffre doré."
     },
     "golden_cat": {
       "badge": "Hebdo",
       "title": "Épreuve du Chat Doré",
-      "subtitle": "Une grille 8×8 retorse de la semaine pour les pros.",
-      "reward": "+80 pièces poisson + 1 Super Indice"
+      "subtitle": "Une grille 8×8 retorse de la semaine pour les pros."
     },
     "perfect_week": {
       "badge": "Hebdo",
       "title": "Semaine Ronronnante",
-      "subtitle": "Récupère 3 cadeaux du jour pour gagner un lot de bonus.",
-      "reward": "+60 pièces poisson + 1 Révéler une zone"
+      "subtitle": "Récupère 3 cadeaux du jour pour gagner un lot de bonus."
     },
+    "rewardFixed": "+{{coins}} pièces poisson",
+    "rewardRange": "{{min}}–{{max}} pièces poisson en Classique",
+    "rewardBooster": "+ 1 {{name}}",
     "chestOpenedTitle": "{{title}} ouvert !"
   },
   "achievements": {

@@ -453,27 +453,26 @@
     "daily_cat": {
       "badge": "Daily",
       "title": "Daily Kitty Challenge",
-      "subtitle": "A fresh 8×8 unique-solution puzzle every day.",
-      "reward": "+45 Fish Coins & Luna progress"
+      "subtitle": "A fresh 8×8 unique-solution puzzle every day."
     },
     "treasure_hunt": {
       "badge": "Chest",
       "title": "Village Treasure Hunt",
-      "subtitle": "Complete 3 campaign levels to open the golden chest.",
-      "reward": "+75 Fish Coins + 1 Reveal Cat"
+      "subtitle": "Complete 3 campaign levels to open the golden chest."
     },
     "golden_cat": {
       "badge": "Weekly",
       "title": "Golden Cat Trial",
-      "subtitle": "A special tricky 8×8 weekly puzzle for bold detectives.",
-      "reward": "+80 Fish Coins + 1 Super Hint"
+      "subtitle": "A special tricky 8×8 weekly puzzle for bold detectives."
     },
     "perfect_week": {
       "badge": "Weekly",
       "title": "Cozy Streak Week",
-      "subtitle": "Claim 3 Daily Login Rewards to earn a Booster Bundle.",
-      "reward": "+60 Fish Coins + 1 Reveal Region"
+      "subtitle": "Claim 3 Daily Login Rewards to earn a Booster Bundle."
     },
+    "rewardFixed": "+{{coins}} Fish Coins",
+    "rewardRange": "{{min}}–{{max}} Fish Coins in Classic",
+    "rewardBooster": "+ 1 {{name}}",
     "chestOpenedTitle": "{{title}} Opened!"
   },
   "achievements": {

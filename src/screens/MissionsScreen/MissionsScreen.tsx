@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Calendar,
   Check,
@@ -16,7 +17,12 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { ACHIEVEMENTS, AchievementDefinition } from '../../game/achievements';
-import { getCurrentWeekKey, WORLD_EVENTS } from '../../game/events';
+import {
+  EventRewardPreview,
+  getCurrentWeekKey,
+  getEventRewardPreview,
+  WORLD_EVENTS,
+} from '../../game/events';
 import { canClaimDailyReward } from '../../game/dailyRewards';
 import { getTodayDateKey } from '../../game/levels';
 import { HubHeader } from '../../components/Navigation/HubHeader';
@@ -24,6 +30,21 @@ import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 
 type MissionsTab = 'daily' | 'events' | 'achievements';
+
+function formatEventReward(preview: EventRewardPreview, t: TFunction): string {
+  const coinsPart =
+    preview.minCoins === preview.maxCoins
+      ? t('events.rewardFixed', { coins: preview.minCoins })
+      : t('events.rewardRange', { min: preview.minCoins, max: preview.maxCoins });
+
+  if (preview.booster) {
+    const boosterPart = t('events.rewardBooster', {
+      name: t(`shop.items.${preview.booster}.name`),
+    });
+    return `${coinsPart} ${boosterPart}`;
+  }
+  return coinsPart;
+}
 
 const ACH_ICONS: Record<AchievementDefinition['icon'], React.ReactNode> = {
   paw: <PawPrint className="w-4.5 h-4.5" />,
@@ -256,8 +277,8 @@ export const MissionsScreen: React.FC = () => {
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-[10.5px] font-black text-[#6B4812] bg-white/80 px-2.5 py-1 rounded-full truncate">
-                    {t(`events.${ev.id}.reward`)}
+                  <span className="text-[10.5px] font-black text-[#6B4812] bg-white/80 px-2.5 py-1 rounded-2xl leading-snug">
+                    {formatEventReward(getEventRewardPreview(ev), t)}
                   </span>
 
                   {ev.type === 'playable_puzzle' ? (

@@ -78,6 +78,8 @@ import {
 import {
   getCurrentWeekKey,
   getGoldenCatPuzzle,
+  GOLDEN_CAT_BONUS_BOOSTER,
+  GOLDEN_CAT_BONUS_COINS,
   WORLD_EVENTS,
   WorldEventId,
 } from '../game/events';
@@ -1310,8 +1312,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       if (isFirstCompletion && !isPractice) {
         nextDailyDates = [...state.completedDailyDates, state.puzzle.dailyDateKey];
         if (isGoldenTrial) {
-          specialNodeBonus = 35;
-          nextBoosters.superHint += 1;
+          specialNodeBonus = GOLDEN_CAT_BONUS_COINS;
+          nextBoosters[GOLDEN_CAT_BONUS_BOOSTER] += 1;
         }
       }
     } else {
