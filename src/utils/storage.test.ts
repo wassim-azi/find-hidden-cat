@@ -335,7 +335,30 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(data.weeklyMissions).toBeNull();
     expect(data.milestoneIndex).toBe(0);
   });
+
+  it('back-fills catUnlockLog for already unlocked cats and sanitizes favouriteCatIds (#18)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        unlockedCatIds: ['mochi', 'marmalade', 'pebble'],
+        favouriteCatIds: ['marmalade', 'unknown_cat', 'marmalade'],
+      })
+    );
+    const data = loadPersistedState();
+    expect(data.catUnlockLog.mochi).toBeDefined();
+    expect(data.catUnlockLog.mochi!.source).toBeNull();
+    expect(data.catUnlockLog.marmalade).toEqual({ dateKey: '', source: null });
+    expect(data.catUnlockLog.pebble).toEqual({ dateKey: '', source: null });
+    expect(data.favouriteCatIds).toEqual(['marmalade']);
+
+    // Default favouriteCatIds when missing
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    expect(loadPersistedState().favouriteCatIds).toEqual([]);
+  });
 });
+
 
 
 

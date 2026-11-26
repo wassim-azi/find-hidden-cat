@@ -656,7 +656,7 @@
   "cats": {
     "headerTitle": "Mes Chats",
     "collectedCount": "{{owned}} / {{total}} chats adoptés",
-    "tapToSelect": "Touche un chat débloqué pour qu'il t'accompagne sur la carte !",
+    "tapToSelect": "Touche un chat pour voir son profil.",
     "activeBadge": "Actif",
     "mysteryName": "???",
     "rarity": {
@@ -734,6 +734,17 @@
         "req": "Débloquer 5 succès ou finir le niv. 24"
       }
     }
+  },
+  "catProfile": {
+    "joined": "Arrivée",
+    "joinedFromLevel": "{{date}} · après le niveau {{level}}",
+    "joinedFromDaily": "{{date}} · après un Chat du Jour",
+    "joinedFromGolden": "{{date}} · après une Épreuve du Chat Doré",
+    "makeCompanion": "Voyage avec moi",
+    "isCompanion": "Ton compagnon",
+    "favourite": "Favori",
+    "howToUnlock": "Comment devenir ami",
+    "close": "Fermer"
   },
   "shop": {
     "headerTitle": "Boutique",

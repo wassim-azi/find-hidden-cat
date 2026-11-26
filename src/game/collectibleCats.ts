@@ -4,6 +4,11 @@ import { LevelProgress } from './gameTypes';
 
 export type CatRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
+export interface CatUnlockEntry {
+  dateKey: string;
+  source: string | null;
+}
+
 export interface CollectibleCat {
   id: string;
   name: string;
@@ -191,6 +196,10 @@ export const COLLECTIBLE_CATS: readonly CollectibleCat[] = [
       }),
   },
 ] as const;
+
+export const VALID_CAT_IDS: ReadonlySet<string> = new Set(
+  COLLECTIBLE_CATS.map((c) => c.id)
+);
 
 export function getCollectibleCat(id: string): CollectibleCat {
   return COLLECTIBLE_CATS.find((c) => c.id === id) ?? COLLECTIBLE_CATS[0]!;

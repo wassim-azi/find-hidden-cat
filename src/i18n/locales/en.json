@@ -656,7 +656,7 @@
   "cats": {
     "headerTitle": "Cat Friends",
     "collectedCount": "{{owned}} / {{total}} Cats Collected",
-    "tapToSelect": "Tap any unlocked cat to travel with you on the Map!",
+    "tapToSelect": "Tap a cat to see its profile.",
     "activeBadge": "Active",
     "mysteryName": "???",
     "rarity": {
@@ -734,6 +734,17 @@
         "req": "Unlock 5 achievements or clear Level 24"
       }
     }
+  },
+  "catProfile": {
+    "joined": "Joined",
+    "joinedFromLevel": "{{date}} · after Level {{level}}",
+    "joinedFromDaily": "{{date}} · after a Daily Kitty",
+    "joinedFromGolden": "{{date}} · after a Golden Cat Trial",
+    "makeCompanion": "Travel with me",
+    "isCompanion": "Your companion",
+    "favourite": "Favourite",
+    "howToUnlock": "How to befriend",
+    "close": "Close"
   },
   "shop": {
     "headerTitle": "Kitty Shop",

@@ -32,7 +32,8 @@ import {
   PeriodStats,
   ProgressStats,
 } from '../game/progressStats';
-import { dateFromKey } from '../services/reminderPlanner';
+import { CatUnlockEntry, VALID_CAT_IDS } from '../game/collectibleCats';
+import { dateFromKey, toDateKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
 const STORAGE_KEY_V2 = 'meowdoku_state_v2';
@@ -67,6 +68,8 @@ export interface PersistedGameData {
   claimedAchievementIds: string[];
   unlockedCatIds: string[];
   activeMascotCatId: string;
+  catUnlockLog: Record<string, CatUnlockEntry>;
+  favouriteCatIds: string[];
   claimedEventIds: string[];
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
@@ -124,6 +127,8 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   claimedAchievementIds: [],
   unlockedCatIds: ['mochi'],
   activeMascotCatId: 'mochi',
+  catUnlockLog: { mochi: { dateKey: toDateKey(new Date()), source: null } },
+  favouriteCatIds: [],
   claimedEventIds: [],
   zeroMistakeSolves: 0,
   specialLevelsCompleted: 0,
@@ -344,6 +349,46 @@ function sanitizeWeeklyMissions(raw: unknown): WeeklyMissionsState | null {
 function sanitizeMilestoneIndex(raw: unknown): number {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0;
   return Math.max(0, Math.min(MILESTONE_LADDER.length, Math.floor(raw)));
+}
+
+function sanitizeCatUnlockLog(
+  raw: unknown,
+  unlockedCatIds: readonly string[],
+  fallbackTodayKey: string
+): Record<string, CatUnlockEntry> {
+  const out: Record<string, CatUnlockEntry> = {};
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const [id, val] of Object.entries(raw as Record<string, unknown>)) {
+      if (!VALID_CAT_IDS.has(id) || !val || typeof val !== 'object') continue;
+      const entry = val as Record<string, unknown>;
+      const dateKey =
+        typeof entry.dateKey === 'string' &&
+        (entry.dateKey === '' || /^\d{4}-\d{2}-\d{2}$/.test(entry.dateKey))
+          ? entry.dateKey
+          : '';
+      const source = typeof entry.source === 'string' && entry.source.length > 0 ? entry.source : null;
+      out[id] = { dateKey, source };
+    }
+  }
+  for (const id of unlockedCatIds) {
+    if (!VALID_CAT_IDS.has(id)) continue;
+    if (!out[id]) {
+      out[id] = {
+        dateKey: id === 'mochi' ? fallbackTodayKey : '',
+        source: null,
+      };
+    }
+  }
+  return out;
+}
+
+function sanitizeFavouriteCatIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return Array.from(
+    new Set(
+      raw.filter((id): id is string => typeof id === 'string' && VALID_CAT_IDS.has(id))
+    )
+  );
 }
 
 const MAX_CAMPAIGN_SAVES = 5;
@@ -797,6 +842,12 @@ export function loadPersistedState(): PersistedGameData {
       claimedAchievementIds: stringArray(parsed.claimedAchievementIds, []),
       unlockedCatIds,
       activeMascotCatId,
+      catUnlockLog: sanitizeCatUnlockLog(
+        parsed.catUnlockLog,
+        unlockedCatIds,
+        toDateKey(new Date())
+      ),
+      favouriteCatIds: sanitizeFavouriteCatIds(parsed.favouriteCatIds),
       claimedEventIds: stringArray(parsed.claimedEventIds, []),
       zeroMistakeSolves,
       specialLevelsCompleted:

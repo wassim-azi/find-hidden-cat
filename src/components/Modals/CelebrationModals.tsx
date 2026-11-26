@@ -64,7 +64,7 @@ export const CelebrationModals: React.FC = () => {
 
       {/* New Collectible Cat Reveal */}
       <ModalSheet
-        open={Boolean(unlockedCatModal)}
+        open={Boolean(unlockedCatModal && !unlockedWorldModal)}
         onClose={dismissUnlockedCat}
         ariaLabel={t('celebrations.newCatBadge', {
           rarity: unlockedCatModal ? t(`cats.rarity.${unlockedCatModal.rarity}`) : '',

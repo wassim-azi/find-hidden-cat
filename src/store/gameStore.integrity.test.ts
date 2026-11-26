@@ -548,6 +548,57 @@ describe('Personal bests, attempts, and victory improvements (#12)', () => {
   });
 });
 
+describe('Cat unlock queue and unlock history (#18)', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    useGameStore.setState({ unlockedLevelId: 4 });
+  });
+
+  it('logs every newly unlocked cat with puzzleKey source and queues all of them for celebration', () => {
+    // Seed 3 stars on Level 1 (with mochi + marmalade already unlocked).
+    // Solving Level 4 with 3 stars reaches 6 total stars (pebble) AND clears Level 4 Treasure (biscuit).
+    useGameStore.setState({
+      unlockedCatIds: ['mochi', 'marmalade'],
+      levelProgress: {
+        1: {
+          levelId: 1,
+          completed: true,
+          bestTimeSec: 20,
+          stars: 3,
+          bestHintsUsed: 0,
+          bestMistakes: 0,
+          attempts: 1,
+          lastResult: null,
+        },
+      },
+    });
+
+    S().startLevel(4, false);
+    solveCurrentPuzzle();
+
+    const newly = S().victorySummary?.newlyUnlockedCats ?? [];
+    expect(newly.map((c) => c.id)).toEqual(['pebble', 'biscuit']);
+    expect(S().catUnlockLog.pebble?.source).toBe('L4');
+    expect(S().catUnlockLog.biscuit?.source).toBe('L4');
+    expect(S().catUnlockLog.pebble?.dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(S().catUnlockLog.biscuit?.dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    // Enqueue both and dismiss sequentially
+    S().enqueueUnlockedCats(newly.map((c) => c.id));
+    expect(S().unlockedCatQueue).toEqual(['pebble', 'biscuit']);
+    expect(S().unlockedCatModal?.id).toBe('pebble');
+
+    S().dismissUnlockedCat();
+    expect(S().unlockedCatQueue).toEqual(['biscuit']);
+    expect(S().unlockedCatModal?.id).toBe('biscuit');
+
+    S().dismissUnlockedCat();
+    expect(S().unlockedCatQueue).toEqual([]);
+    expect(S().unlockedCatModal).toBeNull();
+  });
+});
+
+
 
 
 

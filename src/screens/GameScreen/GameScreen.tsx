@@ -143,12 +143,16 @@ export const GameScreen: React.FC = () => {
   const handleOpenSettings = useCallback(() => setSettingsOpen(true), [setSettingsOpen]);
   const handleOpenTutorial = useCallback(() => setTutorialOpen(true), [setTutorialOpen]);
   const handleGoMap = useCallback(() => {
-    const summary = useGameStore.getState().victorySummary;
+    const state = useGameStore.getState();
+    const summary = state.victorySummary;
     goToScreen('map');
     if (summary?.unlockedNextWorld) {
       useGameStore.setState({ unlockedWorldModal: summary.unlockedNextWorld });
-    } else if (summary?.newlyUnlockedCats && summary.newlyUnlockedCats.length > 0) {
-      useGameStore.setState({ unlockedCatModal: summary.newlyUnlockedCats[0]! });
+    }
+    if (summary?.newlyUnlockedCats && summary.newlyUnlockedCats.length > 0) {
+      useGameStore
+        .getState()
+        .enqueueUnlockedCats(summary.newlyUnlockedCats.map((c) => c.id));
     }
   }, [goToScreen]);
 

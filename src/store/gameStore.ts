@@ -81,8 +81,11 @@ import {
   getNewlyUnlockedAchievements,
 } from '../game/achievements';
 import {
+  CatUnlockEntry,
   CollectibleCat,
+  getCollectibleCat,
   getNewlyUnlockedCats,
+  VALID_CAT_IDS,
 } from '../game/collectibleCats';
 import {
   getNextWorldAfter,
@@ -218,6 +221,7 @@ interface GameStoreState {
   rewardedAdPlacement: RewardedAdPlacement | null;
   lastAdFeedback: string | null;
   unlockedWorldModal: WorldDefinition | null;
+  unlockedCatQueue: string[];
   unlockedCatModal: CollectibleCat | null;
   chestRevealModal: ChestRevealModalData | null;
   toastMessage: string | null;
@@ -243,6 +247,8 @@ interface GameStoreState {
   pendingAchievementBackfillCount: number;
   unlockedCatIds: string[];
   activeMascotCatId: string;
+  catUnlockLog: Record<string, CatUnlockEntry>;
+  favouriteCatIds: string[];
   claimedEventIds: string[];
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
@@ -332,6 +338,8 @@ interface GameStoreState {
   claimAchievementReward: (achievementId: string) => boolean;
   claimEventChest: (eventId: WorldEventId) => boolean;
   selectMascotCat: (catId: string) => void;
+  toggleFavouriteCat: (catId: string) => void;
+  enqueueUnlockedCats: (catIds: string[]) => void;
   openRewardedAdPrompt: (placement: RewardedAdPlacement) => void;
   closeRewardedAdPrompt: () => void;
   attemptWatchRewardedAd: (placement: RewardedAdPlacement) => Promise<RewardedAdResult>;
@@ -788,6 +796,8 @@ function persistFromState(state: GameStoreState): void {
     claimedAchievementIds: state.claimedAchievementIds,
     unlockedCatIds: state.unlockedCatIds,
     activeMascotCatId: state.activeMascotCatId,
+    catUnlockLog: state.catUnlockLog,
+    favouriteCatIds: state.favouriteCatIds,
     claimedEventIds: state.claimedEventIds,
     zeroMistakeSolves: state.zeroMistakeSolves,
     specialLevelsCompleted: state.specialLevelsCompleted,
@@ -819,6 +829,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   rewardedAdPlacement: null,
   lastAdFeedback: null,
   unlockedWorldModal: null,
+  unlockedCatQueue: [],
   unlockedCatModal: null,
   chestRevealModal: null,
   toastMessage: null,
@@ -843,6 +854,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   pendingAchievementBackfillCount: initialAchBackfill.addedCount,
   unlockedCatIds: persisted.unlockedCatIds,
   activeMascotCatId: persisted.activeMascotCatId,
+  catUnlockLog: persisted.catUnlockLog,
+  favouriteCatIds: persisted.favouriteCatIds,
   claimedEventIds: persisted.claimedEventIds,
   zeroMistakeSolves: persisted.zeroMistakeSolves,
   specialLevelsCompleted: persisted.specialLevelsCompleted,
@@ -1747,6 +1760,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...state.unlockedCatIds,
       ...newlyUnlockedCats.map((c) => c.id),
     ];
+    const nextCatUnlockLog: Record<string, CatUnlockEntry> =
+      newlyUnlockedCats.length > 0 ? { ...state.catUnlockLog } : state.catUnlockLog;
+    for (const cat of newlyUnlockedCats) {
+      if (!nextCatUnlockLog[cat.id]) {
+        nextCatUnlockLog[cat.id] = {
+          dateKey: completedEvent.dateKey,
+          source: completedEvent.puzzleKey,
+        };
+      }
+    }
 
     const newlyUnlockedAchs = isPractice
       ? []
@@ -1850,6 +1873,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       weeklyMissions: updatedWeeklyMissions,
       unlockedAchievementIds: nextUnlockedAchs,
       unlockedCatIds: nextUnlockedCats,
+      catUnlockLog: nextCatUnlockLog,
       zeroMistakeSolves: nextZeroMistakes,
       specialLevelsCompleted: nextSpecialCompleted,
       totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
@@ -2919,7 +2943,37 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   dismissUnlockedWorld: () => set({ unlockedWorldModal: null }),
-  dismissUnlockedCat: () => set({ unlockedCatModal: null }),
+  toggleFavouriteCat: (catId) => {
+    const state = get();
+    if (!VALID_CAT_IDS.has(catId) || !state.unlockedCatIds.includes(catId)) return;
+    soundManager.play('button', state.settings.soundEnabled);
+    const exists = state.favouriteCatIds.includes(catId);
+    const nextFavs = exists
+      ? state.favouriteCatIds.filter((id) => id !== catId)
+      : [...state.favouriteCatIds, catId];
+    set({ favouriteCatIds: nextFavs });
+    persistFromState(get());
+  },
+  enqueueUnlockedCats: (catIds) => {
+    if (catIds.length === 0) return;
+    const state = get();
+    const existing = new Set(state.unlockedCatQueue);
+    const additions = catIds.filter((id) => VALID_CAT_IDS.has(id) && !existing.has(id));
+    if (additions.length === 0) return;
+    const nextQueue = [...state.unlockedCatQueue, ...additions];
+    set({
+      unlockedCatQueue: nextQueue,
+      unlockedCatModal: nextQueue[0] ? getCollectibleCat(nextQueue[0]) : null,
+    });
+  },
+  dismissUnlockedCat: () => {
+    const state = get();
+    const nextQueue = state.unlockedCatQueue.slice(1);
+    set({
+      unlockedCatQueue: nextQueue,
+      unlockedCatModal: nextQueue[0] ? getCollectibleCat(nextQueue[0]) : null,
+    });
+  },
   dismissChestReveal: () => set({ chestRevealModal: null }),
 
   markTutorialSeen: () => {
@@ -3007,6 +3061,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       rewardedAdPlacement: null,
       lastAdFeedback: null,
       unlockedWorldModal: null,
+      unlockedCatQueue: [],
       unlockedCatModal: null,
       chestRevealModal: null,
       isCelebratingBoard: false,
@@ -3040,6 +3095,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       pendingAchievementBackfillCount: 0,
       unlockedCatIds: ['mochi'],
       activeMascotCatId: 'mochi',
+      catUnlockLog: { mochi: { dateKey: todayKey, source: null } },
+      favouriteCatIds: [],
       claimedEventIds: [],
       zeroMistakeSolves: 0,
       specialLevelsCompleted: 0,
