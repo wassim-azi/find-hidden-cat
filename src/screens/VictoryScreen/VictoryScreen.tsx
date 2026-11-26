@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -20,6 +20,7 @@ import { TactileButton } from '../../components/Buttons/TactileButton';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
 import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
 import { formatTime } from '../../utils/format';
+import { consumeBreakNote, getContinuousMinutes } from '../../services/playSession';
 
 interface VictoryScreenProps {
   summary: VictorySummary | null;
@@ -46,6 +47,21 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
   const progressStats = useGameStore((s) => s.progressStats);
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
+  const breakReminderMinutes = useGameStore((s) => s.settings.breakReminderMinutes);
+  const [breakNoteMinutes, setBreakNoteMinutes] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!summary) {
+      setBreakNoteMinutes(null);
+      return;
+    }
+    const now = Date.now();
+    if (consumeBreakNote(now, breakReminderMinutes)) {
+      setBreakNoteMinutes(getContinuousMinutes(now));
+    } else {
+      setBreakNoteMinutes(null);
+    }
+  }, [summary, breakReminderMinutes]);
 
   const isDaily = Boolean(summary?.dailyDateKey);
   const isFinalLevel = !isDaily && summary ? summary.levelId >= TOTAL_LEVELS : false;
@@ -284,6 +300,26 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                 </div>
               )}
 
+              {breakNoteMinutes !== null && (
+                <div
+                  id="break-note"
+                  role="status"
+                  className="mb-3.5 rounded-2xl bg-[#EEF6FA] border border-[#C6DFED] px-3.5 py-2.5 text-left flex items-center justify-between gap-2.5"
+                >
+                  <p className="text-[11.5px] font-bold text-[#2C566E] leading-snug">
+                    {t('breakNote.text', { minutes: breakNoteMinutes })}
+                  </p>
+                  <button
+                    id="btn-break-note-ok"
+                    type="button"
+                    onClick={() => setBreakNoteMinutes(null)}
+                    className="shrink-0 px-2.5 py-1 rounded-xl bg-white border border-[#C6DFED] text-[11px] font-extrabold text-[#2C566E] cursor-pointer"
+                  >
+                    {t('breakNote.ok')}
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2">
                 <TactileButton
                   id="btn-victory-next"
@@ -301,29 +337,32 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                   <ArrowRight className="w-5 h-5 shrink-0" />
                 </TactileButton>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <TactileButton
-                    id="btn-victory-levels"
-                    variant="secondary"
-                    size="sm"
-                    fullWidth
-                    onClick={onLevels}
-                  >
-                    <Map className="w-4 h-4" />
-                    {t('victory.mapButton')}
-                  </TactileButton>
-                  <TactileButton
-                    id="btn-victory-replay"
-                    variant="secondary"
-                    size="sm"
-                    fullWidth
-                    onClick={onReplay}
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    {t('victory.replayButton')}
-                  </TactileButton>
-                </div>
+                <TactileButton
+                  id="btn-victory-levels"
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  onClick={onLevels}
+                >
+                  <Map className="w-5 h-5 shrink-0" />
+                  {t('victory.mapButton')}
+                </TactileButton>
+
+                <TactileButton
+                  id="btn-victory-replay"
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  onClick={onReplay}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  {t('victory.replayButton')}
+                </TactileButton>
               </div>
+
+              <p className="mt-2.5 text-[11.5px] font-semibold text-[#8A7B70]">
+                {t('victory.savedNote')}
+              </p>
             </div>
           </motion.div>
         </motion.div>

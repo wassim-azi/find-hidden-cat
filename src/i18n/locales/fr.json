@@ -390,7 +390,8 @@
     "firstNoHint": "Première résolution de ce niveau sans indice !",
     "firstNoMistake": "Première résolution de ce niveau sans erreur !",
     "perfectBonus": "Résolution parfaite ! +{{coins}} pièces poisson",
-    "chestMilestone": "Étape franchie : tu gagnes un coffre à énigmes !"
+    "chestMilestone": "Étape franchie : tu gagnes un coffre à énigmes !",
+    "savedNote": "Ta progression est sauvegardée — reviens quand tu veux."
   },
   "levelDetails": {
     "title": "Niveau {{id}} · {{title}}",
@@ -451,6 +452,10 @@
     "reducedMotionDesc": "Limite les rebonds et particules",
     "symbolsLabel": "Symboles de couleur",
     "symbolsDesc": "Ajoute des icônes adaptées au daltonisme",
+    "breakTitle": "Rappel de pause",
+    "breakDesc": "Un petit mot doux après une longue session de jeu.",
+    "breakOff": "Désactivé",
+    "breakMinutes": "{{count}} min",
     "resetProgress": "Réinitialiser ma progression",
     "resetConfirmTitle": "Effacer tous les niveaux, étoiles, pièces poisson et chats ?",
     "resetConfirmYes": "Oui, effacer",
@@ -1081,5 +1086,9 @@
     "badgesReady_one": "{{count}} badge prêt à récupérer",
     "badgesReady_other": "{{count}} badges prêts à récupérer",
     "dismiss": "Pas maintenant"
+  },
+  "breakNote": {
+    "text": "Belle session — {{minutes}} minutes à chercher des chats ! Ta progression est sauvegardée si tu veux faire une pause.",
+    "ok": "Compris"
   }
 }

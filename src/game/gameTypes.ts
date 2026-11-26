@@ -182,6 +182,7 @@ export interface PlayerSettings {
   showCandidates: boolean;
   highContrast: boolean;
   largeText: boolean;
+  breakReminderMinutes: 0 | 30 | 45 | 60;
 }
 
 export interface ActivePuzzleSave {

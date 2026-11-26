@@ -128,6 +128,7 @@ import {
   WorldEventId,
 } from '../game/events';
 import { getWeekKey } from '../game/dateKeys';
+import { markActive } from '../services/playSession';
 import {
   applyGameEvent,
   EMPTY_PROGRESS_STATS,
@@ -2749,6 +2750,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     ) {
       return;
     }
+    markActive(Date.now());
     const nextElapsed = state.elapsedSec + 1;
     set({ elapsedSec: nextElapsed });
     if (nextElapsed % 5 === 0) {

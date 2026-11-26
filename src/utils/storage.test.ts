@@ -654,4 +654,27 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
       expect(loadPersistedState().lastVisit).toBeNull();
     }
   });
+
+  it('sanitizes breakReminderMinutes to allowed values (0, 30, 45, 60) (#26)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    expect(loadPersistedState().settings.breakReminderMinutes).toBe(0);
+
+    for (const valid of [0, 30, 45, 60] as const) {
+      ls.set(
+        'meowdoku_state_v2',
+        JSON.stringify({ ...savedProgress, settings: { breakReminderMinutes: valid } })
+      );
+      expect(loadPersistedState().settings.breakReminderMinutes).toBe(valid);
+    }
+
+    for (const invalid of [15, 25, -30, 90, '30', null]) {
+      ls.set(
+        'meowdoku_state_v2',
+        JSON.stringify({ ...savedProgress, settings: { breakReminderMinutes: invalid } })
+      );
+      expect(loadPersistedState().settings.breakReminderMinutes).toBe(0);
+    }
+  });
 });

@@ -32,6 +32,7 @@ import { getCurrentWeekKey } from './game/events';
 import { LastVisitSnapshot } from './game/gameTypes';
 import { TOTAL_LEVELS } from './game/levels';
 import { shouldShowWelcomeBack } from './game/welcomeBack';
+import { markActive } from './services/playSession';
 import { ModalSheet } from './components/Modals/ModalSheet';
 import { TactileButton } from './components/Buttons/TactileButton';
 import { useDailyVariantPicker } from './components/Modals/DailyVariantSheet';
@@ -257,6 +258,7 @@ export const App: React.FC = () => {
     if (recordAppSession()) {
       useGameStore.getState().recordSessionStart();
     }
+    markActive(Date.now());
     useGameStore.getState().updateLastVisit();
 
     const welcomeBackTimer = showWelcomeBack
@@ -266,10 +268,13 @@ export const App: React.FC = () => {
       ? window.setTimeout(() => setKeepRemindersOpen(true), 1200)
       : null;
     const onVisible = () => {
-      if (!document.hidden && recordAppSession()) {
-        const st = useGameStore.getState();
-        st.recordSessionStart();
-        st.updateLastVisit();
+      if (!document.hidden) {
+        markActive(Date.now());
+        if (recordAppSession()) {
+          const st = useGameStore.getState();
+          st.recordSessionStart();
+          st.updateLastVisit();
+        }
       }
     };
     document.addEventListener('visibilitychange', onVisible);

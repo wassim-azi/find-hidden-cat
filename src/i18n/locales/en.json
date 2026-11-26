@@ -390,7 +390,8 @@
     "firstNoHint": "First solve of this level without hints!",
     "firstNoMistake": "First solve of this level without mistakes!",
     "perfectBonus": "Perfect solve! +{{coins}} Fish Coins",
-    "chestMilestone": "Milestone reached: you earned a Puzzle chest!"
+    "chestMilestone": "Milestone reached: you earned a Puzzle chest!",
+    "savedNote": "Your progress is saved — come back anytime."
   },
   "levelDetails": {
     "title": "Level {{id}} · {{title}}",
@@ -451,6 +452,10 @@
     "reducedMotionDesc": "Minimize bounce & particles",
     "symbolsLabel": "Region Symbols",
     "symbolsDesc": "Add colorblind-friendly icons to regions",
+    "breakTitle": "Break reminder",
+    "breakDesc": "A gentle note after a long play session.",
+    "breakOff": "Off",
+    "breakMinutes": "{{count}} min",
     "resetProgress": "Reset All Progress",
     "resetConfirmTitle": "Clear all solved levels, stars, Fish Coins, and cats?",
     "resetConfirmYes": "Yes, Reset",
@@ -1081,5 +1086,9 @@
     "badgesReady_one": "{{count}} badge ready to claim",
     "badgesReady_other": "{{count}} badges ready to claim",
     "dismiss": "Not now"
+  },
+  "breakNote": {
+    "text": "Nice session — {{minutes}} minutes of cat-finding! Your progress is saved if you'd like a break.",
+    "ok": "Got it"
   }
 }

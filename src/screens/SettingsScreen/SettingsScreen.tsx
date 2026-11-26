@@ -6,6 +6,7 @@ import {
   Brain,
   CheckCircle2,
   ChevronRight,
+  Clock,
   Contrast,
   Download,
   Eye,
@@ -495,6 +496,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               onUpdateSetting('hapticsEnabled', !settings.hapticsEnabled)
             }
           />
+          <div className="px-3.5 py-3 flex flex-col gap-2">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#FAF2E4] text-[#6B5A4E] flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13.5px] font-extrabold text-[#3A312C] leading-tight">
+                  {t('settings.breakTitle')}
+                </p>
+                <p className="text-[11px] font-semibold text-[#8A7B70] leading-snug mt-0.5">
+                  {t('settings.breakDesc')}
+                </p>
+              </div>
+            </div>
+            <div
+              role="radiogroup"
+              aria-label={t('settings.breakTitle')}
+              className="grid grid-cols-4 gap-1.5 bg-[#EFE6D8] p-1 rounded-2xl"
+            >
+              {([0, 30, 45, 60] as const).map((mins) => {
+                const selected = settings.breakReminderMinutes === mins;
+                return (
+                  <button
+                    key={mins}
+                    id={`btn-break-reminder-${mins}`}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => onUpdateSetting('breakReminderMinutes', mins)}
+                    className={`py-1.5 px-1 rounded-xl text-[11.5px] font-extrabold transition-all cursor-pointer ${
+                      selected
+                        ? 'bg-white text-[#3A312C] shadow-xs'
+                        : 'text-[#7E7067] hover:text-[#4F433B]'
+                    }`}
+                  >
+                    {mins === 0
+                      ? t('settings.breakOff')
+                      : t('settings.breakMinutes', { count: mins })}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Reset Skill Profile (#23): clears only the on-device suggestion model */}

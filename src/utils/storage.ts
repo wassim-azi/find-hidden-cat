@@ -130,6 +130,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   showCandidates: true,
   highContrast: false,
   largeText: false,
+  breakReminderMinutes: 0,
 };
 
 export const DEFAULT_ACHIEVEMENTS: PlayerAchievements = {
@@ -966,6 +967,13 @@ export function loadPersistedState(): PersistedGameData {
         typeof parsed.settings?.largeText === 'boolean'
           ? parsed.settings.largeText
           : DEFAULT_SETTINGS.largeText,
+      breakReminderMinutes:
+        parsed.settings?.breakReminderMinutes === 0 ||
+        parsed.settings?.breakReminderMinutes === 30 ||
+        parsed.settings?.breakReminderMinutes === 45 ||
+        parsed.settings?.breakReminderMinutes === 60
+          ? parsed.settings.breakReminderMinutes
+          : DEFAULT_SETTINGS.breakReminderMinutes,
     };
 
     const validDifficulties = new Set(['all', 'easy', 'medium', 'hard']);
