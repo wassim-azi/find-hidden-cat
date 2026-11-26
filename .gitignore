@@ -6,3 +6,4 @@ dist-ssr
 coverage
 .env
 .env.*
+e2e/__screenshots__/
