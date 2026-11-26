@@ -14,11 +14,14 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { TOTAL_LEVELS } from '../../game/levels';
+import { getCurrentWeekKey } from '../../game/events';
+import { getUpcomingGoals } from '../../game/upcomingGoals';
 import { getCollectibleCat, COLLECTIBLE_CATS } from '../../game/collectibleCats';
 import { getWorldForLevel, WORLDS } from '../../game/worlds';
 import { ACHIEVEMENTS } from '../../game/achievements';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
+import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 
 interface ProfileScreenProps {
@@ -36,6 +39,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
+  const fishCoins = useGameStore((s) => s.fishCoins);
+  const dailyMissions = useGameStore((s) => s.dailyMissions);
+  const claimedEventIds = useGameStore((s) => s.claimedEventIds);
   const achievements = useGameStore((s) => s.achievements);
   const progressStats = useGameStore((s) => s.progressStats);
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
@@ -50,6 +56,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const solvedCount = Object.values(levelProgress).filter((p) => p.completed).length;
   const totalStars = Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0);
   const worldsUnlocked = WORLDS.filter((w) => unlockedLevelId >= w.levelStart).length;
+  const upcomingGoals = getUpcomingGoals({
+    levelProgress,
+    unlockedLevelId,
+    fishCoins,
+    dailyMissions,
+    claimedEventIds,
+    dailyLogin,
+    progressStats,
+    unlockedCatIds,
+    unlockedAchievementIds,
+    weekKey: getCurrentWeekKey(),
+  });
 
   const stats = [
     {
@@ -132,6 +150,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </div>
           ))}
         </div>
+
+        {upcomingGoals.length > 0 && (
+          <section id="profile-goals" className="flex flex-col gap-2">
+            <h3 className="text-[12px] font-black uppercase tracking-wider text-[#8A7B70] px-1">
+              {t('goals.profileTitle')}
+            </h3>
+            <div className="flex flex-col gap-2">
+              {upcomingGoals.map((goal) => (
+                <GoalCard key={goal.id} goal={goal} />
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="flex flex-col gap-2 mt-1">
           {onOpenNotifications && (

@@ -87,6 +87,21 @@
       "boss_24": "Grand Meowster"
     }
   },
+  "goals": {
+    "header": "Next goal",
+    "profileTitle": "Your next goals",
+    "mission": "Mission: {{title}}",
+    "treasureChest_one": "Complete {{count}} more level to open the Treasure Hunt chest",
+    "treasureChest_other": "Complete {{count}} more levels to open the Treasure Hunt chest",
+    "weeklyChest_one": "Claim {{count}} more daily reward this week for the Cozy Streak Week bundle",
+    "weeklyChest_other": "Claim {{count}} more daily rewards this week for the Cozy Streak Week bundle",
+    "nextWorld_one": "{{count}} more level until {{world}}",
+    "nextWorld_other": "{{count}} more levels until {{world}}",
+    "catUnlock": "Befriend {{name}}",
+    "coinsForItem_one": "{{count}} Fish Coin until {{item}}",
+    "coinsForItem_other": "{{count}} Fish Coins until {{item}}",
+    "threeStars": "Replay Level {{id}} for 3 stars"
+  },
   "worlds": {
     "1": {
       "name": "Kitty Village",

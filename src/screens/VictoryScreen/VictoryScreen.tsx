@@ -11,10 +11,13 @@ import {
   Star,
   Trophy,
 } from 'lucide-react';
-import { VictorySummary } from '../../store/gameStore';
+import { useGameStore, VictorySummary } from '../../store/gameStore';
 import { TOTAL_LEVELS } from '../../game/levels';
+import { getCurrentWeekKey } from '../../game/events';
+import { getUpcomingGoals } from '../../game/upcomingGoals';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
+import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
 import { formatTime } from '../../utils/format';
 
 interface VictoryScreenProps {
@@ -33,8 +36,33 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
   onLevels,
 }) => {
   const { t } = useTranslation();
+  const levelProgress = useGameStore((s) => s.levelProgress);
+  const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
+  const fishCoins = useGameStore((s) => s.fishCoins);
+  const dailyMissions = useGameStore((s) => s.dailyMissions);
+  const claimedEventIds = useGameStore((s) => s.claimedEventIds);
+  const dailyLogin = useGameStore((s) => s.dailyLogin);
+  const progressStats = useGameStore((s) => s.progressStats);
+  const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
+  const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
+
   const isDaily = Boolean(summary?.dailyDateKey);
   const isFinalLevel = !isDaily && summary ? summary.levelId >= TOTAL_LEVELS : false;
+  const nextGoals =
+    summary && !summary.isPracticeMode
+      ? getUpcomingGoals({
+          levelProgress,
+          unlockedLevelId,
+          fishCoins,
+          dailyMissions,
+          claimedEventIds,
+          dailyLogin,
+          progressStats,
+          unlockedCatIds,
+          unlockedAchievementIds,
+          weekKey: getCurrentWeekKey(),
+        }).slice(0, 2)
+      : [];
 
   return (
     <AnimatePresence>
@@ -220,6 +248,20 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                     );
                   })}
                 </motion.ul>
+              )}
+
+              {nextGoals.length > 0 && (
+                <div
+                  id="victory-next-goals"
+                  className="mb-4 flex flex-col gap-1.5 text-left"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#8A7B70] px-1">
+                    {t('goals.header')}
+                  </span>
+                  {nextGoals.map((goal) => (
+                    <GoalCard key={goal.id} goal={goal} compact />
+                  ))}
+                </div>
               )}
 
               <div className="flex flex-col gap-2">

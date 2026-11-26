@@ -11,18 +11,19 @@ import {
   Star,
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
-import { getLevelMetaList, TOTAL_LEVELS } from '../../game/levels';
+import { getLevelMetaList } from '../../game/levels';
 import {
-  getNextWorldAfter,
   getSpecialNodeInfo,
-  getWorldForLevel,
   WORLDS,
   WorldDefinition,
 } from '../../game/worlds';
+import { getCurrentWeekKey } from '../../game/events';
+import { getUpcomingGoals } from '../../game/upcomingGoals';
 import { getCollectibleCat } from '../../game/collectibleCats';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { LevelDetailsSheet } from '../../components/Modals/LevelDetailsSheet';
+import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
 
 const NODE_STEP_Y = 98;
 const WORLD_BANNER_EXTRA_H = 126;
@@ -175,6 +176,13 @@ export const MapScreen: React.FC = () => {
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const campaignSaveLevelIds = useGameStore((s) => s.campaignSaveLevelIds);
+  const fishCoins = useGameStore((s) => s.fishCoins);
+  const dailyMissions = useGameStore((s) => s.dailyMissions);
+  const claimedEventIds = useGameStore((s) => s.claimedEventIds);
+  const dailyLogin = useGameStore((s) => s.dailyLogin);
+  const progressStats = useGameStore((s) => s.progressStats);
+  const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
+  const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const startLevel = useGameStore((s) => s.startLevel);
@@ -196,10 +204,32 @@ export const MapScreen: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [unlockedLevelId, reducedMotion]);
 
-  const currentWorld = getWorldForLevel(unlockedLevelId);
-  const nextWorld = getNextWorldAfter(currentWorld.id);
-  const levelsLeftInWorld = Math.max(0, currentWorld.levelEnd - unlockedLevelId + 1);
-  const completedAll = Boolean(levelProgress[TOTAL_LEVELS]?.completed);
+  const goals = useMemo(
+    () =>
+      getUpcomingGoals({
+        levelProgress,
+        unlockedLevelId,
+        fishCoins,
+        dailyMissions,
+        claimedEventIds,
+        dailyLogin,
+        progressStats,
+        unlockedCatIds,
+        unlockedAchievementIds,
+        weekKey: getCurrentWeekKey(),
+      }),
+    [
+      levelProgress,
+      unlockedLevelId,
+      fishCoins,
+      dailyMissions,
+      claimedEventIds,
+      dailyLogin,
+      progressStats,
+      unlockedCatIds,
+      unlockedAchievementIds,
+    ]
+  );
 
   const allPoints = useMemo(
     () => layout.nodes.map((n) => ({ x: (n.xPct / 100) * 360, y: n.y })),
@@ -221,33 +251,30 @@ export const MapScreen: React.FC = () => {
     <div className="h-full w-full flex flex-col overflow-hidden relative">
       <HubHeader title={t('map.headerTitle')} />
 
-      {/* Gentle Engagement Nudge Strip */}
-      <div className="px-3.5 pb-1.5 shrink-0 z-20">
-        <div className="meow-card rounded-2xl px-3 py-1.5 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Sparkles className="w-3.5 h-3.5 text-[#FF7A7A] shrink-0" />
-            <p className="text-[11px] font-extrabold text-[#5A4E47] truncate">
-              {completedAll
-                ? t('map.completedAllNudge')
-                : nextWorld
-                  ? t('map.nextWorldNudge', {
-                      count: levelsLeftInWorld,
-                      world: t(`worlds.${nextWorld.id}.name`),
-                    })
-                  : t('map.summitNudge', { count: levelsLeftInWorld })}
-            </p>
-          </div>
-          <button
-            id="btn-map-jump-current"
-            type="button"
-            onClick={() =>
-              currentNodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }
-            className="text-[10.5px] font-black text-[#E85E6B] bg-[#FFF0F0] px-2 py-0.5 rounded-full shrink-0 cursor-pointer active:scale-95 whitespace-nowrap"
-          >
-            {t('common.levelShort', { id: unlockedLevelId })}
-          </button>
+      {/* Next Goal Strip */}
+      <div className="px-3.5 pb-1.5 shrink-0 z-20 flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          {goals[0] ? (
+            <GoalCard id="next-goal-card" goal={goals[0]} compact />
+          ) : (
+            <div className="meow-card rounded-2xl px-3 py-1.5 flex items-center gap-2 min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-[#FF7A7A] shrink-0" />
+              <p className="text-[11px] font-extrabold text-[#5A4E47] truncate">
+                {t('map.completedAllNudge')}
+              </p>
+            </div>
+          )}
         </div>
+        <button
+          id="btn-map-jump-current"
+          type="button"
+          onClick={() =>
+            currentNodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+          className="text-[10.5px] font-black text-[#E85E6B] bg-[#FFF0F0] border border-[#F8D0D4] px-2.5 py-2 rounded-2xl shrink-0 cursor-pointer active:scale-95 whitespace-nowrap"
+        >
+          {t('common.levelShort', { id: unlockedLevelId })}
+        </button>
       </div>
 
       {/* Scrollable Vertical Winding World Canvas */}

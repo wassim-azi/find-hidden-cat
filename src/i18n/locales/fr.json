@@ -87,6 +87,21 @@
       "boss_24": "Grand Miaoumaître"
     }
   },
+  "goals": {
+    "header": "Prochain objectif",
+    "profileTitle": "Tes prochains objectifs",
+    "mission": "Mission : {{title}}",
+    "treasureChest_one": "Termine encore {{count}} niveau pour ouvrir le coffre de la Chasse au Trésor",
+    "treasureChest_other": "Termine encore {{count}} niveaux pour ouvrir le coffre de la Chasse au Trésor",
+    "weeklyChest_one": "Récupère encore {{count}} récompense quotidienne cette semaine pour le pack Semaine Ronronnante",
+    "weeklyChest_other": "Récupère encore {{count}} récompenses quotidiennes cette semaine pour le pack Semaine Ronronnante",
+    "nextWorld_one": "Encore {{count}} niveau avant {{world}}",
+    "nextWorld_other": "Encore {{count}} niveaux avant {{world}}",
+    "catUnlock": "Deviens ami avec {{name}}",
+    "coinsForItem_one": "Encore {{count}} pièce poisson pour : {{item}}",
+    "coinsForItem_other": "Encore {{count}} pièces poisson pour : {{item}}",
+    "threeStars": "Rejoue le niveau {{id}} pour 3 étoiles"
+  },
   "worlds": {
     "1": {
       "name": "Village des Chatons",
