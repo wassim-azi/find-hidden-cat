@@ -1,5 +1,5 @@
 /* Meowdoku Offline-First Service Worker (Zero-Server PWA) */
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const SHELL_CACHE = `meowdoku-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `meowdoku-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `meowdoku-fonts-${CACHE_VERSION}`;
@@ -31,6 +31,23 @@ const PRECACHE_URLS = [
   '/media/audio/sfx-victory.mp3',
 ];
 
+async function pruneRuntimeAssets() {
+  try {
+    const res = await fetch('/asset-list.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const { files } = await res.json();
+    if (!Array.isArray(files) || files.length === 0) return; // never wipe on a bad list
+    const keep = new Set(files);
+    const cache = await caches.open(RUNTIME_CACHE);
+    for (const req of await cache.keys()) {
+      const p = new URL(req.url).pathname;
+      if (p.startsWith('/assets/') && !keep.has(p)) await cache.delete(req);
+    }
+  } catch {
+    /* offline: try next time */
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) =>
@@ -55,6 +72,7 @@ self.addEventListener('activate', (event) => {
           keys.filter((k) => !validCaches.has(k)).map((k) => caches.delete(k))
         )
       )
+      .then(() => pruneRuntimeAssets())
       .then(() => self.clients.claim())
   );
 });
@@ -65,6 +83,11 @@ self.addEventListener('message', (event) => {
 
   if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (data.type === 'PRUNE_ASSETS') {
+    event.waitUntil(pruneRuntimeAssets());
     return;
   }
 
@@ -123,6 +146,7 @@ self.addEventListener('fetch', (event) => {
 
   // Only handle same-origin requests beyond fonts
   if (url.origin !== self.location.origin) return;
+  if (url.pathname === '/asset-list.json') return;
 
   // Navigation requests (HTML): Network-First with instant offline shell fallback
   if (req.mode === 'navigate') {

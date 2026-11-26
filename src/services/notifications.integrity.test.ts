@@ -164,3 +164,101 @@ describe('Service Worker periodic reminder (delivers the on-device plan)', () =>
     expect(quiet.shown).toHaveLength(0);
   });
 });
+
+describe('Service Worker runtime asset pruning (#10)', () => {
+  function setupSwWithCaches(fetchImpl: () => Promise<unknown>) {
+    const listeners = new Map<string, (e: unknown) => void>();
+    const cacheBuckets = new Map<string, Map<string, unknown>>();
+
+    const makeCache = (name: string) => {
+      let bucket = cacheBuckets.get(name);
+      if (!bucket) {
+        bucket = new Map<string, unknown>();
+        cacheBuckets.set(name, bucket);
+      }
+      return {
+        keys: async () => Array.from(bucket!.keys()).map((url) => ({ url })),
+        delete: async (req: { url: string } | string) =>
+          bucket!.delete(typeof req === 'string' ? req : req.url),
+        match: async (req: { url: string } | string) =>
+          bucket!.get(typeof req === 'string' ? req : req.url),
+        put: async (req: { url: string } | string, res: unknown) => {
+          bucket!.set(typeof req === 'string' ? req : req.url, res);
+        },
+      };
+    };
+
+    const caches = {
+      open: async (name: string) => makeCache(name),
+      keys: async () => Array.from(cacheBuckets.keys()),
+      delete: async (name: string) => cacheBuckets.delete(name),
+    };
+
+    const self = {
+      addEventListener: (type: string, fn: (e: unknown) => void) => listeners.set(type, fn),
+      registration: { showNotification: vi.fn(async () => undefined) },
+      clients: { claim: () => Promise.resolve() },
+      location: { origin: 'https://example.test' },
+    };
+
+    const sandbox: Record<string, unknown> = {
+      self,
+      indexedDB: { open: () => ({}) },
+      caches,
+      fetch: fetchImpl,
+      Response: class {},
+      Request: class {},
+    };
+    new Function(...Object.keys(sandbox), swRaw)(...Object.values(sandbox));
+
+    const runtime = makeCache('meowdoku-runtime-v6');
+    const seed = async (paths: string[]) => {
+      for (const p of paths) {
+        await runtime.put(`https://example.test${p}`, { ok: true });
+      }
+    };
+    const remainingPaths = async () =>
+      (await runtime.keys()).map((r) => new URL(r.url).pathname).sort();
+
+    const dispatchActivate = async () => {
+      let done: Promise<unknown> = Promise.resolve();
+      listeners.get('activate')!({
+        waitUntil: (p: Promise<unknown>) => {
+          done = p;
+        },
+      });
+      await done;
+    };
+
+    return { seed, remainingPaths, dispatchActivate };
+  }
+
+  it('prunes stale /assets/* entries on activate while keeping current ones', async () => {
+    const sw = setupSwWithCaches(async () => ({
+      ok: true,
+      json: async () => ({ files: ['/assets/a.js'] }),
+    }));
+    await sw.seed(['/assets/a.js', '/assets/old.js']);
+    await sw.dispatchActivate();
+    expect(await sw.remainingPaths()).toEqual(['/assets/a.js']);
+  });
+
+  it('keeps all cached assets when fetch rejects (offline)', async () => {
+    const sw = setupSwWithCaches(async () => {
+      throw new Error('offline');
+    });
+    await sw.seed(['/assets/a.js', '/assets/old.js']);
+    await sw.dispatchActivate();
+    expect(await sw.remainingPaths()).toEqual(['/assets/a.js', '/assets/old.js']);
+  });
+
+  it('never wipes cached assets when asset-list.json returns an empty array', async () => {
+    const sw = setupSwWithCaches(async () => ({
+      ok: true,
+      json: async () => ({ files: [] }),
+    }));
+    await sw.seed(['/assets/a.js', '/assets/old.js']);
+    await sw.dispatchActivate();
+    expect(await sw.remainingPaths()).toEqual(['/assets/a.js', '/assets/old.js']);
+  });
+});
