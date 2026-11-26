@@ -1,0 +1,715 @@
+{
+  "2026-01-01": {
+    "id": 0,
+    "title": "Daily Kitty • 01-01",
+    "difficulty": "medium",
+    "size": 8,
+    "regions": [
+      [
+        0,
+        0,
+        5,
+        5,
+        5,
+        5,
+        3,
+        3
+      ],
+      [
+        0,
+        0,
+        1,
+        1,
+        1,
+        5,
+        3,
+        3
+      ],
+      [
+        0,
+        2,
+        4,
+        4,
+        1,
+        5,
+        3,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        4,
+        1,
+        5,
+        3,
+        3
+      ],
+      [
+        4,
+        4,
+        4,
+        4,
+        1,
+        5,
+        5,
+        3
+      ],
+      [
+        4,
+        4,
+        7,
+        7,
+        5,
+        5,
+        5,
+        3
+      ],
+      [
+        4,
+        4,
+        6,
+        7,
+        7,
+        3,
+        3,
+        3
+      ],
+      [
+        6,
+        6,
+        6,
+        6,
+        7,
+        7,
+        3,
+        3
+      ]
+    ],
+    "solution": [
+      {
+        "row": 0,
+        "col": 0
+      },
+      {
+        "row": 1,
+        "col": 4
+      },
+      {
+        "row": 2,
+        "col": 1
+      },
+      {
+        "row": 3,
+        "col": 7
+      },
+      {
+        "row": 4,
+        "col": 3
+      },
+      {
+        "row": 5,
+        "col": 6
+      },
+      {
+        "row": 6,
+        "col": 2
+      },
+      {
+        "row": 7,
+        "col": 5
+      }
+    ],
+    "initialCats": [],
+    "parTimeSec": 125,
+    "analysis": {
+      "tier": "normal",
+      "complexityScore": 53,
+      "initialCandidateCount": 64,
+      "immediatelyForcedMoves": 1,
+      "deductionSteps": 13,
+      "maxChainDepth": 2,
+      "avgCandidatesPerRegion": 8,
+      "startingClues": 0,
+      "techniquesUsed": [
+        "naked_region_single",
+        "line_region_intersection",
+        "naked_col_single",
+        "region_line_intersection",
+        "region_adjacency_exclusion"
+      ],
+      "solvableByHumanLogic": true
+    },
+    "dailyDateKey": "2026-01-01"
+  },
+  "2026-03-15": {
+    "id": 0,
+    "title": "Daily Kitty • 03-15",
+    "difficulty": "medium",
+    "size": 8,
+    "regions": [
+      [
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        2,
+        0,
+        0,
+        3,
+        3,
+        1
+      ],
+      [
+        2,
+        2,
+        2,
+        0,
+        2,
+        2,
+        3,
+        1
+      ],
+      [
+        2,
+        4,
+        2,
+        2,
+        2,
+        2,
+        3,
+        1
+      ],
+      [
+        4,
+        4,
+        2,
+        2,
+        5,
+        2,
+        3,
+        3
+      ],
+      [
+        4,
+        4,
+        4,
+        2,
+        5,
+        3,
+        3,
+        3
+      ],
+      [
+        4,
+        6,
+        6,
+        6,
+        5,
+        5,
+        5,
+        3
+      ],
+      [
+        6,
+        6,
+        6,
+        7,
+        7,
+        5,
+        5,
+        5
+      ]
+    ],
+    "solution": [
+      {
+        "row": 0,
+        "col": 5
+      },
+      {
+        "row": 1,
+        "col": 7
+      },
+      {
+        "row": 2,
+        "col": 2
+      },
+      {
+        "row": 3,
+        "col": 6
+      },
+      {
+        "row": 4,
+        "col": 0
+      },
+      {
+        "row": 5,
+        "col": 4
+      },
+      {
+        "row": 6,
+        "col": 1
+      },
+      {
+        "row": 7,
+        "col": 3
+      }
+    ],
+    "initialCats": [],
+    "parTimeSec": 125,
+    "analysis": {
+      "tier": "normal",
+      "complexityScore": 55,
+      "initialCandidateCount": 64,
+      "immediatelyForcedMoves": 0,
+      "deductionSteps": 16,
+      "maxChainDepth": 4,
+      "avgCandidatesPerRegion": 8,
+      "startingClues": 0,
+      "techniquesUsed": [
+        "region_line_intersection",
+        "naked_region_single",
+        "line_region_intersection",
+        "region_adjacency_exclusion",
+        "naked_col_single"
+      ],
+      "solvableByHumanLogic": true
+    },
+    "dailyDateKey": "2026-03-15"
+  },
+  "2026-06-30": {
+    "id": 0,
+    "title": "Daily Kitty • 06-30",
+    "difficulty": "medium",
+    "size": 8,
+    "regions": [
+      [
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        0,
+        0
+      ],
+      [
+        3,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        4,
+        2,
+        7,
+        7,
+        2,
+        2
+      ],
+      [
+        3,
+        3,
+        4,
+        2,
+        7,
+        7,
+        6,
+        6
+      ],
+      [
+        3,
+        3,
+        4,
+        5,
+        7,
+        7,
+        6,
+        6
+      ],
+      [
+        4,
+        4,
+        4,
+        5,
+        5,
+        7,
+        7,
+        6
+      ],
+      [
+        4,
+        4,
+        5,
+        5,
+        5,
+        7,
+        6,
+        6
+      ],
+      [
+        4,
+        4,
+        5,
+        5,
+        7,
+        7,
+        7,
+        7
+      ]
+    ],
+    "solution": [
+      {
+        "row": 0,
+        "col": 6
+      },
+      {
+        "row": 1,
+        "col": 1
+      },
+      {
+        "row": 2,
+        "col": 3
+      },
+      {
+        "row": 3,
+        "col": 0
+      },
+      {
+        "row": 4,
+        "col": 2
+      },
+      {
+        "row": 5,
+        "col": 4
+      },
+      {
+        "row": 6,
+        "col": 7
+      },
+      {
+        "row": 7,
+        "col": 5
+      }
+    ],
+    "initialCats": [],
+    "parTimeSec": 125,
+    "analysis": {
+      "tier": "easy",
+      "complexityScore": 35,
+      "initialCandidateCount": 64,
+      "immediatelyForcedMoves": 0,
+      "deductionSteps": 13,
+      "maxChainDepth": 4,
+      "avgCandidatesPerRegion": 8,
+      "startingClues": 0,
+      "techniquesUsed": [
+        "region_line_intersection",
+        "naked_region_single",
+        "line_region_intersection",
+        "naked_row_single"
+      ],
+      "solvableByHumanLogic": true
+    },
+    "dailyDateKey": "2026-06-30"
+  },
+  "2026-11-26": {
+    "id": 0,
+    "title": "Daily Kitty • 11-26",
+    "difficulty": "medium",
+    "size": 8,
+    "regions": [
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      [
+        1,
+        1,
+        1,
+        0,
+        4,
+        0,
+        0,
+        3
+      ],
+      [
+        2,
+        2,
+        1,
+        4,
+        4,
+        3,
+        3,
+        3
+      ],
+      [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        7,
+        3
+      ],
+      [
+        5,
+        5,
+        4,
+        4,
+        4,
+        7,
+        7,
+        7
+      ],
+      [
+        5,
+        5,
+        5,
+        6,
+        4,
+        7,
+        7,
+        7
+      ],
+      [
+        5,
+        6,
+        6,
+        6,
+        4,
+        6,
+        6,
+        7
+      ],
+      [
+        5,
+        6,
+        6,
+        6,
+        6,
+        6,
+        7,
+        7
+      ]
+    ],
+    "solution": [
+      {
+        "row": 0,
+        "col": 5
+      },
+      {
+        "row": 1,
+        "col": 2
+      },
+      {
+        "row": 2,
+        "col": 0
+      },
+      {
+        "row": 3,
+        "col": 7
+      },
+      {
+        "row": 4,
+        "col": 4
+      },
+      {
+        "row": 5,
+        "col": 1
+      },
+      {
+        "row": 6,
+        "col": 3
+      },
+      {
+        "row": 7,
+        "col": 6
+      }
+    ],
+    "initialCats": [],
+    "parTimeSec": 125,
+    "analysis": {
+      "tier": "hard",
+      "complexityScore": 79,
+      "initialCandidateCount": 64,
+      "immediatelyForcedMoves": 0,
+      "deductionSteps": 21,
+      "maxChainDepth": 7,
+      "avgCandidatesPerRegion": 8,
+      "startingClues": 0,
+      "techniquesUsed": [
+        "region_line_intersection",
+        "region_adjacency_exclusion",
+        "naked_pair_regions",
+        "naked_region_single",
+        "line_adjacency_exclusion",
+        "naked_col_single",
+        "naked_row_single"
+      ],
+      "solvableByHumanLogic": true
+    },
+    "dailyDateKey": "2026-11-26"
+  },
+  "2027-02-14": {
+    "id": 0,
+    "title": "Daily Kitty • 02-14",
+    "difficulty": "medium",
+    "size": 8,
+    "regions": [
+      [
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        4,
+        4
+      ],
+      [
+        6,
+        0,
+        1,
+        1,
+        3,
+        2,
+        2,
+        4
+      ],
+      [
+        6,
+        0,
+        1,
+        1,
+        3,
+        3,
+        2,
+        4
+      ],
+      [
+        6,
+        0,
+        1,
+        3,
+        3,
+        4,
+        2,
+        4
+      ],
+      [
+        6,
+        6,
+        1,
+        3,
+        3,
+        4,
+        4,
+        4
+      ],
+      [
+        6,
+        6,
+        6,
+        3,
+        5,
+        7,
+        4,
+        7
+      ],
+      [
+        6,
+        6,
+        7,
+        7,
+        7,
+        7,
+        4,
+        7
+      ],
+      [
+        6,
+        6,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7
+      ]
+    ],
+    "solution": [
+      {
+        "row": 0,
+        "col": 0
+      },
+      {
+        "row": 1,
+        "col": 2
+      },
+      {
+        "row": 2,
+        "col": 6
+      },
+      {
+        "row": 3,
+        "col": 3
+      },
+      {
+        "row": 4,
+        "col": 7
+      },
+      {
+        "row": 5,
+        "col": 4
+      },
+      {
+        "row": 6,
+        "col": 1
+      },
+      {
+        "row": 7,
+        "col": 5
+      }
+    ],
+    "initialCats": [],
+    "parTimeSec": 125,
+    "analysis": {
+      "tier": "normal",
+      "complexityScore": 51,
+      "initialCandidateCount": 64,
+      "immediatelyForcedMoves": 1,
+      "deductionSteps": 9,
+      "maxChainDepth": 1,
+      "avgCandidatesPerRegion": 8,
+      "startingClues": 0,
+      "techniquesUsed": [
+        "naked_region_single",
+        "region_adjacency_exclusion"
+      ],
+      "solvableByHumanLogic": true
+    },
+    "dailyDateKey": "2027-02-14"
+  }
+}

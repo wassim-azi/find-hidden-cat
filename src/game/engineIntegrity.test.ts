@@ -8,6 +8,7 @@ import { getAllLevelPuzzles, getDailyPuzzle, getLevelPuzzle } from './levels';
 import { getGoldenCatPuzzle } from './events';
 import { createSeededRng, generateValidatedPuzzle } from './puzzleGenerator';
 import i18n from '../i18n';
+import dailyStandardSnapshot from './__fixtures__/dailyStandardSnapshot.json';
 
 function emptyBoard(size: number): BoardGrid {
   return Array.from({ length: size }, () => Array.from<CellValue>({ length: size }).fill('empty'));
@@ -200,7 +201,15 @@ describe('Logical solvability (no forced guessing)', () => {
     }
   });
 
-  it('generator only ever emits unique, logic-solvable puzzles', () => {
+  it('standard Daily output is byte-identical to the pre-variant snapshot (#24)', () => {
+    const snapshot = dailyStandardSnapshot as Record<string, unknown>;
+    expect(Object.keys(snapshot)).toHaveLength(5);
+    for (const [dateKey, expected] of Object.entries(snapshot)) {
+      expect(JSON.parse(JSON.stringify(getDailyPuzzle(dateKey)))).toEqual(expected);
+    }
+  });
+
+    it('generator only ever emits unique, logic-solvable puzzles', () => {
     for (let seed = 1; seed <= 12; seed++) {
       for (const size of [6, 8] as const) {
         const p = generateValidatedPuzzle({ id: seed, title: 's', size, difficulty: 'hard', seed });
