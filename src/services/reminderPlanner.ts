@@ -14,8 +14,25 @@
  * players automatically get the normal schedule again.
  */
 
-export type ReminderKind = 'streak' | 'dailyPuzzle' | 'specialChallenges' | 'continueAdventure';
+import { getWeekKey } from '../game/dateKeys';
+
+export type NotificationCategory =
+  | 'streak'
+  | 'dailyPuzzle'
+  | 'specialChallenges'
+  | 'continueAdventure';
+
+export type ReminderKind = NotificationCategory | 'chestReady' | 'missionAlmostDone';
 export type ReminderRoute = 'daily' | 'map' | 'missions' | 'rewards';
+
+export const CATEGORY_OF_KIND: Record<ReminderKind, NotificationCategory> = {
+  streak: 'streak',
+  dailyPuzzle: 'dailyPuzzle',
+  specialChallenges: 'specialChallenges',
+  continueAdventure: 'continueAdventure',
+  chestReady: 'continueAdventure',
+  missionAlmostDone: 'continueAdventure',
+};
 
 export interface SentReminder {
   dateKey: string;
@@ -47,6 +64,10 @@ export interface ReminderGameContext {
   loginStreak: number;
   /** True when this week's Golden Cat trial (for the given day) is already solved */
   isGoldenDoneForDate: (date: Date) => boolean;
+  /** Number of earned Puzzle chests waiting to be opened */
+  pendingChests: number;
+  /** Week key (`YYYY-WNN`) when an unclaimed weekly mission has target - progress === 1 */
+  weeklyMissionNearlyDoneWeekKey: string | null;
 }
 
 export interface ReminderPlanSettings {
@@ -56,7 +77,7 @@ export interface ReminderPlanSettings {
   quietHoursEnabled: boolean;
   quietStartMinutes: number;
   quietEndMinutes: number;
-  categories: Record<ReminderKind, boolean>;
+  categories: Record<NotificationCategory, boolean>;
 }
 
 export interface ReminderPlanEntry {
@@ -92,6 +113,8 @@ const ROUTE_BY_KIND: Record<ReminderKind, ReminderRoute> = {
   dailyPuzzle: 'daily',
   specialChallenges: 'missions',
   continueAdventure: 'map',
+  chestReady: 'map',
+  missionAlmostDone: 'missions',
 };
 
 export function toDateKey(date: Date): string {
@@ -229,12 +252,12 @@ export function shouldAskToKeepReminders(enabled: boolean, log: EngagementLog): 
 function chooseKind(
   dateKey: string,
   ctx: ReminderGameContext,
-  categories: Record<ReminderKind, boolean>
+  categories: Record<NotificationCategory, boolean>
 ): ReminderKind | null {
   const date = dateFromKey(dateKey);
   // A daily-reward streak is at risk on the day after the last claim
   if (
-    categories.streak &&
+    categories[CATEGORY_OF_KIND.streak] &&
     ctx.loginStreak >= 2 &&
     ctx.lastLoginClaimDateKey !== null &&
     addDays(ctx.lastLoginClaimDateKey, 1) === dateKey
@@ -242,12 +265,32 @@ function chooseKind(
     return 'streak';
   }
   // Saturdays: remind about the weekly Golden Cat if it is still unsolved
-  if (categories.specialChallenges && date.getDay() === 6 && !ctx.isGoldenDoneForDate(date)) {
+  if (
+    categories[CATEGORY_OF_KIND.specialChallenges] &&
+    date.getDay() === 6 &&
+    !ctx.isGoldenDoneForDate(date)
+  ) {
     return 'specialChallenges';
   }
-  if (categories.dailyPuzzle && !ctx.completedDailyDates.includes(dateKey)) return 'dailyPuzzle';
-  if (categories.continueAdventure && !ctx.allLevelsCompleted) return 'continueAdventure';
-  if (categories.specialChallenges && !ctx.isGoldenDoneForDate(date)) return 'specialChallenges';
+  if (categories[CATEGORY_OF_KIND.dailyPuzzle] && !ctx.completedDailyDates.includes(dateKey)) {
+    return 'dailyPuzzle';
+  }
+  if (categories[CATEGORY_OF_KIND.chestReady] && ctx.pendingChests > 0) {
+    return 'chestReady';
+  }
+  if (
+    categories[CATEGORY_OF_KIND.missionAlmostDone] &&
+    ctx.weeklyMissionNearlyDoneWeekKey !== null &&
+    getWeekKey(date) === ctx.weeklyMissionNearlyDoneWeekKey
+  ) {
+    return 'missionAlmostDone';
+  }
+  if (categories[CATEGORY_OF_KIND.continueAdventure] && !ctx.allLevelsCompleted) {
+    return 'continueAdventure';
+  }
+  if (categories[CATEGORY_OF_KIND.specialChallenges] && !ctx.isGoldenDoneForDate(date)) {
+    return 'specialChallenges';
+  }
   return null;
 }
 

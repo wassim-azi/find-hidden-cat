@@ -17,6 +17,7 @@ import {
   mergeSentLogs,
   minutesToHHMM,
   recordSession,
+  NotificationCategory,
   ReminderCopyFn,
   ReminderGameContext,
   ReminderKind,
@@ -25,10 +26,9 @@ import {
   ReminderRoute,
   selectDueEntry,
   shouldAskToKeepReminders,
-  } from './reminderPlanner';
+} from './reminderPlanner';
 
-/** 'streak' = daily-reward streak about to lapse */
-export type NotificationCategory = ReminderKind;
+export type { NotificationCategory };
 
 /** 'auto' learns from when the player usually opens the game; 'manual' uses reminderTime. */
 export type ReminderTimingMode = 'auto' | 'manual';
@@ -46,7 +46,8 @@ export interface NotificationPreferences {
   quietEnd: string; // Local "HH:MM"
   categories: Record<NotificationCategory, boolean>;
   onboardingDismissed: boolean;
-  lastSentDateByCategory: Record<NotificationCategory, string | null>;
+  lastSentDateByCategory: Record<NotificationCategory, string | null> &
+    Partial<Record<ReminderKind, string | null>>;
 }
 
 const NOTIF_STORAGE_KEY = 'meowdoku_notifications_v1';
@@ -77,7 +78,7 @@ export interface ReminderMessagePayload {
   title: string;
   body: string;
   route: ReminderRoute;
-  category: NotificationCategory;
+  category: ReminderKind;
 }
 
 export function getLocalDateKey(date = new Date()): string {
@@ -171,6 +172,12 @@ export function loadNotificationPrefs(): NotificationPreferences {
         dailyPuzzle: parsed.lastSentDateByCategory?.dailyPuzzle ?? null,
         continueAdventure: parsed.lastSentDateByCategory?.continueAdventure ?? null,
         specialChallenges: parsed.lastSentDateByCategory?.specialChallenges ?? null,
+        ...(typeof parsed.lastSentDateByCategory?.chestReady === 'string'
+          ? { chestReady: parsed.lastSentDateByCategory.chestReady }
+          : {}),
+        ...(typeof parsed.lastSentDateByCategory?.missionAlmostDone === 'string'
+          ? { missionAlmostDone: parsed.lastSentDateByCategory.missionAlmostDone }
+          : {}),
       },
     };
   } catch {
@@ -195,6 +202,11 @@ const CATEGORY_KEYS: readonly NotificationCategory[] = [
   'specialChallenges',
 ];
 
+const EXTRA_KIND_KEYS: readonly ReminderKind[] = ['chestReady', 'missionAlmostDone'];
+
+export type LastSentDatesMap = Record<NotificationCategory, string | null> &
+  Partial<Record<ReminderKind, string | null>>;
+
 /**
  * Merges "last sent" dates from two sources, keeping the most recent date per category.
  * The page (LocalStorage) and the Service Worker (IndexedDB) can both send reminders, so
@@ -202,14 +214,22 @@ const CATEGORY_KEYS: readonly NotificationCategory[] = [
  * second reminder on the same day.
  */
 export function mergeLastSentDates(
-  a: Partial<Record<NotificationCategory, string | null>> | undefined,
-  b: Partial<Record<NotificationCategory, string | null>> | undefined
-): Record<NotificationCategory, string | null> {
-  const out = {} as Record<NotificationCategory, string | null>;
+  a: Partial<Record<ReminderKind, string | null>> | undefined,
+  b: Partial<Record<ReminderKind, string | null>> | undefined
+): LastSentDatesMap {
+  const out = {} as LastSentDatesMap;
   for (const k of CATEGORY_KEYS) {
     const x = typeof a?.[k] === 'string' ? a[k]! : null;
     const y = typeof b?.[k] === 'string' ? b[k]! : null;
     out[k] = x && y ? (x > y ? x : y) : (x ?? y);
+  }
+  for (const k of EXTRA_KIND_KEYS) {
+    const x = typeof a?.[k] === 'string' ? a[k]! : null;
+    const y = typeof b?.[k] === 'string' ? b[k]! : null;
+    const merged = x && y ? (x > y ? x : y) : (x ?? y);
+    if (merged !== null) {
+      out[k] = merged;
+    }
   }
   return out;
 }
@@ -270,19 +290,33 @@ function toPlanSettings(prefs: NotificationPreferences): ReminderPlanSettings {
   };
 }
 
+export const REMINDER_VARIANT_COUNTS: Record<ReminderKind, number> = {
+  streak: 4,
+  dailyPuzzle: 4,
+  specialChallenges: 3,
+  continueAdventure: 3,
+  chestReady: 2,
+  missionAlmostDone: 2,
+};
+
 /** Localized, event-specific reminder text. */
 export function makeReminderCopy(lang: AppLanguage): ReminderCopyFn {
   return (kind, { count, level, variant }) => {
     const t = (key: string, opts: Record<string, unknown> = {}) =>
       i18n.t(`notifications.msg.${key}`, { lng: lang, ...opts });
+    const idx = Math.abs(variant) % REMINDER_VARIANT_COUNTS[kind];
     const body =
       kind === 'streak'
-        ? t('streak', { count })
+        ? t(`streak_${idx}`, { count })
         : kind === 'dailyPuzzle'
-          ? t(`daily_${variant % 2}`)
+          ? t(`daily_${idx}`)
           : kind === 'specialChallenges'
-            ? t('golden')
-            : t('continue', { level });
+            ? t(`golden_${idx}`)
+            : kind === 'chestReady'
+              ? t(`chest_${idx}`)
+              : kind === 'missionAlmostDone'
+                ? t(`mission_${idx}`)
+                : t(`continue_${idx}`, { level });
     return { title: t('title'), body };
   };
 }

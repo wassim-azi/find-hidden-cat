@@ -32,6 +32,8 @@ const ctx: ReminderGameContext = {
   lastLoginClaimDateKey: null,
   loginStreak: 0,
   isGoldenDoneForDate: () => false,
+  pendingChests: 0,
+  weeklyMissionNearlyDoneWeekKey: null,
 };
 const copy = (kind: string, p: { count?: number; level?: number }) => ({
   title: 'T',
@@ -169,5 +171,89 @@ describe('4. Back-off when reminders are ignored', () => {
     const back = recordSession(l, NOW);
     expect(countIgnoredReminders(back)).toBe(0);
     expect(plan(back)[0]!.dateKey).toBe('2026-11-26');
+  });
+});
+
+describe('5. Chest, near-done mission kinds & copy variants (#27)', () => {
+  it('picks chestReady (route map) when Daily is solved and pendingChests > 0, and prefers dailyPuzzle when unsolved', () => {
+    const chestPlan = plan(log(), { completedDailyDates: ['2026-11-25'], pendingChests: 1 });
+    expect(chestPlan[0]!.dateKey).toBe('2026-11-25');
+    expect(chestPlan[0]!.kind).toBe('chestReady');
+    expect(chestPlan[0]!.route).toBe('map');
+
+    const unsolvedPlan = plan(log(), { completedDailyDates: [], pendingChests: 1 });
+    expect(unsolvedPlan[0]!.dateKey).toBe('2026-11-25');
+    expect(unsolvedPlan[0]!.kind).toBe('dailyPuzzle');
+  });
+
+  it('picks missionAlmostDone only on dates in the matching weekKey', async () => {
+    const { getWeekKey } = await import('../game/dateKeys');
+    // NOW is Wed 2026-11-25; Sun 2026-11-29 begins the next week
+    const matchingWeek = getWeekKey(new Date(2026, 10, 25));
+    const solvedDates = ['2026-11-25', '2026-11-26', '2026-11-27', '2026-11-28', '2026-11-29'];
+    const p = plan(log(), {
+      completedDailyDates: solvedDates,
+      weeklyMissionNearlyDoneWeekKey: matchingWeek,
+      isGoldenDoneForDate: () => true,
+    });
+    const wed = p.find((e) => e.dateKey === '2026-11-25');
+    const thu = p.find((e) => e.dateKey === '2026-11-26');
+    const sunNextWeek = p.find((e) => e.dateKey === '2026-11-29');
+    expect(wed?.kind).toBe('missionAlmostDone');
+    expect(wed?.route).toBe('missions');
+    expect(thu?.kind).toBe('missionAlmostDone');
+    expect(sunNextWeek?.kind).toBe('continueAdventure');
+  });
+
+  it('continueAdventure = false suppresses chestReady, missionAlmostDone, and continueAdventure', async () => {
+    const { getWeekKey } = await import('../game/dateKeys');
+    const matchingWeek = getWeekKey(new Date(2026, 10, 25));
+    const p = plan(
+      log(),
+      {
+        completedDailyDates: ['2026-11-25'],
+        pendingChests: 2,
+        weeklyMissionNearlyDoneWeekKey: matchingWeek,
+        isGoldenDoneForDate: () => true,
+      },
+      {
+        categories: {
+          streak: true,
+          dailyPuzzle: true,
+          specialChallenges: true,
+          continueAdventure: false,
+        },
+      }
+    );
+    expect(p.find((e) => e.dateKey === '2026-11-25')).toBeUndefined();
+    expect(p.some((e) => e.kind === 'chestReady' || e.kind === 'missionAlmostDone')).toBe(false);
+  });
+
+  it('rotates body copy across consecutive dates of the same kind (#27)', async () => {
+    const { makeReminderCopy, REMINDER_VARIANT_COUNTS } = await import('./localNotifications');
+    expect(REMINDER_VARIANT_COUNTS).toEqual({
+      streak: 4,
+      dailyPuzzle: 4,
+      specialChallenges: 3,
+      continueAdventure: 3,
+      chestReady: 2,
+      missionAlmostDone: 2,
+    });
+
+    const p = buildReminderPlan(settings, log(), ctx, NOW, makeReminderCopy('en'));
+    expect(p[0]!.kind).toBe('dailyPuzzle');
+    expect(p[1]!.kind).toBe('dailyPuzzle');
+    expect(p[0]!.body).not.toBe(p[1]!.body);
+
+    const chestP = buildReminderPlan(
+      settings,
+      log(),
+      { ...ctx, completedDailyDates: ['2026-11-25', '2026-11-26'], pendingChests: 1 },
+      NOW,
+      makeReminderCopy('fr')
+    );
+    expect(chestP[0]!.kind).toBe('chestReady');
+    expect(chestP[1]!.kind).toBe('chestReady');
+    expect(chestP[0]!.body).not.toBe(chestP[1]!.body);
   });
 });

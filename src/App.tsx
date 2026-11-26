@@ -224,6 +224,12 @@ export const App: React.FC = () => {
         loginStreak: s.dailyLogin.streakCount,
         isGoldenDoneForDate: (date: Date) =>
           s.completedDailyDates.includes(`golden-${getCurrentWeekKey(date)}`),
+        pendingChests: s.chests.pending.length,
+        weeklyMissionNearlyDoneWeekKey: s.weeklyMissions.missions.some(
+          (m) => !m.claimed && m.target - m.progress === 1
+        )
+          ? s.weeklyMissions.weekKey
+          : null,
       };
     });
     // Replan whenever progress that changes tomorrow's message happens
@@ -232,7 +238,9 @@ export const App: React.FC = () => {
         s.completedDailyDates !== prev.completedDailyDates ||
         s.dailyLogin !== prev.dailyLogin ||
         s.currentLevelId !== prev.currentLevelId ||
-        s.unlockedLevelId !== prev.unlockedLevelId
+        s.unlockedLevelId !== prev.unlockedLevelId ||
+        s.chests.pending.length !== prev.chests.pending.length ||
+        s.weeklyMissions !== prev.weeklyMissions
       ) {
         refreshReminderPlan();
       }

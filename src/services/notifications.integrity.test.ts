@@ -163,6 +163,34 @@ describe('Service Worker periodic reminder (delivers the on-device plan)', () =>
     await quiet.fire();
     expect(quiet.shown).toHaveLength(0);
   });
+
+  it('delivers a chestReady entry and records lastSentDateByCategory.chestReady (#27)', async () => {
+    const sw = loadServiceWorker(
+      {
+        ...DEFAULT_NOTIFICATION_PREFS,
+        enabled: true,
+        quietHoursEnabled: false,
+        language: 'en',
+        plan: [
+          entry('2026-11-25', {
+            kind: 'chestReady',
+            route: 'map',
+            body: 'A Puzzle chest is ready to open 🎁',
+          }),
+        ],
+      },
+      new Date(2026, 10, 25, 20, 0)
+    );
+    await sw.fire();
+    expect(sw.shown).toHaveLength(1);
+    const stored = sw.getStored() as {
+      lastSentDateByCategory: Record<string, string | null>;
+    };
+    expect(stored.lastSentDateByCategory.chestReady).toBe('2026-11-25');
+
+    const merged = mergeLastSentDates(DEFAULT_NOTIFICATION_PREFS.lastSentDateByCategory, stored.lastSentDateByCategory);
+    expect(merged.chestReady).toBe('2026-11-25');
+  });
 });
 
 describe('Service Worker runtime asset pruning (#10)', () => {
