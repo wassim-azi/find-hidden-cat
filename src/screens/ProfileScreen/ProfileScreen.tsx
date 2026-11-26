@@ -100,6 +100,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       value: t('common.days', { count: dailyLogin.streakCount }),
       icon: <Flame className="w-4 h-4 text-[#E87A2A]" />,
     },
+    {
+      label: t('profile.longestStreak'),
+      value: t('common.days', {
+        count: Math.max(dailyLogin.longestStreak, dailyLogin.streakCount),
+      }),
+      icon: <Flame className="w-4 h-4 text-[#D95B38]" />,
+    },
   ];
 
   return (

@@ -11,7 +11,7 @@ import {
   INITIAL_BOOSTERS,
   INITIAL_FISH_COINS,
 } from '../game/economy';
-import { DailyLoginState, INITIAL_DAILY_LOGIN } from '../game/dailyRewards';
+import { DailyLoginState, INITIAL_DAILY_LOGIN, MAX_STREAK_FREEZES } from '../game/dailyRewards';
 import { getWeekKey } from '../game/dateKeys';
 import { getLevelPuzzle, getPuzzleAnalysis, TOTAL_LEVELS } from '../game/levels';
 import { DailyMissionsState } from '../game/missions';
@@ -193,23 +193,51 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
       ? d.adBonusDateKey
       : null;
 
+  const streakCount =
+    typeof d.streakCount === 'number' ? Math.max(0, Math.floor(d.streakCount)) : 0;
+
+  const longestStreak =
+    typeof d.longestStreak === 'number' && Number.isFinite(d.longestStreak)
+      ? Math.max(streakCount, Math.floor(d.longestStreak))
+      : streakCount;
+
+  const rawRec = d.recoverable;
+  const recoverable =
+    rawRec &&
+    typeof rawRec === 'object' &&
+    typeof rawRec.value === 'number' &&
+    Number.isFinite(rawRec.value) &&
+    rawRec.value >= 1 &&
+    typeof rawRec.brokenOn === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(rawRec.brokenOn)
+      ? { value: Math.floor(rawRec.value), brokenOn: rawRec.brokenOn }
+      : null;
+
+  const lastRecoveryDateKey =
+    typeof d.lastRecoveryDateKey === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(d.lastRecoveryDateKey)
+      ? d.lastRecoveryDateKey
+      : null;
+
   return {
     currentDayIndex:
       typeof d.currentDayIndex === 'number'
         ? Math.max(0, Math.min(6, Math.floor(d.currentDayIndex)))
         : 0,
     lastClaimDateKey,
-    streakCount:
-      typeof d.streakCount === 'number' ? Math.max(0, Math.floor(d.streakCount)) : 0,
+    streakCount,
+    longestStreak,
     streakShields:
       typeof d.streakShields === 'number'
-        ? Math.max(0, Math.floor(d.streakShields))
+        ? Math.max(0, Math.min(MAX_STREAK_FREEZES, Math.floor(d.streakShields)))
         : INITIAL_DAILY_LOGIN.streakShields,
     totalClaims:
       typeof d.totalClaims === 'number' ? Math.max(0, Math.floor(d.totalClaims)) : 0,
     weekClaims,
     claimedStreakMilestones,
     adBonusDateKey,
+    recoverable,
+    lastRecoveryDateKey,
   };
 }
 

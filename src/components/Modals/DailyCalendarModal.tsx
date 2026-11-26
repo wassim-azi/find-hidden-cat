@@ -7,6 +7,7 @@ import { FishCoinIcon } from '../Currency/FishCoinIcon';
 import {
   canClaimDailyReward,
   getRewardForSlot,
+  isRecoverableActive,
   LUCKY_BONUS,
   SEVEN_DAY_REWARDS,
   STREAK_MILESTONES,
@@ -23,6 +24,7 @@ export const DailyCalendarModal: React.FC = () => {
   const claimTodaysDailyReward = useGameStore((s) => s.claimTodaysDailyReward);
   const setDailyCalendarOpen = useGameStore((s) => s.setDailyCalendarOpen);
   const openRewardedAdPrompt = useGameStore((s) => s.openRewardedAdPrompt);
+  const startDailyChallenge = useGameStore((s) => s.startDailyChallenge);
 
   const [justClaimedText, setJustClaimedText] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -38,6 +40,7 @@ export const DailyCalendarModal: React.FC = () => {
   const claimedMilestones = dailyLogin.claimedStreakMilestones ?? [];
   const nextMilestone =
     STREAK_MILESTONES.find((m) => !claimedMilestones.includes(m.days)) ?? null;
+  const recoveryActive = isRecoverableActive(dailyLogin, todayKey);
 
   const canShowDailyAd =
     rewardedAdService.isAvailable('daily_bonus') &&
@@ -113,7 +116,7 @@ export const DailyCalendarModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Streak & Forgiving Shield Strip */}
+          {/* Streak & Friendly Streak Freeze Strip */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="rounded-2xl bg-[#FFF5E4] border border-[#F3DCAD] px-3 py-2 flex items-center gap-2">
               <Flame className="w-4.5 h-4.5 text-[#E87A2A] shrink-0" />
@@ -129,8 +132,8 @@ export const DailyCalendarModal: React.FC = () => {
             <div className="rounded-2xl bg-[#EBF7F0] border border-[#C3E5D1] px-3 py-2 flex items-center gap-2">
               <Shield className="w-4.5 h-4.5 text-[#3B8B61] shrink-0" />
               <div>
-                <div className="text-[13.5px] font-black text-[#3A312C] leading-none">
-                  {t('common.shields', { count: dailyLogin.streakShields })}
+                <div className="text-[11.5px] font-black text-[#3A312C] leading-tight">
+                  {t('dailyCalendar.streakFreeze', { count: dailyLogin.streakShields })}
                 </div>
                 <div className="text-[10px] font-bold text-[#3D7A5A] mt-0.5">
                   {t('dailyCalendar.streakGuard')}
@@ -138,6 +141,30 @@ export const DailyCalendarModal: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* One-Tap Recovery Banner */}
+          {recoveryActive && dailyLogin.recoverable && (
+            <div
+              id="streak-recovery-banner"
+              className="mb-3 rounded-2xl bg-[#FFF4E5] border border-[#F0C27B] px-3 py-2.5 flex flex-col gap-2"
+            >
+              <p className="text-[11.5px] font-extrabold text-[#7B4B12] leading-snug">
+                {t('dailyCalendar.recoveryBanner', { count: dailyLogin.recoverable.value })}
+              </p>
+              <TactileButton
+                id="btn-streak-recover-play"
+                variant="secondary"
+                size="sm"
+                fullWidth
+                onClick={() => {
+                  handleClose();
+                  startDailyChallenge();
+                }}
+              >
+                {t('dailyCalendar.recoverPlay')}
+              </TactileButton>
+            </div>
+          )}
 
           {/* Next Streak Milestone */}
           {nextMilestone && (
@@ -272,6 +299,10 @@ export const DailyCalendarModal: React.FC = () => {
               )}
             </div>
           )}
+
+          <p className="mt-2.5 text-center text-[10.5px] font-bold text-[#8A7B70] leading-snug">
+            {t('dailyCalendar.missedDayRule')}
+          </p>
         </div>
       </ModalSheet>
 

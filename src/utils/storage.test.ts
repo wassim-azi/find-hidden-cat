@@ -276,5 +276,28 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(data.dailyLogin.claimedStreakMilestones).toEqual([]);
     expect(data.dailyLogin.adBonusDateKey).toBeNull();
   });
+
+  it('back-fills dailyLogin.longestStreak from streakCount, defaults recoverable/lastRecoveryDateKey, and clamps freezes to 3 (#15)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        dailyLogin: {
+          currentDayIndex: 4,
+          lastClaimDateKey: '2026-11-24',
+          streakCount: 9,
+          streakShields: 7,
+          totalClaims: 9,
+        },
+      })
+    );
+    const data = loadPersistedState();
+    expect(data.dailyLogin.longestStreak).toBe(9);
+    expect(data.dailyLogin.streakShields).toBe(3);
+    expect(data.dailyLogin.recoverable).toBeNull();
+    expect(data.dailyLogin.lastRecoveryDateKey).toBeNull();
+  });
 });
+
 

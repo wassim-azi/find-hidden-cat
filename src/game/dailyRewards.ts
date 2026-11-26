@@ -1,7 +1,7 @@
 import { BoosterId } from './economy';
 import { getWeekKey } from './dateKeys';
 import { fnv1a } from './hash';
-import { dateFromKey } from '../services/reminderPlanner';
+import { dateFromKey, daysBetween } from '../services/reminderPlanner';
 
 export interface DailyRewardSlot {
   day: number; // 1..7
@@ -19,6 +19,15 @@ export interface StreakMilestone {
   readonly boosters: Partial<Record<BoosterId, number>>;
 }
 
+export interface RecoverableStreak {
+  value: number;
+  brokenOn: string; // YYYY-MM-DD
+}
+
+export const MAX_STREAK_FREEZES = 3;
+export const RECOVERY_COOLDOWN_DAYS = 30;
+export const RECOVERY_MIN_STREAK = 3;
+
 export const STREAK_MILESTONES: readonly StreakMilestone[] = [
   { days: 7, coins: 50, boosters: { superHint: 1 } },
   { days: 14, coins: 75, boosters: { revealCat: 1 } },
@@ -32,22 +41,28 @@ export interface DailyLoginState {
   currentDayIndex: number; // 0..6 (next day to claim)
   lastClaimDateKey: string | null; // YYYY-MM-DD
   streakCount: number;
-  streakShields: number;
+  longestStreak: number;
+  streakShields: number; // Streak Freezes (capped at MAX_STREAK_FREEZES)
   totalClaims: number;
   weekClaims: { weekKey: string; count: number };
   claimedStreakMilestones: number[];
   adBonusDateKey: string | null;
+  recoverable: RecoverableStreak | null;
+  lastRecoveryDateKey: string | null;
 }
 
 export const INITIAL_DAILY_LOGIN: DailyLoginState = {
   currentDayIndex: 0,
   lastClaimDateKey: null,
   streakCount: 0,
-  streakShields: 1, // Start with 1 friendly streak protection!
+  longestStreak: 0,
+  streakShields: 1, // Start with 1 friendly Streak Freeze!
   totalClaims: 0,
   weekClaims: { weekKey: '', count: 0 },
   claimedStreakMilestones: [],
   adBonusDateKey: null,
+  recoverable: null,
+  lastRecoveryDateKey: null,
 };
 
 export const SEVEN_DAY_REWARDS: readonly DailyRewardSlot[] = [
@@ -141,12 +156,73 @@ export function canClaimDailyReward(
   return parseDateKeyToDays(todayKey) > parseDateKeyToDays(state.lastClaimDateKey);
 }
 
+/** Grants +1 Streak Freeze, respecting MAX_STREAK_FREEZES (3). */
+export function grantStreakFreeze(state: DailyLoginState): DailyLoginState {
+  if (state.streakShields >= MAX_STREAK_FREEZES) {
+    return state;
+  }
+  return {
+    ...state,
+    streakShields: Math.min(MAX_STREAK_FREEZES, state.streakShields + 1),
+  };
+}
+
+/** Returns true if a broken streak can still be recovered via Classic play today. */
+export function isRecoverableActive(
+  state: DailyLoginState,
+  todayKey: string
+): boolean {
+  if (!state.recoverable) return false;
+  const gap = daysBetween(state.recoverable.brokenOn, todayKey);
+  return gap >= 0 && gap <= 1;
+}
+
+/**
+ * Attempts one-tap streak recovery after a Classic puzzle completion.
+ * Valid on `brokenOn` or the day after (gap 0 or 1). Silently expires if gap > 1.
+ */
+export function tryRecoverStreak(
+  state: DailyLoginState,
+  todayKey: string
+): { recovered: boolean; nextState: DailyLoginState } {
+  if (!state.recoverable) {
+    return { recovered: false, nextState: state };
+  }
+  const gap = daysBetween(state.recoverable.brokenOn, todayKey);
+  if (gap > 1) {
+    return {
+      recovered: false,
+      nextState: {
+        ...state,
+        recoverable: null,
+      },
+    };
+  }
+  if (gap < 0) {
+    return { recovered: false, nextState: state };
+  }
+
+  const restored = state.recoverable.value + state.streakCount;
+  const longestStreak = Math.max(state.longestStreak ?? 0, restored);
+  return {
+    recovered: true,
+    nextState: {
+      ...state,
+      streakCount: restored,
+      longestStreak,
+      recoverable: null,
+      lastRecoveryDateKey: todayKey,
+    },
+  };
+}
+
 /**
  * Friendly streak evaluation:
- * - Same day: already claimed
+ * - Same day / backwards clock: already claimed
  * - Consecutive day (diff === 1): streak continues
- * - Missed 1-2 days with a Streak Shield: consumes 1 shield and preserves streak!
- * - Otherwise: gently restarts at Day 1 without losing earned items or coins.
+ * - Missed 1-2 days with a Streak Freeze: consumes 1 freeze and preserves streak
+ * - Otherwise: streak restarts at 1 (calendar day index NEVER resets!) and
+ *   offers free one-tap recovery if streak was >= 3 and 30 days elapsed since last recovery.
  */
 export function claimDailyRewardPure(
   state: DailyLoginState,
@@ -155,6 +231,7 @@ export function claimDailyRewardPure(
   claimed: boolean;
   reward: DailyRewardSlot | null;
   usedStreakShield: boolean;
+  streakBroken: boolean;
   luckyBonusCoins: number;
   milestone: StreakMilestone | null;
   nextState: DailyLoginState;
@@ -164,30 +241,45 @@ export function claimDailyRewardPure(
       claimed: false,
       reward: null,
       usedStreakShield: false,
+      streakBroken: false,
       luckyBonusCoins: 0,
       milestone: null,
       nextState: state,
     };
   }
 
-  let dayIdx = state.currentDayIndex;
+  const dayIdx = state.currentDayIndex;
+  const previousStreak = state.streakCount;
   let streak = state.streakCount;
   let shields = state.streakShields;
   let usedStreakShield = false;
+  let streakBroken = false;
+  let nextRecoverable: RecoverableStreak | null = state.recoverable ?? null;
+
+  // Expire any stale recovery window first
+  if (nextRecoverable && daysBetween(nextRecoverable.brokenOn, todayKey) > 1) {
+    nextRecoverable = null;
+  }
 
   if (state.lastClaimDateKey) {
     const diff = parseDateKeyToDays(todayKey) - parseDateKeyToDays(state.lastClaimDateKey);
     if (diff === 1) {
-      // Perfect consecutive day
       streak += 1;
     } else if (diff > 1 && diff <= 3 && shields > 0) {
-      // Friendly streak protection!
       shields -= 1;
       usedStreakShield = true;
       streak += 1;
     } else if (diff > 1) {
-      dayIdx = 0;
+      // Calendar position (dayIdx) never resets on a break!
       streak = 1;
+      streakBroken = true;
+      const canOfferRecovery =
+        previousStreak >= RECOVERY_MIN_STREAK &&
+        (!state.lastRecoveryDateKey ||
+          daysBetween(state.lastRecoveryDateKey, todayKey) >= RECOVERY_COOLDOWN_DAYS);
+      nextRecoverable = canOfferRecovery
+        ? { value: previousStreak, brokenOn: todayKey }
+        : null;
     }
   } else {
     streak = 1;
@@ -215,22 +307,33 @@ export function claimDailyRewardPure(
     ? [...claimedMilestones, milestone.days].sort((a, b) => a - b)
     : claimedMilestones;
 
+  let nextState: DailyLoginState = {
+    currentDayIndex: nextDayIdx,
+    lastClaimDateKey: todayKey,
+    streakCount: streak,
+    longestStreak: Math.max(state.longestStreak ?? previousStreak, streak),
+    streakShields: shields,
+    totalClaims: state.totalClaims + 1,
+    weekClaims,
+    claimedStreakMilestones: nextClaimedMilestones,
+    adBonusDateKey: state.adBonusDateKey ?? null,
+    recoverable: nextRecoverable,
+    lastRecoveryDateKey: state.lastRecoveryDateKey ?? null,
+  };
+
+  const freezesToGrant = reward.streakShields ?? 0;
+  for (let i = 0; i < freezesToGrant; i++) {
+    nextState = grantStreakFreeze(nextState);
+  }
+
   return {
     claimed: true,
     reward,
     usedStreakShield,
+    streakBroken,
     luckyBonusCoins,
     milestone,
-    nextState: {
-      currentDayIndex: nextDayIdx,
-      lastClaimDateKey: todayKey,
-      streakCount: streak,
-      streakShields: shields + (reward.streakShields ?? 0),
-      totalClaims: state.totalClaims + 1,
-      weekClaims,
-      claimedStreakMilestones: nextClaimedMilestones,
-      adBonusDateKey: state.adBonusDateKey ?? null,
-    },
+    nextState,
   };
 }
 

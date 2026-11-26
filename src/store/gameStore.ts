@@ -57,8 +57,10 @@ import {
   DailyLoginState,
   DailyRewardSlot,
   getWeeklyClaimCount,
+  grantStreakFreeze,
   INITIAL_DAILY_LOGIN,
   StreakMilestone,
+  tryRecoverStreak,
 } from '../game/dailyRewards';
 import {
   applyMissionEvent,
@@ -308,6 +310,7 @@ interface GameStoreState {
     claimed: boolean;
     reward: DailyRewardSlot | null;
     usedStreakShield: boolean;
+    streakBroken: boolean;
     luckyBonusCoins: number;
     milestone: StreakMilestone | null;
   };
@@ -1721,6 +1724,24 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       improvements,
     };
 
+    let nextDailyLogin = state.dailyLogin;
+    let freezeEarnedFromGolden = false;
+    let recoveredStreakCount: number | null = null;
+    if (!isPractice) {
+      if (isGoldenTrial && isFirstCompletion) {
+        const withFreeze = grantStreakFreeze(nextDailyLogin);
+        if (withFreeze.streakShields > nextDailyLogin.streakShields) {
+          freezeEarnedFromGolden = true;
+        }
+        nextDailyLogin = withFreeze;
+      }
+      const recovery = tryRecoverStreak(nextDailyLogin, toDateKey(eventDate));
+      nextDailyLogin = recovery.nextState;
+      if (recovery.recovered) {
+        recoveredStreakCount = recovery.nextState.streakCount;
+      }
+    }
+
     set({
       board: synced.board,
       manualXKeys: synced.manualXKeys,
@@ -1740,6 +1761,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       achievements: updatedAchievements,
       fishCoins: nextCoins,
       boosters: nextBoosters,
+      dailyLogin: nextDailyLogin,
       dailyMissions: updatedMissions,
       unlockedAchievementIds: nextUnlockedAchs,
       unlockedCatIds: nextUnlockedCats,
@@ -1754,6 +1776,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     persistFromState(get());
     emitToListeners(completedEvent);
+    if (recoveredStreakCount !== null && freezeEarnedFromGolden) {
+      get().showToast(
+        `${i18n.t('dailyCalendar.recoveredToast', { count: recoveredStreakCount })} · ${i18n.t('dailyCalendar.freezeEarnedToast')}`
+      );
+    } else if (recoveredStreakCount !== null) {
+      get().showToast(
+        i18n.t('dailyCalendar.recoveredToast', { count: recoveredStreakCount })
+      );
+    } else if (freezeEarnedFromGolden) {
+      get().showToast(i18n.t('dailyCalendar.freezeEarnedToast'));
+    }
 
     const delayMs = state.settings.reducedMotion ? 120 : 620;
     clearCelebrationTimer();

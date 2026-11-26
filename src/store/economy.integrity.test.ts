@@ -287,5 +287,45 @@ describe('Economy integrity', () => {
     expect(S().boosters.revealCat).toBe(revealCatBefore + 1);
     expect(S().boosters.revealRegion).toBe(revealRegionBefore + 1);
   });
+
+  it('recovers a broken streak on Classic win but NOT Practice win, and grants a Streak Freeze on Golden Cat Trial (#15)', () => {
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    useGameStore.setState({
+      unlockedLevelId: 2,
+      dailyLogin: {
+        ...INITIAL_DAILY_LOGIN,
+        streakCount: 1,
+        longestStreak: 5,
+        streakShields: 1,
+        recoverable: { value: 5, brokenOn: todayKey },
+        lastRecoveryDateKey: null,
+      },
+    });
+
+    // Solve Level 2 in Practice mode -> must NOT recover streak
+    S().updateSetting('gameMode', 'practice');
+    S().startLevel(2, false);
+    solveWithElapsed(10);
+    expect(S().dailyLogin.streakCount).toBe(1);
+    expect(S().dailyLogin.recoverable).toEqual({ value: 5, brokenOn: todayKey });
+
+    // Solve Level 2 in Classic mode -> recovers streak to 6 and updates longestStreak
+    S().updateSetting('gameMode', 'classic');
+    S().startLevel(2, false);
+    solveWithElapsed(10);
+    expect(S().dailyLogin.streakCount).toBe(6);
+    expect(S().dailyLogin.longestStreak).toBe(6);
+    expect(S().dailyLogin.recoverable).toBeNull();
+    expect(S().dailyLogin.lastRecoveryDateKey).toBe(todayKey);
+
+    // First Classic Golden Cat Trial win -> grants +1 Streak Freeze (1 -> 2)
+    const freezesBefore = S().dailyLogin.streakShields;
+    S().startGoldenCatTrial();
+    solveWithElapsed(15);
+    expect(S().dailyLogin.streakShields).toBe(freezesBefore + 1);
+  });
 });
+
 

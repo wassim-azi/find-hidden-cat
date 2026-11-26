@@ -5,7 +5,10 @@ import {
   canClaimDailyReward,
   claimDailyRewardPure,
   getWeeklyClaimCount,
+  grantStreakFreeze,
   INITIAL_DAILY_LOGIN,
+  MAX_STREAK_FREEZES,
+  tryRecoverStreak,
 } from './dailyRewards';
 import { getWeekKey } from './dateKeys';
 import { applyMissionEvent, generateDailyMissions } from './missions';
@@ -107,6 +110,63 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
     expect(sun.weekClaims).toEqual({ weekKey: nextWeek, count: 1 });
     expect(getWeeklyClaimCount(sun, nextWeek)).toBe(1);
     expect(getWeeklyClaimCount(sun, weekA)).toBe(0);
+  });
+
+  it('preserves calendar day on break, supports one-tap recovery with 30-day cooldown, caps freezes at 3, and tracks longestStreak (#15)', () => {
+    let st = { ...INITIAL_DAILY_LOGIN, streakShields: 0 };
+    st = claimDailyRewardPure(st, '2026-11-01').nextState;
+    st = claimDailyRewardPure(st, '2026-11-02').nextState;
+    st = claimDailyRewardPure(st, '2026-11-03').nextState;
+    expect(st.streakCount).toBe(3);
+    expect(st.longestStreak).toBe(3);
+    expect(st.currentDayIndex).toBe(3);
+
+    // Next claim on day 6 (3-day gap) with 0 freezes -> streak resets to 1,
+    // calendar day advances from slot index 3 (Day 4) instead of resetting to Day 1!
+    const broken = claimDailyRewardPure(st, '2026-11-06');
+    expect(broken.claimed).toBe(true);
+    expect(broken.streakBroken).toBe(true);
+    expect(broken.reward?.day).toBe(4);
+    expect(broken.nextState.streakCount).toBe(1);
+    expect(broken.nextState.currentDayIndex).toBe(4);
+    expect(broken.nextState.longestStreak).toBe(3);
+    expect(broken.nextState.recoverable).toEqual({ value: 3, brokenOn: '2026-11-06' });
+
+    // Recovery on day 6 (same day) -> streak becomes 4
+    const recSameDay = tryRecoverStreak(broken.nextState, '2026-11-06');
+    expect(recSameDay.recovered).toBe(true);
+    expect(recSameDay.nextState.streakCount).toBe(4);
+    expect(recSameDay.nextState.longestStreak).toBe(4);
+    expect(recSameDay.nextState.recoverable).toBeNull();
+    expect(recSameDay.nextState.lastRecoveryDateKey).toBe('2026-11-06');
+
+    // Recovery on day 7 (day after break) also works
+    const recNextDay = tryRecoverStreak(broken.nextState, '2026-11-07');
+    expect(recNextDay.recovered).toBe(true);
+    expect(recNextDay.nextState.streakCount).toBe(4);
+
+    // Recovery on day 8 (expired) -> not recovered and recoverable silently cleared
+    const recExpired = tryRecoverStreak(broken.nextState, '2026-11-08');
+    expect(recExpired.recovered).toBe(false);
+    expect(recExpired.nextState.recoverable).toBeNull();
+
+    // Second break within 30 days of a recovery -> recoverable stays null
+    const secondBreak = claimDailyRewardPure(recSameDay.nextState, '2026-11-20');
+    expect(secondBreak.streakBroken).toBe(true);
+    expect(secondBreak.nextState.recoverable).toBeNull();
+    expect(secondBreak.nextState.longestStreak).toBe(4); // never decreases
+
+    // With 1 freeze and a 2-missed-day gap (diff = 3) -> streak continues and freezes drop to 0
+    const withFreeze = { ...INITIAL_DAILY_LOGIN, streakShields: 1 };
+    const c1 = claimDailyRewardPure(withFreeze, '2026-11-01').nextState;
+    const c4 = claimDailyRewardPure(c1, '2026-11-04');
+    expect(c4.usedStreakShield).toBe(true);
+    expect(c4.nextState.streakCount).toBe(2);
+    expect(c4.nextState.streakShields).toBe(0);
+
+    // Freeze cap at MAX_STREAK_FREEZES (3)
+    const atCap = { ...INITIAL_DAILY_LOGIN, streakShields: MAX_STREAK_FREEZES };
+    expect(grantStreakFreeze(atCap).streakShields).toBe(MAX_STREAK_FREEZES);
   });
 
   it('tracks real gameplay events on generated Daily Missions', () => {
