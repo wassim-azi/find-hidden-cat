@@ -58,6 +58,7 @@ import {
   DailyRewardSlot,
   getWeeklyClaimCount,
   INITIAL_DAILY_LOGIN,
+  StreakMilestone,
 } from '../game/dailyRewards';
 import {
   applyMissionEvent,
@@ -307,6 +308,8 @@ interface GameStoreState {
     claimed: boolean;
     reward: DailyRewardSlot | null;
     usedStreakShield: boolean;
+    luckyBonusCoins: number;
+    milestone: StreakMilestone | null;
   };
   claimMissionReward: (missionId: string) => boolean;
   claimAchievementReward: (achievementId: string) => boolean;
@@ -2450,12 +2453,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     const nextBoosters = { ...state.boosters };
-    for (const [k, qty] of Object.entries(result.reward.boosters)) {
-      if (qty) {
-        const id = k as BoosterId;
-        nextBoosters[id] = (nextBoosters[id] ?? 0) + qty;
+    const addBoosters = (map: Partial<Record<BoosterId, number>> | undefined) => {
+      if (!map) return;
+      for (const [k, qty] of Object.entries(map)) {
+        if (qty) {
+          const id = k as BoosterId;
+          nextBoosters[id] = (nextBoosters[id] ?? 0) + qty;
+        }
       }
-    }
+    };
+    addBoosters(result.reward.boosters);
+    addBoosters(result.milestone?.boosters);
+
+    const totalCoins =
+      result.reward.coins + result.luckyBonusCoins + (result.milestone?.coins ?? 0);
 
     soundManager.play('victory', state.settings.soundEnabled);
     triggerHaptic('victory', state.settings.hapticsEnabled);
@@ -2463,7 +2474,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     set({
       dailyLogin: result.nextState,
-      fishCoins: state.fishCoins + result.reward.coins,
+      fishCoins: state.fishCoins + totalCoins,
       boosters: nextBoosters,
     });
     const at = nextEventAt();
@@ -2475,7 +2486,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       dateKey: toDateKey(d),
       weekKey: getWeekKey(d),
       source: 'daily_login',
-      coins: result.reward.coins,
+      coins: totalCoins,
     });
     persistFromState(get());
     return result;
@@ -2645,19 +2656,41 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   attemptWatchRewardedAd: async (placement) => {
+    const todayKey = getTodayDateKey();
+    if (placement === 'daily_bonus' && get().dailyLogin.adBonusDateKey === todayKey) {
+      const blocked: RewardedAdResult = {
+        status: 'UNAVAILABLE',
+        placement,
+        granted: false,
+        message: i18n.t('dailyCalendar.claimedToday'),
+      };
+      set({ lastAdFeedback: blocked.message });
+      return blocked;
+    }
+
     const result = await rewardedAdService.requestReward(placement);
     if (result.status === 'COMPLETED' && result.granted) {
       const state = get();
       const nextBoosters = { ...state.boosters };
       let nextCoins = state.fishCoins;
+      let nextDailyLogin = state.dailyLogin;
       if (placement === 'free_hint') nextBoosters.hint += 1;
       else if (placement === 'extra_undo') nextBoosters.undoToken += 1;
       else if (placement === 'booster_pack') nextBoosters.mistakeShield += 1;
       else if (placement === 'challenge_retry') nextBoosters.superHint += 1;
-      else nextCoins += 30;
+      else {
+        nextCoins += 30;
+        if (placement === 'daily_bonus') {
+          nextDailyLogin = {
+            ...state.dailyLogin,
+            adBonusDateKey: todayKey,
+          };
+        }
+      }
       set({
         boosters: nextBoosters,
         fishCoins: nextCoins,
+        dailyLogin: nextDailyLogin,
         rewardedAdPlacement: null,
         lastAdFeedback: null,
       });
@@ -2795,7 +2828,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       achievements: DEFAULT_ACHIEVEMENTS,
       fishCoins: INITIAL_FISH_COINS,
       boosters: { ...INITIAL_BOOSTERS },
-      dailyLogin: { ...INITIAL_DAILY_LOGIN },
+      dailyLogin: {
+        ...INITIAL_DAILY_LOGIN,
+        weekClaims: { ...INITIAL_DAILY_LOGIN.weekClaims },
+        claimedStreakMilestones: [],
+      },
       dailyMissions: ensureTodaysMissions(null, todayKey),
       unlockedAchievementIds: [],
       claimedAchievementIds: [],

@@ -178,6 +178,21 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
     }
   }
 
+  const claimedStreakMilestones = Array.isArray(d.claimedStreakMilestones)
+    ? Array.from(
+        new Set(
+          d.claimedStreakMilestones.filter(
+            (n): n is number => typeof n === 'number' && Number.isInteger(n) && n > 0
+          )
+        )
+      ).sort((a, b) => a - b)
+    : [];
+
+  const adBonusDateKey =
+    typeof d.adBonusDateKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.adBonusDateKey)
+      ? d.adBonusDateKey
+      : null;
+
   return {
     currentDayIndex:
       typeof d.currentDayIndex === 'number'
@@ -193,6 +208,8 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
     totalClaims:
       typeof d.totalClaims === 'number' ? Math.max(0, Math.floor(d.totalClaims)) : 0,
     weekClaims,
+    claimedStreakMilestones,
+    adBonusDateKey,
   };
 }
 

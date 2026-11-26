@@ -429,17 +429,26 @@
     "dayBadge": "Day {{day}}",
     "claimButton": "Claim Day {{day}} Reward",
     "claimedToday": "Claimed Today — See You Tomorrow!",
-    "doubleBonusAd": "Optional: Double Daily Bonus (Future Ad Preview)",
+    "doubleBonusAd": "Optional: watch an ad for +30 Fish Coins",
     "claimedToast": "Claimed Day {{day}}: {{title}}!",
     "shieldSavedToast": "Streak Shield saved your streak! Claimed {{title}}!",
+    "coinsLabel_one": "{{count}} Fish Coin",
+    "coinsLabel_other": "{{count}} Fish Coins",
+    "nextMilestone": "Next milestone: {{days}}-day streak ({{remaining}} to go) → {{reward}}",
+    "infoTitle": "How daily treats work",
+    "luckyOdds": "Lucky bonus: each claim has a {{percent}}% chance of +{{coins}} extra Fish Coins.",
+    "cycleNote": "Day 7 grows by 20 Fish Coins each full week you complete (up to 200).",
+    "milestonesTitle": "Streak milestones",
+    "luckyToast": "Lucky bonus! +{{coins}}",
+    "milestoneToast": "{{days}}-day streak milestone reached!",
     "days": {
-      "1": { "title": "25 Fish Coins", "subtitle": "Welcome treat" },
-      "2": { "title": "1 Hint", "subtitle": "+10 Fish Coins" },
-      "3": { "title": "40 Fish Coins", "subtitle": "Mid-week stash" },
-      "4": { "title": "1 Super Hint", "subtitle": "Clears decoys!" },
-      "5": { "title": "60 Fish Coins", "subtitle": "Golden catch" },
-      "6": { "title": "2 Hints + Shield", "subtitle": "Puzzle armor" },
-      "7": { "title": "Cat Booster Pack", "subtitle": "100 Coins + Reveal + Shield" }
+      "1": { "subtitle": "Welcome treat" },
+      "2": { "subtitle": "Clever boost" },
+      "3": { "subtitle": "Mid-week stash" },
+      "4": { "subtitle": "Clears decoys!" },
+      "5": { "subtitle": "Golden catch" },
+      "6": { "subtitle": "Puzzle armor" },
+      "7": { "subtitle": "Grand prize" }
     }
   },
   "missions": {
@@ -685,7 +694,7 @@
       "free_hint": { "headline": "Need a little help?", "reward": "1 Free Hint" },
       "bonus_coins": { "headline": "Want extra Fish Coins?", "reward": "+30 Fish Coins" },
       "extra_undo": { "headline": "Need a Heart Refill?", "reward": "1 Heart Refill" },
-      "daily_bonus": { "headline": "Double Today's Treat?", "reward": "2× Daily Login Bonus" },
+      "daily_bonus": { "headline": "Bonus Fish Coins?", "reward": "+30 Fish Coins" },
       "booster_pack": { "headline": "Stock Up for Tough Grids?", "reward": "1 Mistake Shield" },
       "challenge_retry": { "headline": "Try Again Fresh?", "reward": "1 Free Super Hint" }
     }

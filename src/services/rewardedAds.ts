@@ -69,8 +69,8 @@ export const REWARDED_AD_OFFERS: Record<RewardedAdPlacement, RewardedAdOffer> = 
   },
   daily_bonus: {
     placement: 'daily_bonus',
-    headline: 'Double Today’s Treat?',
-    rewardLabel: '2× Daily Login Bonus',
+    headline: 'Bonus Fish Coins?',
+    rewardLabel: '+30 Fish Coins',
     coinAlternativeCost: 0,
   },
   booster_pack: {

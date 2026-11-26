@@ -429,17 +429,26 @@
     "dayBadge": "Jour {{day}}",
     "claimButton": "Récupérer le cadeau du jour {{day}}",
     "claimedToday": "Déjà récupéré — à demain !",
-    "doubleBonusAd": "Optionnel : doubler le cadeau (aperçu pub future)",
+    "doubleBonusAd": "Optionnel : regarde une pub pour +30 pièces poisson",
     "claimedToast": "Jour {{day}} récupéré : {{title}} !",
     "shieldSavedToast": "Ton bouclier a sauvé ta série ! {{title}} reçu !",
+    "coinsLabel_one": "{{count}} pièce poisson",
+    "coinsLabel_other": "{{count}} pièces poisson",
+    "nextMilestone": "Prochain palier : série de {{days}} jours (encore {{remaining}}) → {{reward}}",
+    "infoTitle": "Comment marchent les cadeaux quotidiens",
+    "luckyOdds": "Bonus chance : chaque récupération a {{percent}} % de chances de donner +{{coins}} pièces poisson en plus.",
+    "cycleNote": "Le jour 7 augmente de 20 pièces poisson à chaque semaine complète (jusqu'à 200).",
+    "milestonesTitle": "Paliers de série",
+    "luckyToast": "Bonus chance ! +{{coins}}",
+    "milestoneToast": "Palier de {{days}} jours atteint !",
     "days": {
-      "1": { "title": "25 pièces poisson", "subtitle": "Cadeau de bienvenue" },
-      "2": { "title": "1 Indice", "subtitle": "+10 pièces poisson" },
-      "3": { "title": "40 pièces poisson", "subtitle": "Trésor de mi-semaine" },
-      "4": { "title": "1 Super Indice", "subtitle": "Élimine les pièges !" },
-      "5": { "title": "60 pièces poisson", "subtitle": "Prise dorée" },
-      "6": { "title": "2 Indices + Bouclier", "subtitle": "Armure féline" },
-      "7": { "title": "Pack Bonus Chat", "subtitle": "100 pièces + Révéler + Bouclier" }
+      "1": { "subtitle": "Cadeau de bienvenue" },
+      "2": { "subtitle": "Coup de patte" },
+      "3": { "subtitle": "Trésor de mi-semaine" },
+      "4": { "subtitle": "Élimine les pièges !" },
+      "5": { "subtitle": "Prise dorée" },
+      "6": { "subtitle": "Armure féline" },
+      "7": { "subtitle": "Gros lot" }
     }
   },
   "missions": {
@@ -685,7 +694,7 @@
       "free_hint": { "headline": "Besoin d'un coup de patte ?", "reward": "1 indice gratuit" },
       "bonus_coins": { "headline": "Envie de pièces poisson ?", "reward": "+30 pièces poisson" },
       "extra_undo": { "headline": "Besoin d'une recharge de cœur ?", "reward": "1 Recharge de cœur" },
-      "daily_bonus": { "headline": "Doubler le cadeau du jour ?", "reward": "Cadeau du jour ×2" },
+      "daily_bonus": { "headline": "Des pièces poisson bonus ?", "reward": "+30 pièces poisson" },
       "booster_pack": { "headline": "Prêt pour les grilles corsées ?", "reward": "1 Bouclier d'erreur" },
       "challenge_retry": { "headline": "Envie d'un coup de pouce ?", "reward": "1 Super Indice gratuit" }
     }

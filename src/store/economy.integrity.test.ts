@@ -249,4 +249,43 @@ describe('Economy integrity', () => {
     expect(S().fishCoins).toBe(coinsBefore + 60);
     expect(S().boosters.revealRegion).toBe(regionBefore + 1);
   });
+
+  it('claimTodaysDailyReward grants exact slot + lucky + milestone coins and boosters (#14)', () => {
+    // Position the player on day 7 of cycle 1 (streak 6 -> 7, last claim yesterday)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+    useGameStore.setState({
+      dailyLogin: {
+        ...INITIAL_DAILY_LOGIN,
+        currentDayIndex: 6,
+        lastClaimDateKey: yKey,
+        streakCount: 6,
+        streakShields: 1,
+        totalClaims: 7, // cycle 1 -> Day 7 is 120 coins
+        claimedStreakMilestones: [],
+        adBonusDateKey: null,
+      },
+    });
+
+    const coinsBefore = S().fishCoins;
+    const superHintsBefore = S().boosters.superHint;
+    const revealCatBefore = S().boosters.revealCat;
+    const revealRegionBefore = S().boosters.revealRegion;
+
+    const res = S().claimTodaysDailyReward();
+    expect(res.claimed).toBe(true);
+    expect(res.reward?.coins).toBe(120);
+    expect(res.milestone?.days).toBe(7);
+    expect(res.milestone?.coins).toBe(50);
+
+    const expectedCoinsDelta =
+      (res.reward?.coins ?? 0) + res.luckyBonusCoins + (res.milestone?.coins ?? 0);
+    expect(S().fishCoins).toBe(coinsBefore + expectedCoinsDelta);
+    expect(S().boosters.superHint).toBe(superHintsBefore + 1);
+    expect(S().boosters.revealCat).toBe(revealCatBefore + 1);
+    expect(S().boosters.revealRegion).toBe(revealRegionBefore + 1);
+  });
 });
+

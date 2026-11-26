@@ -1,4 +1,5 @@
 import { BoosterId } from './economy';
+import { fnv1a } from './hash';
 
 export type MissionMetric =
   | 'levels_completed'
@@ -89,20 +90,11 @@ const MISSION_POOL: readonly MissionTemplate[] = [
   },
 ];
 
-function hashDate(dateKey: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < dateKey.length; i++) {
-    h ^= dateKey.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
 /**
  * Deterministically picks 3 varied daily missions for a given local dateKey.
  */
 export function generateDailyMissions(dateKey: string): DailyMissionsState {
-  const seed = hashDate(dateKey);
+  const seed = fnv1a(dateKey);
   const pool = [...MISSION_POOL];
   const chosen: MissionTemplate[] = [];
 
