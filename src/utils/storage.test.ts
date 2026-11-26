@@ -357,7 +357,45 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
     expect(loadPersistedState().favouriteCatIds).toEqual([]);
   });
+
+  it('sanitizes unlockedAccessoryIds, activeAccessoryId, and claimedSetIds (#19)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    // Missing -> defaults
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    const fresh = loadPersistedState();
+    expect(fresh.unlockedAccessoryIds).toEqual([]);
+    expect(fresh.activeAccessoryId).toBeNull();
+    expect(fresh.claimedSetIds).toEqual([]);
+
+    // Unknown ids dropped; locked activeAccessoryId cleared
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        unlockedAccessoryIds: ['scarf', 'bogus_hat', 'scarf'],
+        activeAccessoryId: 'starCrown',
+        claimedSetIds: ['village', 'bogus_set', 'village'],
+      })
+    );
+    const lockedActive = loadPersistedState();
+    expect(lockedActive.unlockedAccessoryIds).toEqual(['scarf']);
+    expect(lockedActive.activeAccessoryId).toBeNull();
+    expect(lockedActive.claimedSetIds).toEqual(['village']);
+
+    // Unlocked activeAccessoryId preserved
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        unlockedAccessoryIds: ['scarf', 'roundGlasses'],
+        activeAccessoryId: 'roundGlasses',
+      })
+    );
+    expect(loadPersistedState().activeAccessoryId).toBe('roundGlasses');
+  });
 });
+
 
 
 

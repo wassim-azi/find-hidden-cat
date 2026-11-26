@@ -80,6 +80,8 @@ import {
   getAchievementCopy,
   getNewlyUnlockedAchievements,
 } from '../game/achievements';
+import { AccessoryId } from '../game/accessories';
+import { CAT_SETS, CatSetId, getSetProgress } from '../game/catSets';
 import {
   CatUnlockEntry,
   CollectibleCat,
@@ -249,6 +251,9 @@ interface GameStoreState {
   activeMascotCatId: string;
   catUnlockLog: Record<string, CatUnlockEntry>;
   favouriteCatIds: string[];
+  unlockedAccessoryIds: AccessoryId[];
+  activeAccessoryId: AccessoryId | null;
+  claimedSetIds: string[];
   claimedEventIds: string[];
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
@@ -339,6 +344,8 @@ interface GameStoreState {
   claimEventChest: (eventId: WorldEventId) => boolean;
   selectMascotCat: (catId: string) => void;
   toggleFavouriteCat: (catId: string) => void;
+  claimCatSet: (setId: CatSetId) => boolean;
+  selectAccessory: (id: AccessoryId | null) => boolean;
   enqueueUnlockedCats: (catIds: string[]) => void;
   openRewardedAdPrompt: (placement: RewardedAdPlacement) => void;
   closeRewardedAdPrompt: () => void;
@@ -798,6 +805,9 @@ function persistFromState(state: GameStoreState): void {
     activeMascotCatId: state.activeMascotCatId,
     catUnlockLog: state.catUnlockLog,
     favouriteCatIds: state.favouriteCatIds,
+    unlockedAccessoryIds: state.unlockedAccessoryIds,
+    activeAccessoryId: state.activeAccessoryId,
+    claimedSetIds: state.claimedSetIds,
     claimedEventIds: state.claimedEventIds,
     zeroMistakeSolves: state.zeroMistakeSolves,
     specialLevelsCompleted: state.specialLevelsCompleted,
@@ -856,6 +866,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   activeMascotCatId: persisted.activeMascotCatId,
   catUnlockLog: persisted.catUnlockLog,
   favouriteCatIds: persisted.favouriteCatIds,
+  unlockedAccessoryIds: persisted.unlockedAccessoryIds,
+  activeAccessoryId: persisted.activeAccessoryId,
+  claimedSetIds: persisted.claimedSetIds,
   claimedEventIds: persisted.claimedEventIds,
   zeroMistakeSolves: persisted.zeroMistakeSolves,
   specialLevelsCompleted: persisted.specialLevelsCompleted,
@@ -2954,6 +2967,59 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({ favouriteCatIds: nextFavs });
     persistFromState(get());
   },
+  claimCatSet: (setId) => {
+    const state = get();
+    const def = CAT_SETS.find((s) => s.id === setId);
+    if (!def || state.claimedSetIds.includes(setId)) return false;
+    const progress = getSetProgress(def, state.unlockedCatIds);
+    if (!progress.complete) return false;
+
+    const nextAccessories = state.unlockedAccessoryIds.includes(def.rewardAccessory)
+      ? state.unlockedAccessoryIds
+      : [...state.unlockedAccessoryIds, def.rewardAccessory];
+
+    soundManager.play('victory', state.settings.soundEnabled);
+    triggerHaptic('victory', state.settings.hapticsEnabled);
+    particleBus.victoryFountain();
+
+    const setName = i18n.t(`catSets.${setId}.name`);
+    const accLabel = i18n.t(`accessories.${def.rewardAccessory}`);
+
+    set({
+      fishCoins: state.fishCoins + def.rewardCoins,
+      unlockedAccessoryIds: nextAccessories,
+      claimedSetIds: [...state.claimedSetIds, setId],
+      chestRevealModal: {
+        title: i18n.t('catSets.claimedTitle', { name: setName }),
+        subtitle: accLabel,
+        coins: def.rewardCoins,
+        boosterLabel: accLabel,
+      },
+    });
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:cat_set:${setId}:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'event_chest',
+      coins: def.rewardCoins,
+    });
+    persistFromState(get());
+    return true;
+  },
+  selectAccessory: (id) => {
+    const state = get();
+    if (id !== null && !state.unlockedAccessoryIds.includes(id)) {
+      return false;
+    }
+    soundManager.play('button', state.settings.soundEnabled);
+    set({ activeAccessoryId: id });
+    persistFromState(get());
+    return true;
+  },
   enqueueUnlockedCats: (catIds) => {
     if (catIds.length === 0) return;
     const state = get();
@@ -3097,6 +3163,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       activeMascotCatId: 'mochi',
       catUnlockLog: { mochi: { dateKey: todayKey, source: null } },
       favouriteCatIds: [],
+      unlockedAccessoryIds: [],
+      activeAccessoryId: null,
+      claimedSetIds: [],
       claimedEventIds: [],
       zeroMistakeSolves: 0,
       specialLevelsCompleted: 0,

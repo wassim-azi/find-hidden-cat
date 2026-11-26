@@ -1,5 +1,7 @@
 import React, { useId } from 'react';
 import { CatBreed } from '../../styles/theme';
+import { AccessoryId, getAccessoryDef } from '../../game/accessories';
+import { renderAccessory } from './accessories';
 
 export type CatMood = 'idle' | 'happy' | 'conflict' | 'celebrate';
 
@@ -10,6 +12,7 @@ interface CatIllustrationProps {
   size?: number;
   alive?: boolean;
   blinkDelaySec?: number;
+  accessory?: AccessoryId | null;
 }
 
 interface BreedPalette {
@@ -152,11 +155,13 @@ export const CatIllustration: React.FC<CatIllustrationProps> = React.memo(
     size,
     alive = true,
     blinkDelaySec = 0,
+    accessory = null,
   }) => {
     const uid = useId().replace(/:/g, '');
     const p = BREED_PALETTES[breed];
     const headClipId = `ch-${uid}`;
     const furGradId = `fg-${uid}`;
+    const accessorySlot = accessory ? getAccessoryDef(accessory).slot : null;
 
     return (
       <svg
@@ -300,6 +305,10 @@ export const CatIllustration: React.FC<CatIllustrationProps> = React.memo(
           </g>
         )}
 
+        {/* Cosmetic head/neck accessory (after head rim, before eyes) */}
+        {accessory && (accessorySlot === 'head' || accessorySlot === 'neck') &&
+          renderAccessory(accessory)}
+
         {/* Eyes */}
         {mood === 'celebrate' || mood === 'happy' ? (
           <g
@@ -335,6 +344,9 @@ export const CatIllustration: React.FC<CatIllustrationProps> = React.memo(
             <circle cx="66.2" cy="56.3" r="0.95" fill="#FFFFFF" opacity="0.8" />
           </g>
         )}
+
+        {/* Cosmetic face accessory (after eyes) */}
+        {accessory && accessorySlot === 'face' && renderAccessory(accessory)}
 
         {/* Rosy Cheeks */}
         <ellipse cx="24" cy="64.5" rx="6" ry="3.4" fill={p.cheek} opacity="0.72" />

@@ -32,6 +32,8 @@ import {
   PeriodStats,
   ProgressStats,
 } from '../game/progressStats';
+import { AccessoryId, VALID_ACCESSORY_IDS } from '../game/accessories';
+import { VALID_CAT_SET_IDS } from '../game/catSets';
 import { CatUnlockEntry, VALID_CAT_IDS } from '../game/collectibleCats';
 import { dateFromKey, toDateKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
@@ -70,6 +72,9 @@ export interface PersistedGameData {
   activeMascotCatId: string;
   catUnlockLog: Record<string, CatUnlockEntry>;
   favouriteCatIds: string[];
+  unlockedAccessoryIds: AccessoryId[];
+  activeAccessoryId: AccessoryId | null;
+  claimedSetIds: string[];
   claimedEventIds: string[];
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
@@ -129,6 +134,9 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   activeMascotCatId: 'mochi',
   catUnlockLog: { mochi: { dateKey: toDateKey(new Date()), source: null } },
   favouriteCatIds: [],
+  unlockedAccessoryIds: [],
+  activeAccessoryId: null,
+  claimedSetIds: [],
   claimedEventIds: [],
   zeroMistakeSolves: 0,
   specialLevelsCompleted: 0,
@@ -387,6 +395,34 @@ function sanitizeFavouriteCatIds(raw: unknown): string[] {
   return Array.from(
     new Set(
       raw.filter((id): id is string => typeof id === 'string' && VALID_CAT_IDS.has(id))
+    )
+  );
+}
+
+function sanitizeAccessoryIds(raw: unknown): AccessoryId[] {
+  if (!Array.isArray(raw)) return [];
+  return Array.from(
+    new Set(
+      raw.filter(
+        (id): id is AccessoryId => typeof id === 'string' && VALID_ACCESSORY_IDS.has(id)
+      )
+    )
+  );
+}
+
+function sanitizeActiveAccessoryId(
+  raw: unknown,
+  unlocked: readonly AccessoryId[]
+): AccessoryId | null {
+  if (typeof raw !== 'string' || !VALID_ACCESSORY_IDS.has(raw)) return null;
+  return unlocked.includes(raw as AccessoryId) ? (raw as AccessoryId) : null;
+}
+
+function sanitizeClaimedSetIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return Array.from(
+    new Set(
+      raw.filter((id): id is string => typeof id === 'string' && VALID_CAT_SET_IDS.has(id))
     )
   );
 }
@@ -848,6 +884,17 @@ export function loadPersistedState(): PersistedGameData {
         toDateKey(new Date())
       ),
       favouriteCatIds: sanitizeFavouriteCatIds(parsed.favouriteCatIds),
+      ...(() => {
+        const unlockedAccessoryIds = sanitizeAccessoryIds(parsed.unlockedAccessoryIds);
+        return {
+          unlockedAccessoryIds,
+          activeAccessoryId: sanitizeActiveAccessoryId(
+            parsed.activeAccessoryId,
+            unlockedAccessoryIds
+          ),
+        };
+      })(),
+      claimedSetIds: sanitizeClaimedSetIds(parsed.claimedSetIds),
       claimedEventIds: stringArray(parsed.claimedEventIds, []),
       zeroMistakeSolves,
       specialLevelsCompleted:

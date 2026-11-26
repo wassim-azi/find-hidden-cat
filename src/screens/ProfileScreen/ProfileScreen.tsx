@@ -37,6 +37,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
+  const activeAccessoryId = useGameStore((s) => s.activeAccessoryId);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const fishCoins = useGameStore((s) => s.fishCoins);
@@ -121,7 +122,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             aria-label={t('profile.changeCompanionAria')}
             className="w-20 h-20 rounded-[22px] bg-gradient-to-br from-[#FFF3D6] to-[#FFE0E6] border-2 border-white shadow-sm flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-transform"
           >
-            <CatIllustration breed={mascot.breed} mood="happy" className="w-17 h-17" />
+            <CatIllustration
+              breed={mascot.breed}
+              mood="happy"
+              accessory={activeAccessoryId}
+              className="w-17 h-17"
+            />
           </button>
 
           <div className="min-w-0 flex-1">

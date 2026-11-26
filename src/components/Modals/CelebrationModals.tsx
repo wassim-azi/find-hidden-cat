@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Gift, Sparkles, Trophy } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
 import { TactileButton } from '../Buttons/TactileButton';
-import { CatIllustration } from '../Cat/CatIllustration';
+import { CatIllustration, CatSilhouette } from '../Cat/CatIllustration';
 import { FishCoinIcon } from '../Currency/FishCoinIcon';
+import { getCatSetForCat, getSetProgress } from '../../game/catSets';
+import { particleBus } from '../Effects/ParticleCanvas';
+import { soundManager } from '../../utils/sound';
 import { useGameStore } from '../../store/gameStore';
 
 export const CelebrationModals: React.FC = () => {
@@ -13,10 +16,41 @@ export const CelebrationModals: React.FC = () => {
   const unlockedWorldModal = useGameStore((s) => s.unlockedWorldModal);
   const unlockedCatModal = useGameStore((s) => s.unlockedCatModal);
   const chestRevealModal = useGameStore((s) => s.chestRevealModal);
+  const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
+  const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
+  const soundEnabled = useGameStore((s) => s.settings.soundEnabled);
   const dismissUnlockedWorld = useGameStore((s) => s.dismissUnlockedWorld);
   const dismissUnlockedCat = useGameStore((s) => s.dismissUnlockedCat);
   const dismissChestReveal = useGameStore((s) => s.dismissChestReveal);
   const selectMascotCat = useGameStore((s) => s.selectMascotCat);
+
+  const catModalVisible = Boolean(unlockedCatModal && !unlockedWorldModal);
+  const [catRevealed, setCatRevealed] = useState(reducedMotion);
+
+  // Discovery animation sequence for each newly unlocked cat (#19)
+  useEffect(() => {
+    if (!catModalVisible || !unlockedCatModal) {
+      setCatRevealed(reducedMotion);
+      return;
+    }
+
+    if (reducedMotion) {
+      setCatRevealed(true);
+      soundManager.play('victory', soundEnabled);
+      return;
+    }
+
+    setCatRevealed(false);
+    const timer = window.setTimeout(() => {
+      setCatRevealed(true);
+      particleBus.victoryFountain();
+      soundManager.play('victory', soundEnabled);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [catModalVisible, unlockedCatModal?.id, reducedMotion, soundEnabled]);
 
   const worldName = unlockedWorldModal
     ? t(`worlds.${unlockedWorldModal.id}.name`)
@@ -24,6 +58,9 @@ export const CelebrationModals: React.FC = () => {
   const worldSubtitle = unlockedWorldModal
     ? t(`worlds.${unlockedWorldModal.id}.subtitle`)
     : '';
+
+  const catSet = unlockedCatModal ? getCatSetForCat(unlockedCatModal.id) : null;
+  const catSetProgress = catSet ? getSetProgress(catSet, unlockedCatIds) : null;
 
   return (
     <>
@@ -62,9 +99,9 @@ export const CelebrationModals: React.FC = () => {
         )}
       </ModalSheet>
 
-      {/* New Collectible Cat Reveal */}
+      {/* New Collectible Cat Reveal (with discovery sequence) */}
       <ModalSheet
-        open={Boolean(unlockedCatModal && !unlockedWorldModal)}
+        open={catModalVisible}
         onClose={dismissUnlockedCat}
         ariaLabel={t('celebrations.newCatBadge', {
           rarity: unlockedCatModal ? t(`cats.rarity.${unlockedCatModal.rarity}`) : '',
@@ -79,18 +116,38 @@ export const CelebrationModals: React.FC = () => {
               })}
             </span>
 
-            <motion.div
-              initial={{ scale: 0.4, rotate: -10 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-              className="w-28 h-28 rounded-[28px] bg-gradient-to-br from-[#FFF4DC] to-[#FFE1E6] border-2 border-white shadow-md flex items-center justify-center my-4"
-            >
-              <CatIllustration
-                breed={unlockedCatModal.breed}
-                mood="celebrate"
-                className="w-24 h-24"
-              />
-            </motion.div>
+            <div className="w-28 h-28 rounded-[28px] bg-gradient-to-br from-[#FFF4DC] to-[#FFE1E6] border-2 border-white shadow-md flex items-center justify-center my-4 overflow-hidden">
+              {!catRevealed ? (
+                <CatSilhouette color="#A99C8E" className="w-22 h-22 opacity-85" />
+              ) : reducedMotion ? (
+                <motion.div
+                  key={unlockedCatModal.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <CatIllustration
+                    breed={unlockedCatModal.breed}
+                    mood="celebrate"
+                    alive={false}
+                    className="w-24 h-24"
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={unlockedCatModal.id}
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                >
+                  <CatIllustration
+                    breed={unlockedCatModal.breed}
+                    mood="celebrate"
+                    className="w-24 h-24"
+                  />
+                </motion.div>
+              )}
+            </div>
 
             <h2 className="text-[24px] font-black text-[#3A312C] leading-none">
               {unlockedCatModal.name}
@@ -98,9 +155,18 @@ export const CelebrationModals: React.FC = () => {
             <p className="text-[12px] font-extrabold text-[#FF7A7A] mt-1">
               {t(`cats.roster.${unlockedCatModal.id}.title`)}
             </p>
-            <p className="text-[13px] font-semibold text-[#7E7067] mt-2 mb-5">
+            <p className="text-[13px] font-semibold text-[#7E7067] mt-2">
               {t(`cats.roster.${unlockedCatModal.id}.personality`)}
             </p>
+            {catSet && catSetProgress && (
+              <p className="text-[11px] font-black text-[#6B4EB5] bg-[#F3ECFD] px-3 py-1 rounded-full mt-2.5 mb-4">
+                {t('catSets.progressLine', {
+                  name: t(`catSets.${catSet.id}.name`),
+                  owned: catSetProgress.owned,
+                  total: catSetProgress.total,
+                })}
+              </p>
+            )}
 
             <div className="w-full flex flex-col gap-2">
               <TactileButton

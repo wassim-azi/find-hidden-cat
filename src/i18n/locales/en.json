@@ -746,6 +746,32 @@
     "howToUnlock": "How to befriend",
     "close": "Close"
   },
+  "catSets": {
+    "village": { "name": "Village Friends" },
+    "garden": { "name": "Garden Friends" },
+    "night": { "name": "Starry Night Friends" },
+    "claim": "Claim set reward",
+    "claimedTitle": "{{name}} complete!",
+    "progressLine": "{{name}}: {{owned}}/{{total}}"
+  },
+  "accessories": {
+    "pickerTitle": "Accessory",
+    "none": "None",
+    "scarf": "Cozy Scarf",
+    "flowerCrown": "Flower Crown",
+    "starCrown": "Star Crown",
+    "winterBeanie": "Winter Beanie",
+    "snowflakeCollar": "Snowflake Collar",
+    "blossomCrown": "Blossom Crown",
+    "butterflyBow": "Butterfly Bow",
+    "sunHat": "Sun Hat",
+    "shellNecklace": "Shell Necklace",
+    "leafScarf": "Leaf Scarf",
+    "acornCharm": "Acorn Charm",
+    "goldBell": "Golden Bell",
+    "pawCharm": "Paw Charm",
+    "roundGlasses": "Round Glasses"
+  },
   "shop": {
     "headerTitle": "Kitty Shop",
     "yourCoins": "Your Fish Coins",

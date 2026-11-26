@@ -746,6 +746,32 @@
     "howToUnlock": "Comment devenir ami",
     "close": "Fermer"
   },
+  "catSets": {
+    "village": { "name": "Amis du village" },
+    "garden": { "name": "Amis du jardin" },
+    "night": { "name": "Amis de la nuit étoilée" },
+    "claim": "Récupérer la récompense",
+    "claimedTitle": "{{name}} au complet !",
+    "progressLine": "{{name}} : {{owned}}/{{total}}"
+  },
+  "accessories": {
+    "pickerTitle": "Accessoire",
+    "none": "Aucun",
+    "scarf": "Écharpe douillette",
+    "flowerCrown": "Couronne de fleurs",
+    "starCrown": "Couronne d'étoiles",
+    "winterBeanie": "Bonnet d'hiver",
+    "snowflakeCollar": "Collier flocon",
+    "blossomCrown": "Couronne en fleurs",
+    "butterflyBow": "Nœud papillon",
+    "sunHat": "Chapeau de soleil",
+    "shellNecklace": "Collier de coquillages",
+    "leafScarf": "Écharpe feuillage",
+    "acornCharm": "Breloque gland",
+    "goldBell": "Clochette dorée",
+    "pawCharm": "Breloque patte",
+    "roundGlasses": "Lunettes rondes"
+  },
   "shop": {
     "headerTitle": "Boutique",
     "yourCoins": "Tes pièces poisson",

@@ -184,6 +184,7 @@ export const MapScreen: React.FC = () => {
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
+  const activeAccessoryId = useGameStore((s) => s.activeAccessoryId);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const startLevel = useGameStore((s) => s.startLevel);
   const [detailsLevelId, setDetailsLevelId] = useState<number | null>(null);
@@ -544,6 +545,7 @@ export const MapScreen: React.FC = () => {
                       <CatIllustration
                         breed={activeMascot.breed}
                         mood="happy"
+                        accessory={activeAccessoryId}
                         className="w-full h-full"
                       />
                     </motion.div>

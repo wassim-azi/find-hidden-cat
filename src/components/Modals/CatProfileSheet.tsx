@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, Check, Heart, Lock, X } from 'lucide-react';
+import { Calendar, Check, Heart, Lock, Sparkles, X } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
 import { TactileButton } from '../Buttons/TactileButton';
 import { CatIllustration, CatSilhouette } from '../Cat/CatIllustration';
@@ -33,9 +33,12 @@ export const CatProfileSheet: React.FC<CatProfileSheetProps> = ({
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const catUnlockLog = useGameStore((s) => s.catUnlockLog);
   const favouriteCatIds = useGameStore((s) => s.favouriteCatIds);
+  const unlockedAccessoryIds = useGameStore((s) => s.unlockedAccessoryIds);
+  const activeAccessoryId = useGameStore((s) => s.activeAccessoryId);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const selectMascotCat = useGameStore((s) => s.selectMascotCat);
   const toggleFavouriteCat = useGameStore((s) => s.toggleFavouriteCat);
+  const selectAccessory = useGameStore((s) => s.selectAccessory);
 
   const lang = i18n.language.startsWith('fr') ? 'fr' : 'en';
 
@@ -97,12 +100,16 @@ export const CatProfileSheet: React.FC<CatProfileSheetProps> = ({
 
           {unlocked ? (
             <>
-              <div className="w-36 h-36 rounded-[28px] bg-gradient-to-br from-[#FFF6E4] to-[#FFE7EC] border-2 border-white shadow-sm flex items-center justify-center my-2">
+              <div
+                id="cat-profile-portrait"
+                className="w-40 h-40 rounded-[28px] bg-gradient-to-br from-[#FFF6E4] to-[#FFE7EC] border-2 border-white shadow-sm flex items-center justify-center my-2 shrink-0"
+              >
                 <CatIllustration
                   breed={cat.breed}
-                  mood="happy"
-                  size={140}
+                  mood="idle"
+                  size={160}
                   alive={!reducedMotion}
+                  accessory={isCompanion ? activeAccessoryId : null}
                 />
               </div>
 
@@ -126,6 +133,50 @@ export const CatProfileSheet: React.FC<CatProfileSheetProps> = ({
                   {formatJoinedText(cat.id)}
                 </span>
               </div>
+
+              {/* Cosmetic Accessory Picker (companion only) */}
+              {isCompanion && (
+                <div className="w-full mt-3 rounded-2xl bg-[#FAF5EC] border border-[#EAE0D2] p-3 text-left">
+                  <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#8A7B70] mb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#9B86D4]" />
+                    {t('accessories.pickerTitle')}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      id="btn-accessory-none"
+                      type="button"
+                      aria-pressed={activeAccessoryId === null}
+                      onClick={() => selectAccessory(null)}
+                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold border transition-colors cursor-pointer ${
+                        activeAccessoryId === null
+                          ? 'bg-[#6EB58E] border-[#5CA17B] text-white'
+                          : 'bg-white border-[#E4D8C8] text-[#5C4F47]'
+                      }`}
+                    >
+                      {t('accessories.none')}
+                    </button>
+                    {unlockedAccessoryIds.map((accId) => {
+                      const active = activeAccessoryId === accId;
+                      return (
+                        <button
+                          key={accId}
+                          id={`btn-accessory-${accId}`}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => selectAccessory(accId)}
+                          className={`px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold border transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-[#FF8585] border-[#E86D6D] text-white'
+                              : 'bg-white border-[#E4D8C8] text-[#5C4F47]'
+                          }`}
+                        >
+                          {t(`accessories.${accId}`)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="w-full mt-4 flex flex-col gap-2">
