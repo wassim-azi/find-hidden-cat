@@ -337,7 +337,23 @@
     "nextLevel": "Niveau suivant ({{id}})",
     "mapButton": "Carte",
     "replayButton": "Rejouer",
-    "imgAlt": "Chats joyeux sautant parmi les étoiles et les cœurs"
+    "imgAlt": "Chats joyeux sautant parmi les étoiles et les cœurs",
+    "improvedStars": "Nouveau record : {{from}}★ → {{to}}★",
+    "improvedTime": "Nouveau meilleur temps : {{from}} → {{to}}",
+    "firstNoHint": "Première résolution de ce niveau sans indice !",
+    "firstNoMistake": "Première résolution de ce niveau sans erreur !"
+  },
+  "levelDetails": {
+    "title": "Niveau {{id}} · {{title}}",
+    "bestTime": "Meilleur temps",
+    "fewestMistakes": "Moins d'erreurs",
+    "fewestHints": "Moins d'indices",
+    "timesCompleted": "Fois terminé",
+    "lastResult": "Dernier résultat",
+    "threeStarTip": "Pour 3 étoiles : sans indice, sans erreur, en moins de {{time}}.",
+    "continue": "Continuer",
+    "replay": "Rejouer",
+    "close": "Fermer"
   },
   "settings": {
     "dialogAria": "Paramètres du jeu",

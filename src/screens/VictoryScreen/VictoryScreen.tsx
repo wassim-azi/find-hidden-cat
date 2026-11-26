@@ -27,6 +27,7 @@ interface VictoryScreenProps {
 
 export const VictoryScreen: React.FC<VictoryScreenProps> = ({
   summary,
+  reducedMotion,
   onNextLevel,
   onReplay,
   onLevels,
@@ -187,6 +188,39 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                   </span>
                 </div>
               </div>
+
+              {summary.improvements.length > 0 && (
+                <motion.ul
+                  id="victory-improvements"
+                  initial={reducedMotion ? false : { opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.22 }}
+                  className="mb-4 rounded-2xl bg-[#EBF7F0] border border-[#C3E5D2] px-3 py-2 flex flex-col gap-1 text-left"
+                >
+                  {summary.improvements.map((imp, idx) => {
+                    const text =
+                      imp.kind === 'stars'
+                        ? t('victory.improvedStars', { from: imp.from, to: imp.to })
+                        : imp.kind === 'time'
+                          ? t('victory.improvedTime', {
+                              from: formatTime(imp.fromSec),
+                              to: formatTime(imp.toSec),
+                            })
+                          : imp.kind === 'firstNoHint'
+                            ? t('victory.firstNoHint')
+                            : t('victory.firstNoMistake');
+                    return (
+                      <li
+                        key={`${imp.kind}-${idx}`}
+                        className="text-[11.5px] font-extrabold text-[#2B734B] flex items-center gap-1.5 leading-snug"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-[#3B8B61] shrink-0" />
+                        <span>{text}</span>
+                      </li>
+                    );
+                  })}
+                </motion.ul>
+              )}
 
               <div className="flex flex-col gap-2">
                 <TactileButton

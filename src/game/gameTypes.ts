@@ -139,6 +139,15 @@ export interface MoveSnapshot {
   actionType?: MoveActionType;
 }
 
+export interface LevelLastResult {
+  stars: number;
+  timeSec: number;
+  hintsUsed: number;
+  mistakes: number;
+  mode: GameMode;
+  at: number;
+}
+
 export interface LevelProgress {
   levelId: number;
   completed: boolean;
@@ -146,6 +155,8 @@ export interface LevelProgress {
   stars: number; // 0..3
   bestHintsUsed: number | null;
   bestMistakes: number | null;
+  attempts: number;
+  lastResult: LevelLastResult | null;
 }
 
 export interface PlayerSettings {

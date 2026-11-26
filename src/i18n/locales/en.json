@@ -337,7 +337,23 @@
     "nextLevel": "Next Level ({{id}})",
     "mapButton": "Map",
     "replayButton": "Replay",
-    "imgAlt": "Celebrating cats jumping with stars and hearts"
+    "imgAlt": "Celebrating cats jumping with stars and hearts",
+    "improvedStars": "New star record: {{from}}★ → {{to}}★",
+    "improvedTime": "New best time: {{from}} → {{to}}",
+    "firstNoHint": "First solve of this level without hints!",
+    "firstNoMistake": "First solve of this level without mistakes!"
+  },
+  "levelDetails": {
+    "title": "Level {{id}} · {{title}}",
+    "bestTime": "Best time",
+    "fewestMistakes": "Fewest mistakes",
+    "fewestHints": "Fewest hints",
+    "timesCompleted": "Times completed",
+    "lastResult": "Last result",
+    "threeStarTip": "For 3 stars: no hints, no mistakes, under {{time}}.",
+    "continue": "Continue",
+    "replay": "Replay",
+    "close": "Close"
   },
   "settings": {
     "dialogAria": "Game settings",

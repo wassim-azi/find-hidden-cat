@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface ModalSheetProps {
+  id?: string;
   open: boolean;
   onClose?: () => void;
   ariaLabel: string;
@@ -10,6 +11,7 @@ interface ModalSheetProps {
 }
 
 export const ModalSheet: React.FC<ModalSheetProps> = ({
+  id,
   open,
   onClose,
   ariaLabel,
@@ -29,6 +31,7 @@ export const ModalSheet: React.FC<ModalSheetProps> = ({
     <AnimatePresence>
       {open && (
         <motion.div
+          id={id}
           role="dialog"
           aria-modal="true"
           aria-label={ariaLabel}

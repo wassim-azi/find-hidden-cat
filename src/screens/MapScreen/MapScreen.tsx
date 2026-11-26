@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
@@ -22,6 +22,7 @@ import {
 import { getCollectibleCat } from '../../game/collectibleCats';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
+import { LevelDetailsSheet } from '../../components/Modals/LevelDetailsSheet';
 
 const NODE_STEP_Y = 98;
 const WORLD_BANNER_EXTRA_H = 126;
@@ -177,6 +178,7 @@ export const MapScreen: React.FC = () => {
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const startLevel = useGameStore((s) => s.startLevel);
+  const [detailsLevelId, setDetailsLevelId] = useState<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const currentNodeRef = useRef<HTMLDivElement | null>(null);
@@ -524,7 +526,13 @@ export const MapScreen: React.FC = () => {
                     id={`level-card-${node.levelId}`}
                     type="button"
                     whileTap={{ scale: 0.91 }}
-                    onClick={() => startLevel(node.levelId, true)}
+                    onClick={() => {
+                      if (isCompleted) {
+                        setDetailsLevelId(node.levelId);
+                      } else {
+                        startLevel(node.levelId, true);
+                      }
+                    }}
                     aria-label={nodeAriaLabel}
                     style={{
                       width: `${nodeDim}px`,
@@ -590,6 +598,11 @@ export const MapScreen: React.FC = () => {
           })}
         </div>
       </div>
+
+      <LevelDetailsSheet
+        levelId={detailsLevelId}
+        onClose={() => setDetailsLevelId(null)}
+      />
     </div>
   );
 };

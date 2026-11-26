@@ -9,6 +9,7 @@ import {
   GameMode,
   HintResult,
   HintStage,
+  LevelLastResult,
   LevelProgress,
   MAX_CLASSIC_HEARTS,
   MoveActionType,
@@ -152,6 +153,12 @@ export interface MistakeFlash {
   nonce: number;
 }
 
+export type Improvement =
+  | { kind: 'stars'; from: number; to: number }
+  | { kind: 'time'; fromSec: number; toSec: number }
+  | { kind: 'firstNoHint' }
+  | { kind: 'firstNoMistake' };
+
 export interface VictorySummary {
   levelId: number;
   dailyDateKey?: string;
@@ -168,6 +175,7 @@ export interface VictorySummary {
   newlyUnlockedCats: CollectibleCat[];
   isPracticeMode?: boolean;
   isReplay: boolean;
+  improvements: Improvement[];
 }
 
 export interface ChestRevealModalData {
@@ -1405,6 +1413,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     let nextSpecialCompleted = state.specialLevelsCompleted;
     let nextBoosters = { ...state.boosters };
 
+    const eventAt = nextEventAt();
+
     if (isDailyOrEvent && state.puzzle.dailyDateKey) {
       isFirstCompletion = !state.completedDailyDates.includes(state.puzzle.dailyDateKey);
       if (isFirstCompletion && !isPractice) {
@@ -1417,6 +1427,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     } else {
       isFirstCompletion = !prevProg?.completed;
       previousBestStars = prevProg?.stars ?? 0;
+      const nextAttempts = (prevProg?.attempts ?? (prevProg?.completed ? 1 : 0)) + 1;
+      const lastResult: LevelLastResult = {
+        stars: computedStars,
+        timeSec: state.elapsedSec,
+        hintsUsed: state.hintsUsed,
+        mistakes: state.mistakesCount,
+        mode: state.gameMode,
+        at: eventAt,
+      };
 
       if (!isPractice) {
         isNewBestTime =
@@ -1438,6 +1457,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             prevProg?.bestMistakes === null || prevProg?.bestMistakes === undefined
               ? state.mistakesCount
               : Math.min(prevProg.bestMistakes, state.mistakesCount),
+          attempts: nextAttempts,
+          lastResult,
         };
 
         updatedLevelProgress = {
@@ -1483,6 +1504,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               stars: Math.max(previousBestStars, 1),
               bestHintsUsed: null,
               bestMistakes: null,
+              attempts: nextAttempts,
+              lastResult,
             },
           };
           nextUnlocked = Math.min(
@@ -1490,6 +1513,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             Math.max(state.unlockedLevelId, state.puzzle.id + 1)
           );
           nextCurrentLevel = Math.min(TOTAL_LEVELS, Math.max(state.currentLevelId, nextUnlocked));
+        } else {
+          // Practice replay updates attempts & lastResult while preserving Classic bests untouched
+          updatedLevelProgress = {
+            ...state.levelProgress,
+            [state.puzzle.id]: {
+              ...prevProg,
+              attempts: nextAttempts,
+              lastResult,
+            },
+          };
         }
       }
     }
@@ -1563,7 +1596,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       });
     }
 
-    const eventAt = nextEventAt();
     const eventDate = new Date(eventAt);
     const eventSource: PuzzleSource = isGoldenTrial
       ? 'golden'
@@ -1643,6 +1675,30 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...newlyUnlockedAchs.map((a) => a.id),
     ];
 
+    const improvements: Improvement[] = [];
+    if (!isDailyOrEvent && !isPractice && !isFirstCompletion) {
+      if (computedStars > previousBestStars) {
+        improvements.push({
+          kind: 'stars',
+          from: previousBestStars,
+          to: computedStars,
+        });
+      }
+      if (previousBestTimeSec !== null && state.elapsedSec < previousBestTimeSec) {
+        improvements.push({
+          kind: 'time',
+          fromSec: previousBestTimeSec,
+          toSec: state.elapsedSec,
+        });
+      }
+      if (earnedPerfectLevel) {
+        improvements.push({ kind: 'firstNoHint' });
+      }
+      if (earnedZeroMistake) {
+        improvements.push({ kind: 'firstNoMistake' });
+      }
+    }
+
     const summary: VictorySummary = {
       levelId: state.puzzle.id,
       dailyDateKey: state.puzzle.dailyDateKey,
@@ -1659,6 +1715,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       newlyUnlockedCats,
       isPracticeMode: isPractice,
       isReplay: !isFirstCompletion,
+      improvements,
     };
 
     set({

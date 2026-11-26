@@ -131,8 +131,8 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
     const cats = getNewlyUnlockedCats(
       {
         levelProgress: {
-          1: { levelId: 1, completed: true, bestTimeSec: 30, stars: 3, bestHintsUsed: 0, bestMistakes: 0 },
-          4: { levelId: 4, completed: true, bestTimeSec: 40, stars: 3, bestHintsUsed: 0, bestMistakes: 0 },
+          1: { levelId: 1, completed: true, bestTimeSec: 30, stars: 3, bestHintsUsed: 0, bestMistakes: 0, attempts: 1, lastResult: null },
+          4: { levelId: 4, completed: true, bestTimeSec: 40, stars: 3, bestHintsUsed: 0, bestMistakes: 0, attempts: 1, lastResult: null },
         },
         unlockedLevelId: 7,
         totalStars: 6,
@@ -153,7 +153,7 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
     const achs = getNewlyUnlockedAchievements(
       {
         levelProgress: {
-          1: { levelId: 1, completed: true, bestTimeSec: 30, stars: 3, bestHintsUsed: 0, bestMistakes: 0 },
+          1: { levelId: 1, completed: true, bestTimeSec: 30, stars: 3, bestHintsUsed: 0, bestMistakes: 0, attempts: 1, lastResult: null },
         },
         unlockedLevelId: 7,
         noHintSolves: 5,

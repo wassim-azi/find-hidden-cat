@@ -487,6 +487,70 @@ describe('Gameplay event log and progressStats (#11)', () => {
   });
 });
 
+describe('Personal bests, attempts, and victory improvements (#12)', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+  });
+
+  function solveWithElapsed(sec: number): void {
+    const { puzzle } = S();
+    const missing = puzzle.solution.filter((c) => S().board[c.row]![c.col] !== 'cat');
+    for (let i = 0; i < missing.length; i++) {
+      if (i === missing.length - 1) {
+        useGameStore.setState({ elapsedSec: sec });
+      }
+      S().attemptPlaceCat(missing[i]!);
+    }
+  }
+
+  it('records star and time improvements on Classic replay, and leaves Classic bests untouched on Practice replay', () => {
+    S().startLevel(2, false);
+    const par = S().puzzle.parTimeSec;
+    const slowTime = 2 * par + 1;
+
+    // 1★ first clear (over 1.9 * par)
+    solveWithElapsed(slowTime);
+    expect(S().victorySummary?.stars).toBe(1);
+    expect(S().victorySummary?.improvements).toEqual([]);
+    expect(S().levelProgress[2]?.attempts).toBe(1);
+    expect(S().levelProgress[2]?.lastResult?.mode).toBe('classic');
+    expect(S().levelProgress[2]?.bestTimeSec).toBe(slowTime);
+
+    // 3★ Classic replay (elapsedSec = 1)
+    S().startLevel(2, false);
+    solveWithElapsed(1);
+    expect(S().victorySummary?.stars).toBe(3);
+    expect(S().victorySummary?.improvements).toContainEqual({
+      kind: 'stars',
+      from: 1,
+      to: 3,
+    });
+    expect(S().victorySummary?.improvements).toContainEqual({
+      kind: 'time',
+      fromSec: slowTime,
+      toSec: 1,
+    });
+    expect(S().levelProgress[2]?.attempts).toBe(2);
+    expect(S().levelProgress[2]?.lastResult?.mode).toBe('classic');
+    expect(S().levelProgress[2]?.bestTimeSec).toBe(1);
+    expect(S().levelProgress[2]?.bestMistakes).toBe(0);
+    expect(S().levelProgress[2]?.bestHintsUsed).toBe(0);
+
+    // Practice replay -> improvements empty, Classic bests untouched, attempts +1, lastResult.mode === 'practice'
+    S().updateSetting('gameMode', 'practice');
+    S().startLevel(2, false);
+    solveWithElapsed(50);
+    expect(S().victorySummary?.improvements).toEqual([]);
+    expect(S().levelProgress[2]?.attempts).toBe(3);
+    expect(S().levelProgress[2]?.lastResult?.mode).toBe('practice');
+    expect(S().levelProgress[2]?.bestTimeSec).toBe(1);
+    expect(S().levelProgress[2]?.bestMistakes).toBe(0);
+    expect(S().levelProgress[2]?.bestHintsUsed).toBe(0);
+  });
+});
+
+
 
 
 

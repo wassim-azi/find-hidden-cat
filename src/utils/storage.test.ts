@@ -237,4 +237,23 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(data.progressStats.byDay).toEqual({});
     expect(data.progressStats.byWeek).toEqual({});
   });
+
+  it('back-fills LevelProgress.attempts and lastResult for legacy saves (#12)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        levelProgress: {
+          1: { levelId: 1, completed: true, bestTimeSec: 40, stars: 3, bestHintsUsed: 0 },
+          2: { levelId: 2, completed: false, bestTimeSec: null, stars: 0, bestHintsUsed: null },
+        },
+      })
+    );
+    const data = loadPersistedState();
+    expect(data.levelProgress[1]?.attempts).toBe(1);
+    expect(data.levelProgress[1]?.lastResult).toBeNull();
+    expect(data.levelProgress[2]?.attempts).toBe(0);
+    expect(data.levelProgress[2]?.lastResult).toBeNull();
+  });
 });

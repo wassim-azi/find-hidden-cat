@@ -504,14 +504,48 @@ export function loadPersistedState(): PersistedGameData {
       for (const [k, v] of Object.entries(parsed.levelProgress)) {
         const id = Number(k);
         if (!Number.isFinite(id) || !v || typeof v !== 'object') continue;
+        const completed = Boolean(v.completed);
+        const rawLast = (v as Partial<LevelProgress>).lastResult;
+        const lastResult: LevelProgress['lastResult'] =
+          rawLast &&
+          typeof rawLast === 'object' &&
+          typeof rawLast.stars === 'number' &&
+          Number.isFinite(rawLast.stars) &&
+          typeof rawLast.timeSec === 'number' &&
+          Number.isFinite(rawLast.timeSec) &&
+          typeof rawLast.hintsUsed === 'number' &&
+          Number.isFinite(rawLast.hintsUsed) &&
+          typeof rawLast.mistakes === 'number' &&
+          Number.isFinite(rawLast.mistakes) &&
+          (rawLast.mode === 'classic' || rawLast.mode === 'practice') &&
+          typeof rawLast.at === 'number' &&
+          Number.isFinite(rawLast.at)
+            ? {
+                stars: Math.max(0, Math.min(3, Math.floor(rawLast.stars))),
+                timeSec: Math.max(0, Math.floor(rawLast.timeSec)),
+                hintsUsed: Math.max(0, Math.floor(rawLast.hintsUsed)),
+                mistakes: Math.max(0, Math.floor(rawLast.mistakes)),
+                mode: rawLast.mode,
+                at: rawLast.at,
+              }
+            : null;
+        const rawAttempts = (v as Partial<LevelProgress>).attempts;
+        const attempts =
+          typeof rawAttempts === 'number' && Number.isFinite(rawAttempts) && rawAttempts >= 0
+            ? Math.floor(rawAttempts)
+            : completed
+              ? 1
+              : 0;
         levelProgress[id] = {
           levelId: id,
-          completed: Boolean(v.completed),
+          completed,
           bestTimeSec: typeof v.bestTimeSec === 'number' ? v.bestTimeSec : null,
           stars: typeof v.stars === 'number' ? Math.max(0, Math.min(3, v.stars)) : 0,
           bestHintsUsed: typeof v.bestHintsUsed === 'number' ? v.bestHintsUsed : null,
           bestMistakes:
             typeof v.bestMistakes === 'number' ? Math.max(0, Math.floor(v.bestMistakes)) : null,
+          attempts,
+          lastResult,
         };
       }
     }
