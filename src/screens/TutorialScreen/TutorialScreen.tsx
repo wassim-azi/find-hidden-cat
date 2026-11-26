@@ -10,6 +10,7 @@ import { getTutorialVoiceScript, tutorialNarrator } from '../../utils/narration'
 interface TutorialScreenProps {
   open: boolean;
   onClose: () => void;
+  onTryInteractive?: () => void;
 }
 
 const STEP_DEMOS = ['region', 'rowCol', 'adjacent'] as const;
@@ -97,7 +98,11 @@ const AnimatedRuleDemo: React.FC<{ demo: 'region' | 'rowCol' | 'adjacent' }> = (
   );
 };
 
-export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose }) => {
+export const TutorialScreen: React.FC<TutorialScreenProps> = ({
+  open,
+  onClose,
+  onTryInteractive,
+}) => {
   const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -249,36 +254,54 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ open, onClose })
         </div>
 
         {/* Footer nav */}
-        <div className="flex items-center gap-2.5">
-          {step > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            {step > 0 && (
+              <TactileButton
+                variant="secondary"
+                size="md"
+                onClick={() => handleStepChange(step - 1)}
+                className="px-3.5"
+                ariaLabel={t('tutorial.prevAria')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </TactileButton>
+            )}
+            {step < STEP_DEMOS.length - 1 ? (
+              <TactileButton
+                id="btn-tutorial-next"
+                variant="primary"
+                fullWidth
+                onClick={() => handleStepChange(step + 1)}
+              >
+                {t('tutorial.nextRule')}
+                <ChevronRight className="w-4 h-4" />
+              </TactileButton>
+            ) : (
+              <TactileButton
+                id="btn-tutorial-done"
+                variant="primary"
+                fullWidth
+                onClick={handleClose}
+              >
+                {t('tutorial.done')}
+              </TactileButton>
+            )}
+          </div>
+          {onTryInteractive && (
             <TactileButton
+              id="btn-tutorial-interactive"
               variant="secondary"
-              size="md"
-              onClick={() => handleStepChange(step - 1)}
-              className="px-3.5"
-              ariaLabel={t('tutorial.prevAria')}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </TactileButton>
-          )}
-          {step < STEP_DEMOS.length - 1 ? (
-            <TactileButton
-              id="btn-tutorial-next"
-              variant="primary"
+              size="sm"
               fullWidth
-              onClick={() => handleStepChange(step + 1)}
+              onClick={() => {
+                tutorialNarrator.stop();
+                setIsSpeaking(false);
+                setStep(0);
+                onTryInteractive();
+              }}
             >
-              {t('tutorial.nextRule')}
-              <ChevronRight className="w-4 h-4" />
-            </TactileButton>
-          ) : (
-            <TactileButton
-              id="btn-tutorial-done"
-              variant="primary"
-              fullWidth
-              onClick={handleClose}
-            >
-              {t('tutorial.done')}
+              {t('onboarding.tryIt')}
             </TactileButton>
           )}
         </div>

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { skipOnboarding } from '../helpers.mjs';
 
 const ALL_ACCESSORIES = [
   'scarf',
@@ -47,6 +48,7 @@ export default async function accessoriesSpec(browser, { check, BASE }) {
   const page = await context.newPage();
   try {
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await skipOnboarding(page);
     await page.locator('#btn-welcome-levels').click();
     await page.locator('#nav-tab-cats').waitFor({ state: 'visible', timeout: 5000 });
     await page.locator('#nav-tab-cats').click();

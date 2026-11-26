@@ -1,4 +1,4 @@
-import { closeTutorial, dismissModals, isCatPlaced, placeCat, readBoard, solve } from '../helpers.mjs';
+import { dismissModals, isCatPlaced, placeCat, readBoard, skipOnboarding, solve } from '../helpers.mjs';
 
 export default async function levelDetailsSpec(browser, { check, BASE }) {
   for (const [lang, locale] of [
@@ -17,8 +17,8 @@ export default async function levelDetailsSpec(browser, { check, BASE }) {
     const page = await context.newPage();
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+      await skipOnboarding(page);
       await page.locator('#btn-welcome-play').click();
-      await closeTutorial(page);
 
       const { size, regions, states } = await readBoard(page);
       const solution = solve(size, regions);

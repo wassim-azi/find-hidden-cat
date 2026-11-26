@@ -1073,6 +1073,11 @@ export function loadPersistedState(): PersistedGameData {
                 : [],
           });
 
+    const showsPlay =
+      unlockedLevelId > 1 ||
+      completedDailyDates.length > 0 ||
+      Object.values(levelProgress).some((p) => p.completed);
+
     const migrated: PersistedGameData = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       currentLevelId,
@@ -1080,7 +1085,7 @@ export function loadPersistedState(): PersistedGameData {
       levelProgress,
       settings,
       selectedDifficulty,
-      hasSeenTutorial: Boolean(parsed.hasSeenTutorial),
+      hasSeenTutorial: Boolean(parsed.hasSeenTutorial) || showsPlay,
       activePuzzle: null,
       activeCampaignPuzzles,
       activeSpecialPuzzles,

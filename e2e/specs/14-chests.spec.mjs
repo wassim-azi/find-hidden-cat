@@ -2,6 +2,8 @@
  * #21 Puzzle chests: a seeded pending chest opens from the Map, and the odds sheet
  * publishes the exact 70 / 25 / 5 % table.
  */
+import { skipOnboarding } from '../helpers.mjs';
+
 export default async function chestsSpec(browser, { check, BASE }) {
   for (const [lang, locale] of [
     ['en', 'en-US'],
@@ -38,6 +40,7 @@ export default async function chestsSpec(browser, { check, BASE }) {
         );
       });
       await page.reload({ waitUntil: 'networkidle' });
+      await skipOnboarding(page);
 
       await page.locator('#btn-welcome-levels').click();
       const chestBtn = page.locator('#btn-open-chest');

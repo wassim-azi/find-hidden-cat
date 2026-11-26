@@ -578,4 +578,49 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
       expect(loadPersistedState().dailyVariant).toBeNull();
     }
   });
+
+  it('back-fills hasSeenTutorial to true for saves with play and keeps false for empty saves (#32)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    // Empty storage keeps false
+    expect(loadPersistedState().hasSeenTutorial).toBe(false);
+
+    // Empty JSON save keeps false
+    ls.set('meowdoku_state_v2', JSON.stringify({ schemaVersion: 2, hasSeenTutorial: false }));
+    expect(loadPersistedState().hasSeenTutorial).toBe(false);
+
+    // Save with hasSeenTutorial: false and completed level 1 back-fills to true
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        schemaVersion: 2,
+        hasSeenTutorial: false,
+        unlockedLevelId: 1,
+        levelProgress: { 1: { levelId: 1, completed: true, stars: 2 } },
+      })
+    );
+    expect(loadPersistedState().hasSeenTutorial).toBe(true);
+
+    // Save with completedDailyDates non-empty back-fills to true
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        schemaVersion: 2,
+        hasSeenTutorial: false,
+        completedDailyDates: ['2026-11-25'],
+      })
+    );
+    expect(loadPersistedState().hasSeenTutorial).toBe(true);
+
+    // Save with unlockedLevelId > 1 back-fills to true
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        schemaVersion: 2,
+        hasSeenTutorial: false,
+        unlockedLevelId: 2,
+      })
+    );
+    expect(loadPersistedState().hasSeenTutorial).toBe(true);
+  });
 });

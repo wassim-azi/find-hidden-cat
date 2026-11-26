@@ -1,5 +1,5 @@
 import { devices } from 'playwright';
-import { closeTutorial } from '../helpers.mjs';
+import { skipOnboarding } from '../helpers.mjs';
 
 const VIEWPORTS = [
   { name: '320x568', options: { viewport: { width: 320, height: 568 } } },
@@ -22,8 +22,8 @@ export default async function layoutSpec(browser, { check, BASE }) {
     const page = await context.newPage();
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+      await skipOnboarding(page);
       await page.locator('#btn-welcome-play').click();
-      await closeTutorial(page);
 
       const grid = page.locator('[role="grid"]');
       const hintBtn = page.locator('#btn-tool-hint');

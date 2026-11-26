@@ -4,7 +4,6 @@ import {
   CandidateMark,
   CellValue,
   ControlMode,
-  GridSize,
   PencilSubMode,
 } from '../../game/gameTypes';
 import { getRegionTheme } from '../../styles/theme';
@@ -13,7 +12,7 @@ import { CatIllustration } from '../Cat/CatIllustration';
 interface GameCellProps {
   row: number;
   col: number;
-  size: GridSize;
+  size: number;
   regionId: number;
   /** Bitmask: 1=top, 2=right, 4=bottom, 8=left different-region boundary */
   borderMask: number;
@@ -39,14 +38,18 @@ interface GameCellProps {
   pencilSubMode: PencilSubMode;
   controlMode: ControlMode;
   shakeNonce: number;
+  cellId?: string;
+  dimmed?: boolean;
+  isTargetPulse?: boolean;
+  onKeyboardTap?: (row: number, col: number) => void;
   onCellTap: (row: number, col: number) => void;
   onCellDoubleTap: (row: number, col: number) => void;
   onCellLongPress: (row: number, col: number) => void;
   onCellPointerDown: (row: number, col: number) => void;
 }
 
-const DOUBLE_TAP_WINDOW_MS = 340;
-const LONG_PRESS_DURATION_MS = 360;
+export const DOUBLE_TAP_WINDOW_MS = 340;
+export const LONG_PRESS_DURATION_MS = 360;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 
 /**
@@ -82,6 +85,10 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
     pencilSubMode,
     controlMode,
     shakeNonce,
+    cellId,
+    dimmed = false,
+    isTargetPulse = false,
+    onKeyboardTap,
     onCellTap,
     onCellDoubleTap,
     onCellLongPress,
@@ -158,8 +165,9 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
     const blinkDelay = ((row * 3 + col * 7) % 9) * 0.45;
 
     // Optional visual fading ONLY if the player explicitly turned fadeCompletedRegions ON
-    const tileFilter =
-      fadeCompletedRegions && isRegionCompleted && value !== 'cat' && !isSelected && !isHintTarget
+    const tileFilter = dimmed
+      ? 'brightness(0.72) saturate(0.42) opacity(0.4)'
+      : fadeCompletedRegions && isRegionCompleted && value !== 'cat' && !isSelected && !isHintTarget
         ? 'saturate(0.45) brightness(1.04) opacity(0.74)'
         : isSightline && !isSelected
           ? 'brightness(1.08) saturate(1.08)'
@@ -167,11 +175,19 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
 
     return (
       <button
-        id={`cell-${row}-${col}`}
+        id={cellId ?? `cell-${row}-${col}`}
         data-row={row}
         data-col={col}
         type="button"
+        tabIndex={dimmed ? -1 : undefined}
+        onKeyDown={(e) => {
+          if (!dimmed && onKeyboardTap && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onKeyboardTap(row, col);
+          }
+        }}
         onPointerDown={(e) => {
+          if (dimmed) return;
           if (pencilMode && pencilSubMode === 'x' && e.button === 0) {
             e.preventDefault();
             onCellPointerDown(row, col);
@@ -201,7 +217,15 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
         onPointerUp={cancelLongPress}
         onPointerCancel={cancelLongPress}
         onPointerLeave={cancelLongPress}
-        onClick={() => {
+        onClick={(e) => {
+          if (dimmed) {
+            onCellTap(row, col);
+            return;
+          }
+          if (e.detail === 0 && onKeyboardTap) {
+            onKeyboardTap(row, col);
+            return;
+          }
           if (pencilMode && pencilSubMode === 'x') {
             return; // Handled on pointerDown for instant drag-painting
           }
@@ -237,12 +261,20 @@ export const GameCell: React.FC<GameCellProps> = React.memo(
         }}
         className={`
           game-cell relative aspect-square w-full flex items-center justify-center
-          select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[#3A312C]
+          select-none ${dimmed ? 'cursor-default' : 'cursor-pointer'} focus-visible:outline-2 focus-visible:outline-[#3A312C]
           ${roundedClass}
           ${isMistakeFlash ? 'anim-conflict-shake' : ''}
-          ${isSelected ? 'game-cell-selected z-20' : showConflict || isHintTarget ? 'z-10' : 'z-0'}
+          ${isSelected ? 'game-cell-selected z-20' : showConflict || isHintTarget || isTargetPulse ? 'z-10' : 'z-0'}
         `}
       >
+        {/* Gentle target pulse when a non-lit cell is tapped during onboarding */}
+        {isTargetPulse && !isHintTarget && (
+          <span
+            aria-hidden="true"
+            className={`anim-hint-pulse absolute inset-0 ${roundedClass} border-2 border-white bg-white/25 pointer-events-none`}
+          />
+        )}
+
         {/* Soft sightline inner glow */}
         {isSightline && !isSelected && (
           <span

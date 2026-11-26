@@ -1,3 +1,5 @@
+import { skipOnboarding } from '../helpers.mjs';
+
 export default async function calendarSpec(browser, { check, BASE }) {
   for (const [lang, locale] of [
     ['en', 'en-US'],
@@ -15,6 +17,7 @@ export default async function calendarSpec(browser, { check, BASE }) {
     const page = await context.newPage();
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+      await skipOnboarding(page);
       await page.locator('#btn-welcome-daily-gift').click();
 
       const day1 = page.locator('#calendar-day-1');

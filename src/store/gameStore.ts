@@ -159,6 +159,7 @@ import { particleBus } from '../components/Effects/ParticleCanvas';
 import { getRegionTheme } from '../styles/theme';
 
 export type ScreenName =
+  | 'onboarding'
   | 'welcome'
   | 'map'
   | 'cats'
@@ -238,6 +239,8 @@ interface DragPaintSession {
 interface GameStoreState {
   screen: ScreenName;
   previousScreen: ScreenName;
+  onboardingReturnScreen: ScreenName | null;
+  onboardingReturnSettings: boolean;
 
   // Modals / Overlays
   isPaused: boolean;
@@ -395,6 +398,8 @@ interface GameStoreState {
   dismissChestReveal: () => void;
   showToast: (msg: string) => void;
   markTutorialSeen: () => void;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
   setDifficultyFilter: (difficulty: Difficulty | 'all') => void;
   updateSetting: <K extends keyof PlayerSettings>(
     key: K,
@@ -895,8 +900,10 @@ function persistFromState(state: GameStoreState): void {
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
-  screen: 'welcome',
-  previousScreen: 'welcome',
+  screen: persisted.hasSeenTutorial ? 'welcome' : 'onboarding',
+  previousScreen: persisted.hasSeenTutorial ? 'welcome' : 'onboarding',
+  onboardingReturnScreen: null,
+  onboardingReturnSettings: false,
 
   isPaused: false,
   isSettingsOpen: false,
@@ -1075,7 +1082,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({
       ...buildSessionFields(state, puzzle, source),
       currentLevelId: clampedId,
-      isTutorialOpen: !state.hasSeenTutorial && clampedId === 1,
+      onboardingReturnScreen: null,
+      onboardingReturnSettings: false,
     });
 
     persistFromState(get());
@@ -3295,6 +3303,40 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     persistFromState(get());
   },
 
+  openOnboarding: () => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    const returnScreen =
+      state.screen === 'onboarding' ? state.onboardingReturnScreen : state.screen;
+    const returnSettings =
+      state.screen === 'onboarding'
+        ? state.onboardingReturnSettings
+        : state.isSettingsOpen;
+    set({
+      previousScreen: state.screen,
+      screen: 'onboarding',
+      onboardingReturnScreen: returnScreen,
+      onboardingReturnSettings: returnSettings,
+      isSettingsOpen: false,
+      isTutorialOpen: false,
+      isPaused: false,
+    });
+  },
+
+  closeOnboarding: () => {
+    const state = get();
+    const returnScreen = state.onboardingReturnScreen ?? 'welcome';
+    const reopenSettings = state.onboardingReturnSettings;
+    set({
+      onboardingReturnScreen: null,
+      onboardingReturnSettings: false,
+    });
+    get().goToScreen(returnScreen);
+    if (reopenSettings) {
+      set({ isSettingsOpen: true });
+    }
+  },
+
   setDifficultyFilter: (difficulty) => {
     const state = get();
     soundManager.play('button', state.settings.soundEnabled);
@@ -3364,7 +3406,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const todayKey = getTodayDateKey();
 
     set({
-      screen: 'welcome',
+      screen: 'onboarding',
+      previousScreen: 'onboarding',
+      onboardingReturnScreen: null,
+      onboardingReturnSettings: false,
       isPaused: false,
       isSettingsOpen: false,
       isTutorialOpen: false,

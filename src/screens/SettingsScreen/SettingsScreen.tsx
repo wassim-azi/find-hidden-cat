@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bell,
+  BookOpen,
   Brain,
   CheckCircle2,
   ChevronRight,
@@ -36,6 +37,7 @@ interface SettingsScreenProps {
   isPwaInstalled?: boolean;
   onOpenNotifications?: () => void;
   onOpenInstall?: () => void;
+  onReplayTutorial?: () => void;
   onUpdateSetting: <K extends keyof PlayerSettings>(
     key: K,
     value: PlayerSettings[K]
@@ -122,6 +124,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   isPwaInstalled = false,
   onOpenNotifications,
   onOpenInstall,
+  onReplayTutorial,
   onUpdateSetting,
   onResetProgress,
   onResetSkillProfile,
@@ -201,7 +204,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
 
         {/* App & Local Daily Reminders */}
-        {(onOpenNotifications || onOpenInstall) && (
+        {(onOpenNotifications || onOpenInstall || onReplayTutorial) && (
           <div className="flex flex-col gap-1.5 mb-2">
             {onOpenNotifications && (
               <button
@@ -250,6 +253,27 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     </div>
                     <div className="text-[10.5px] font-semibold text-[#8A7B70] leading-tight mt-0.5">
                       {isPwaInstalled ? t('pwa.alreadyInstalledBadge') : t('pwa.settingsEntryDesc')}
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#A99B90] shrink-0" />
+              </button>
+            )}
+
+            {onReplayTutorial && (
+              <button
+                id="btn-settings-replay-tutorial"
+                type="button"
+                onClick={onReplayTutorial}
+                className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-[#FAF5EC] hover:bg-[#F5EEE2] border border-[#EDE3D4] transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8.5 h-8.5 rounded-xl bg-white border border-[#EAE0D2] flex items-center justify-center text-[#8366CC] shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-extrabold text-[#3A312C] leading-tight">
+                      {t('onboarding.settingsReplay')}
                     </div>
                   </div>
                 </div>

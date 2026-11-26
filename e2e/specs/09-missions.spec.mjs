@@ -1,3 +1,5 @@
+import { skipOnboarding } from '../helpers.mjs';
+
 export default async function missionsSpec(browser, { check, BASE }) {
   for (const [lang, locale] of [
     ['en', 'en-US'],
@@ -15,6 +17,7 @@ export default async function missionsSpec(browser, { check, BASE }) {
     const page = await context.newPage();
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+      await skipOnboarding(page);
       // Navigate to Map (which shows BottomNav) then tap Missions tab
       await page.locator('#btn-welcome-levels').click();
       await page.locator('#nav-tab-missions').waitFor({ state: 'visible', timeout: 5000 });

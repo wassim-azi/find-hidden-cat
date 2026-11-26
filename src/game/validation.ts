@@ -46,7 +46,7 @@ export function getPlacedCats(board: BoardGrid): CellCoord[] {
  * exactly N cats are placed, and (when provided) the solution matches the puzzle's valid configuration.
  */
 export function validateBoard(
-  puzzle: Pick<PuzzleDefinition, 'size' | 'regions'> & { solution?: CellCoord[] },
+  puzzle: { size: number; regions: number[][]; solution?: CellCoord[] },
   board: BoardGrid
 ): ValidationResult {
   const { size, regions, solution } = puzzle;

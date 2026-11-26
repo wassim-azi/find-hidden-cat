@@ -1,3 +1,5 @@
+import { skipOnboarding } from '../helpers.mjs';
+
 export default async function offlineSpec(browser, { check, BASE }) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -7,6 +9,7 @@ export default async function offlineSpec(browser, { check, BASE }) {
 
   try {
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await skipOnboarding(page);
 
     const swReady = await page.evaluate(async () => {
       if (!('serviceWorker' in navigator)) return false;

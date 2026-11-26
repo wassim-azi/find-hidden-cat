@@ -2,6 +2,19 @@
  * Shared Playwright helpers for Meowdoku E2E specs.
  */
 
+export async function skipOnboarding(page) {
+  const skipBtn = page.locator('#btn-onboarding-skip');
+  const welcomeBtn = page.locator('#btn-welcome-play');
+  await Promise.race([
+    skipBtn.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {}),
+    welcomeBtn.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {}),
+  ]);
+  if (await skipBtn.isVisible().catch(() => false)) {
+    await skipBtn.click();
+    await welcomeBtn.waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
+  }
+}
+
 export async function closeTutorial(page) {
   // Wait briefly for tutorial overlay if it opens on level 1
   const nextBtn = page.locator('#btn-tutorial-next');

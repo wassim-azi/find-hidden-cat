@@ -2,6 +2,8 @@
  * #24 Daily difficulty choice: the first tap opens the variant sheet, Relaxed starts with
  * exactly one locked starter cat, and the choice is locked for the rest of the day.
  */
+import { skipOnboarding } from '../helpers.mjs';
+
 export default async function dailyVariantSpec(browser, { check, BASE }) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -15,6 +17,7 @@ export default async function dailyVariantSpec(browser, { check, BASE }) {
   const page = await context.newPage();
   try {
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await skipOnboarding(page);
 
     await page.locator('#btn-daily-challenge').click();
     const sheet = page.locator('#daily-variant-sheet');

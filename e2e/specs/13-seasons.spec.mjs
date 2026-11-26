@@ -1,3 +1,5 @@
+import { skipOnboarding } from '../helpers.mjs';
+
 export default async function seasonsSpec(browser, { check, BASE }) {
   for (const [lang, locale] of [
     ['en', 'en-US'],
@@ -15,6 +17,7 @@ export default async function seasonsSpec(browser, { check, BASE }) {
     const page = await context.newPage();
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+      await skipOnboarding(page);
       await page.locator('#btn-welcome-levels').click();
       await page.locator('#nav-tab-cats').waitFor({ state: 'visible', timeout: 5000 });
       await page.locator('#nav-tab-cats').click();

@@ -326,6 +326,37 @@
       }
     }
   },
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "stepAria": "Step {{num}} of {{total}}",
+    "steps": {
+      "placeFirst": {
+        "tapConfirm": "This color has a single cell, so a cat must hide here. Tap it, then press <bold>{{place}}</bold>.",
+        "doubleTap": "This color has a single cell, so a cat must hide here. <bold>Double-tap</bold> it to place a cat.",
+        "longPress": "This color has a single cell, so a cat must hide here. <bold>Press and hold</bold> it to place a cat."
+      },
+      "ruleColor": "Well done! Rule 1: <bold>one cat per color</bold>.",
+      "toolOn": "Let's rule out cells. Turn on <bold>{{tool}}</bold>.",
+      "ruleRowCol": "Rule 2: <bold>one cat per row and column</bold>. Tap the lit cells to mark them ×.",
+      "ruleTouch": "Rule 3: <bold>cats never touch</bold>, not even diagonally. Swipe across the lit cells to mark them.",
+      "lastInRegion": "Only one {{color}} cell is left, so the cat is there. Place it!",
+      "sweep": "Same rules for the new cat. Swipe along its row.",
+      "findLast": "Now find the <bold>last cat</bold> on your own!",
+      "done": "Excellent! You know all the rules."
+    },
+    "wrong": {
+      "color": "That color already has a cat.",
+      "rowCol": "That row or column already has a cat.",
+      "touch": "Too close! Cats can't touch."
+    },
+    "hintButton": "Need a hint?",
+    "hint": "Every other cell is ruled out by a row, a column or a neighbour. Only this one is left.",
+    "start": "Start game",
+    "done": "Done",
+    "tryIt": "Try it on a board",
+    "settingsReplay": "Replay tutorial"
+  },
   "pause": {
     "dialogAria": "Game paused",
     "title": "Cat Nap Break",

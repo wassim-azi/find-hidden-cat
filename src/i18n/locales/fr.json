@@ -326,6 +326,37 @@
       }
     }
   },
+  "onboarding": {
+    "skip": "Passer",
+    "next": "Suivant",
+    "stepAria": "Étape {{num}} sur {{total}}",
+    "steps": {
+      "placeFirst": {
+        "tapConfirm": "Cette couleur n'a qu'une case : un chat s'y cache forcément. Touche-la, puis appuie sur <bold>{{place}}</bold>.",
+        "doubleTap": "Cette couleur n'a qu'une case : un chat s'y cache forcément. <bold>Touche-la deux fois</bold> pour placer un chat.",
+        "longPress": "Cette couleur n'a qu'une case : un chat s'y cache forcément. <bold>Maintiens ton doigt</bold> dessus pour placer un chat."
+      },
+      "ruleColor": "Bravo ! Règle 1 : <bold>un chat par couleur</bold>.",
+      "toolOn": "Éliminons des cases. Active <bold>{{tool}}</bold>.",
+      "ruleRowCol": "Règle 2 : <bold>un chat par ligne et par colonne</bold>. Touche les cases éclairées pour les marquer d'un ×.",
+      "ruleTouch": "Règle 3 : <bold>les chats ne se touchent jamais</bold>, même en diagonale. Glisse sur les cases éclairées pour les marquer.",
+      "lastInRegion": "Il ne reste qu'une case {{color}} : le chat est là. Place-le !",
+      "sweep": "Mêmes règles pour le nouveau chat. Glisse le long de sa ligne.",
+      "findLast": "À toi de trouver le <bold>dernier chat</bold> !",
+      "done": "Excellent ! Tu connais toutes les règles."
+    },
+    "wrong": {
+      "color": "Cette couleur a déjà un chat.",
+      "rowCol": "Cette ligne ou cette colonne a déjà un chat.",
+      "touch": "Trop près ! Les chats ne se touchent pas."
+    },
+    "hintButton": "Besoin d'un indice ?",
+    "hint": "Toutes les autres cases sont exclues par une ligne, une colonne ou un voisin. Il ne reste que celle-ci.",
+    "start": "Commencer",
+    "done": "Terminé",
+    "tryIt": "Essayer sur une grille",
+    "settingsReplay": "Revoir le tutoriel"
+  },
   "pause": {
     "dialogAria": "Jeu en pause",
     "title": "Pause Sieste",

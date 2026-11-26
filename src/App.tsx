@@ -70,6 +70,11 @@ const TutorialScreen = lazy(() =>
     default: m.TutorialScreen,
   }))
 );
+const OnboardingScreen = lazy(() =>
+  import('./screens/OnboardingScreen/OnboardingScreen').then((m) => ({
+    default: m.OnboardingScreen,
+  }))
+);
 const DailyCalendarModal = lazy(() =>
   import('./components/Modals/DailyCalendarModal').then((m) => ({
     default: m.DailyCalendarModal,
@@ -130,6 +135,7 @@ export const App: React.FC = () => {
   const toastMessage = useGameStore((s) => s.toastMessage);
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const markTutorialSeen = useGameStore((s) => s.markTutorialSeen);
+  const openOnboarding = useGameStore((s) => s.openOnboarding);
   const updateSetting = useGameStore((s) => s.updateSetting);
   const resetAllProgress = useGameStore((s) => s.resetAllProgress);
   const resetSkillProfile = useGameStore((s) => s.resetSkillProfile);
@@ -149,6 +155,7 @@ export const App: React.FC = () => {
 
   const handleRouteAction = useCallback((action: string) => {
     const store = useGameStore.getState();
+    if (!store.hasSeenTutorial || store.screen === 'onboarding') return;
     if (action === 'daily') {
       store.startDailyChallenge();
     } else if (action === 'continue') {
@@ -352,6 +359,11 @@ export const App: React.FC = () => {
 
           {screen !== 'welcome' && (
             <Suspense fallback={<ScreenFallback />}>
+              {screen === 'onboarding' && (
+                <div className="h-full w-full">
+                  <OnboardingScreen />
+                </div>
+              )}
               {screen === 'map' && (
                 <div className="h-full w-full">
                   <MapScreen />
@@ -438,6 +450,7 @@ export const App: React.FC = () => {
               isPwaInstalled={installState.isInstalled}
               onOpenNotifications={() => setNotifSettingsOpen(true)}
               onOpenInstall={() => setInstallModalOpen(true)}
+              onReplayTutorial={openOnboarding}
               onUpdateSetting={updateSetting}
               onResetProgress={resetAllProgress}
               onResetSkillProfile={resetSkillProfile}
@@ -446,7 +459,11 @@ export const App: React.FC = () => {
           )}
 
           {isTutorialOpen && (
-            <TutorialScreen open={isTutorialOpen} onClose={markTutorialSeen} />
+            <TutorialScreen
+              open={isTutorialOpen}
+              onClose={markTutorialSeen}
+              onTryInteractive={openOnboarding}
+            />
           )}
 
           {isDailyCalendarOpen && <DailyCalendarModal />}
