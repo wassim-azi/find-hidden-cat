@@ -28,7 +28,7 @@ import {
 } from '../../game/onboarding';
 import { GameCell } from '../../components/GameCell/GameCell';
 import { TactileButton } from '../../components/Buttons/TactileButton';
-import { particleBus } from '../../components/Effects/ParticleCanvas';
+import { celebrate } from '../../components/Effects/Celebration';
 import { soundManager } from '../../utils/sound';
 import { triggerHaptic } from '../../utils/haptics';
 
@@ -155,14 +155,10 @@ export const OnboardingScreen: React.FC = () => {
       setStepIndex(nextIdx);
 
       if (nextStep.id === 'done') {
-        soundManager.play('victory', settings.soundEnabled);
-        triggerHaptic('victory', settings.hapticsEnabled);
-        if (!settings.reducedMotion) {
-          particleBus.victoryFountain();
-        }
+        celebrate('big');
       }
     },
-    [settings.hapticsEnabled, settings.reducedMotion, settings.soundEnabled]
+    []
   );
 
   const placeCatAt = useCallback(

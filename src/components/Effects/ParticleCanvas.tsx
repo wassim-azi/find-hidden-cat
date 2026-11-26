@@ -39,6 +39,14 @@ export const particleBus = {
   },
 };
 
+export const MAX_ACTIVE_PARTICLES = 120;
+
+export function pushCappedParticle(particles: Particle[], particle: Particle): boolean {
+  if (particles.length >= MAX_ACTIVE_PARTICLES) return false;
+  particles.push(particle);
+  return true;
+}
+
 const PASTEL_CONFETTI = [
   '#FF8585',
   '#F4C553',
@@ -183,7 +191,7 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({ enabled }) => {
         for (let i = 0; i < ev.count; i++) {
           const angle = (Math.PI * 2 * i) / ev.count + (Math.random() - 0.5) * 0.45;
           const speed = 75 + Math.random() * 140;
-          particles.push({
+          const added = pushCappedParticle(particles, {
             x: lx,
             y: ly,
             vx: Math.cos(angle) * speed,
@@ -199,8 +207,9 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({ enabled }) => {
             drag: 0.94,
             shape: i % 4 === 0 ? 'heart' : i % 2 === 0 ? 'star' : 'dot',
           });
+          if (!added) break;
         }
-        wake();
+        if (particles.length > 0) wake();
       } else if (ev.type === 'victory') {
         // Dual festive bursts from left & right + top shimmer shower
         const origins = [
@@ -208,12 +217,12 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({ enabled }) => {
           { x: width * 0.8, y: height * 0.58, angleBase: -Math.PI * 0.62 },
           { x: width * 0.5, y: height * 0.42, angleBase: -Math.PI * 0.5 },
         ];
-        origins.forEach((orig) => {
+        for (const orig of origins) {
           for (let i = 0; i < 34; i++) {
             const angle = orig.angleBase + (Math.random() - 0.5) * 1.15;
             const speed = 180 + Math.random() * 340;
             const shapes: Particle['shape'][] = ['confetti', 'confetti', 'heart', 'star'];
-            particles.push({
+            const added = pushCappedParticle(particles, {
               x: orig.x,
               y: orig.y,
               vx: Math.cos(angle) * speed,
@@ -229,9 +238,11 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({ enabled }) => {
               drag: 0.975,
               shape: shapes[i % shapes.length]!,
             });
+            if (!added) break;
           }
-        });
-        wake();
+          if (particles.length >= MAX_ACTIVE_PARTICLES) break;
+        }
+        if (particles.length > 0) wake();
       }
     };
 

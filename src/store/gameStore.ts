@@ -159,6 +159,7 @@ import { soundManager } from '../utils/sound';
 import { isResumableSave, resolveSessionGameMode } from './sessionGuards';
 import { triggerHaptic } from '../utils/haptics';
 import { particleBus } from '../components/Effects/ParticleCanvas';
+import { celebrate } from '../components/Effects/Celebration';
 import { getRegionTheme } from '../styles/theme';
 
 export type ScreenName =
@@ -1612,16 +1613,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     // Handle Victory!
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    if (typeof document !== 'undefined') {
-      particleBus.burstElement(
-        document.getElementById(`cell-${coord.row}-${coord.col}`),
-        theme.bg,
-        24
-      );
-    }
-    particleBus.victoryFountain();
+    celebrate('big');
 
     const isPractice = state.gameMode === 'practice';
     const computedStars = isPractice
@@ -2830,9 +2822,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const totalCoins =
       result.reward.coins + result.luckyBonusCoins + (result.milestone?.coins ?? 0);
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('medium');
 
     set({
       dailyLogin: result.nextState,
@@ -2886,9 +2876,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         }
       : state.weeklyMissions;
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('cat', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('small');
 
     set({
       dailyMissions: nextDailyMissions,
@@ -2943,9 +2931,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       nextBoosters[def.rewardBooster] += 1;
     }
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('medium');
 
     set({
       milestoneIndex: state.milestoneIndex + 1,
@@ -2984,9 +2970,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       nextBoosters[def.rewardBooster] += 1;
     }
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('medium');
 
     set({
       claimedAchievementIds: [...state.claimedAchievementIds, achievementId],
@@ -3037,9 +3021,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       boosterLabel = `1 ${i18n.t(`shop.items.${ev.rewardBooster}.name`)}`;
     }
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('big');
 
     const evTitle = i18n.t(`events.${ev.id}.title`);
     const evSub = i18n.t(`events.${ev.id}.subtitle`);
@@ -3098,9 +3080,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       items.push(i18n.t(`accessories.${bonus.id}`));
     }
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('big');
 
     set({
       fishCoins: state.fishCoins + coins,
@@ -3245,9 +3225,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ? state.unlockedAccessoryIds
       : [...state.unlockedAccessoryIds, def.rewardAccessory];
 
-    soundManager.play('victory', state.settings.soundEnabled);
-    triggerHaptic('victory', state.settings.hapticsEnabled);
-    particleBus.victoryFountain();
+    celebrate('small');
 
     const setName = i18n.t(`catSets.${setId}.name`);
     const accLabel = i18n.t(`accessories.${def.rewardAccessory}`);
