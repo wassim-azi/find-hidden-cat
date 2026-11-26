@@ -984,5 +984,22 @@
     "deniedToast": "Notifications bloquées — réactive-les dans les réglages du navigateur si besoin.",
     "unsupportedToast": "Notifications système non disponibles ici — des rappels discrets s'afficheront dans le jeu.",
     "testSentToast": "Aperçu du rappel envoyé !"
+  },
+  "chests": {
+    "title": "Coffre à énigmes",
+    "progress_one": "Encore {{count}} grille pour gagner un coffre",
+    "progress_other": "Encore {{count}} grilles pour gagner un coffre",
+    "qualifyRule": "Comptent : premières victoires, rejeux améliorés et grilles du jour/dorées en Classique.",
+    "guaranteed": "Toujours dedans : {{reward}}",
+    "oddsTitle": "Qu'y a-t-il dedans ?",
+    "oddsCoins": "{{percent}} % — +{{coins}} pièces poisson",
+    "oddsBooster": "{{percent}} % — +1 {{name}}",
+    "oddsAccessory": "{{percent}} % — un accessoire exclusif aux coffres",
+    "fallbackRule": "Si tu as déjà tous les accessoires de coffre, tu reçois +{{coins}} pièces poisson à la place.",
+    "pityRule": "Au moins un accessoire tous les {{n}} coffres (tant qu'il en reste).",
+    "notForSale": "Les coffres ne s'achètent pas — ils se gagnent en jouant.",
+    "openAria_one": "Ouvrir le coffre ({{count}} en attente)",
+    "openAria_other": "Ouvrir un coffre ({{count}} en attente)",
+    "openedTitle": "Coffre ouvert !"
   }
 }

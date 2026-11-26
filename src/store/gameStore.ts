@@ -81,6 +81,14 @@ import {
   getNewlyUnlockedAchievements,
 } from '../game/achievements';
 import { AccessoryId } from '../game/accessories';
+import {
+  applyChestProgress,
+  ChestState,
+  CHEST_ACCESSORY_FALLBACK_COINS,
+  CHEST_GUARANTEED,
+  createInitialChestState,
+  getChestCoins,
+} from '../game/chests';
 import { CAT_SETS, CatSetId, getSetProgress } from '../game/catSets';
 import {
   applySeasonEvent,
@@ -206,6 +214,8 @@ export interface ChestRevealModalData {
   subtitle: string;
   coins: number;
   boosterLabel?: string;
+  /** Extra already-localised reward lines (boosters, accessories). */
+  items: string[];
 }
 
 interface DragPaintSession {
@@ -266,6 +276,7 @@ interface GameStoreState {
   specialLevelsCompleted: number;
   totalStarsEarnedEver: number;
   progressStats: ProgressStats;
+  chests: ChestState;
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -349,6 +360,7 @@ interface GameStoreState {
   claimMilestone: () => boolean;
   claimAchievementReward: (achievementId: string) => boolean;
   claimEventChest: (eventId: WorldEventId) => boolean;
+  openNextChest: () => boolean;
   selectMascotCat: (catId: string) => void;
   toggleFavouriteCat: (catId: string) => void;
   claimCatSet: (setId: CatSetId) => boolean;
@@ -821,6 +833,7 @@ function persistFromState(state: GameStoreState): void {
     specialLevelsCompleted: state.specialLevelsCompleted,
     totalStarsEarnedEver: state.totalStarsEarnedEver,
     progressStats: state.progressStats,
+    chests: state.chests,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -883,6 +896,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   specialLevelsCompleted: persisted.specialLevelsCompleted,
   totalStarsEarnedEver: persisted.totalStarsEarnedEver,
   progressStats: persisted.progressStats,
+  chests: persisted.chests,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -1883,6 +1897,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         ? [...state.unlockedAccessoryIds, ...newlyEarnedSeasonal]
         : state.unlockedAccessoryIds;
 
+    // Puzzle chest track (#21): the bonus is rolled now and persisted with the advanced RNG
+    const nextChests = applyChestProgress(state.chests, completedEvent, nextUnlockedAccessories);
+
     set({
       board: synced.board,
       manualXKeys: synced.manualXKeys,
@@ -1914,6 +1931,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       specialLevelsCompleted: nextSpecialCompleted,
       totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
       progressStats: nextProgressStats,
+      chests: nextChests,
       isMistakeShieldActive: false,
       isCelebratingBoard: true,
       victorySummary: null,
@@ -2888,6 +2906,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         subtitle: evSub,
         coins: ev.rewardCoins,
         boosterLabel,
+        items: [],
       },
     });
     const at = nextEventAt();
@@ -2900,6 +2919,68 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       weekKey: getWeekKey(d),
       source: 'event_chest',
       coins: ev.rewardCoins,
+    });
+    persistFromState(get());
+    return true;
+  },
+
+  openNextChest: () => {
+    const state = get();
+    const chest = state.chests.pending[0];
+    if (!chest) return false;
+
+    // Defensive: a chest accessory the player somehow already owns pays the published fallback
+    let bonus = chest.bonus;
+    if (bonus.kind === 'accessory' && state.unlockedAccessoryIds.includes(bonus.id)) {
+      bonus = { kind: 'coins', amount: CHEST_ACCESSORY_FALLBACK_COINS, convertedFromAccessory: true };
+    }
+
+    const coins = getChestCoins(bonus);
+    const nextBoosters = { ...state.boosters };
+    const items: string[] = [];
+    for (const [id, count] of Object.entries(CHEST_GUARANTEED.boosters) as [BoosterId, number][]) {
+      nextBoosters[id] += count;
+      items.push(`+${count} ${i18n.t(`shop.items.${id}.name`)}`);
+    }
+    let nextAccessories = state.unlockedAccessoryIds;
+    if (bonus.kind === 'booster') {
+      nextBoosters[bonus.id] += 1;
+      items.push(`+1 ${i18n.t(`shop.items.${bonus.id}.name`)}`);
+    } else if (bonus.kind === 'accessory') {
+      nextAccessories = [...state.unlockedAccessoryIds, bonus.id];
+      items.push(i18n.t(`accessories.${bonus.id}`));
+    }
+
+    soundManager.play('victory', state.settings.soundEnabled);
+    triggerHaptic('victory', state.settings.hapticsEnabled);
+    particleBus.victoryFountain();
+
+    set({
+      fishCoins: state.fishCoins + coins,
+      boosters: nextBoosters,
+      unlockedAccessoryIds: nextAccessories,
+      chests: {
+        ...state.chests,
+        pending: state.chests.pending.slice(1),
+        opened: state.chests.opened + 1,
+      },
+      chestRevealModal: {
+        title: i18n.t('chests.openedTitle'),
+        subtitle: i18n.t('chests.title'),
+        coins,
+        items,
+      },
+    });
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:chest:${chest.id}:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'event_chest',
+      coins,
     });
     persistFromState(get());
     return true;
@@ -3033,6 +3114,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         subtitle: accLabel,
         coins: def.rewardCoins,
         boosterLabel: accLabel,
+        items: [],
       },
     });
     const at = nextEventAt();
@@ -3211,6 +3293,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       specialLevelsCompleted: 0,
       totalStarsEarnedEver: 0,
       progressStats: EMPTY_PROGRESS_STATS,
+      chests: createInitialChestState(),
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],

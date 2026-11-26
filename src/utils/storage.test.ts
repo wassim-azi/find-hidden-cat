@@ -423,10 +423,67 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     );
     expect(loadPersistedState().seasonProgress).toBeNull();
   });
+
+  it('defaults chests for legacy saves, sanitizes them, and keeps the stored bonus across reloads (#21)', async () => {
+    const { loadPersistedState, savePersistedState } = await import('./storage');
+
+    // Legacy save without chests → fresh track with a seeded RNG
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    const legacy = loadPersistedState().chests;
+    expect(legacy.progress).toBe(0);
+    expect(legacy.pending).toEqual([]);
+    expect(legacy.opened).toBe(0);
+    expect(legacy.sinceLastAccessory).toBe(0);
+    expect(Number.isInteger(legacy.rngState)).toBe(true);
+
+    // Malformed entries are dropped, numbers clamped, pending capped at 20
+    const many = Array.from({ length: 30 }, (_, i) => ({
+      id: `c${i}`,
+      earnedAt: i,
+      bonus: { kind: 'coins', amount: 15 },
+    }));
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        chests: {
+          progress: 99,
+          rngState: 'nope',
+          opened: -4,
+          sinceLastAccessory: 3.7,
+          pending: [
+            { id: 'bad1', bonus: { kind: 'booster', id: 'bogus' } },
+            { id: 'bad2', bonus: { kind: 'accessory', id: 'scarfzz' } },
+            { bonus: { kind: 'coins', amount: 15 } },
+            ...many,
+          ],
+        },
+      })
+    );
+    const dirty = loadPersistedState().chests;
+    expect(dirty.progress).toBe(2);
+    expect(dirty.opened).toBe(0);
+    expect(dirty.sinceLastAccessory).toBe(3);
+    expect(dirty.pending).toHaveLength(20);
+    expect(dirty.pending[0]!.id).toBe('c0');
+    expect(Number.isInteger(dirty.rngState)).toBe(true);
+
+    // Save → reload keeps the exact same pending bonus (no re-roll)
+    const pendingBonus = { kind: 'accessory', id: 'pawCharm' } as const;
+    savePersistedState({
+      ...loadPersistedState(),
+      chests: {
+        progress: 1,
+        pending: [{ id: 'chest-1', earnedAt: 5, bonus: pendingBonus }],
+        rngState: 123456,
+        opened: 4,
+        sinceLastAccessory: 2,
+      },
+    });
+    const first = loadPersistedState().chests;
+    const second = loadPersistedState().chests;
+    expect(first.pending[0]!.bonus).toEqual(pendingBonus);
+    expect(second).toEqual(first);
+    expect(first.rngState).toBe(123456);
+  });
 });
-
-
-
-
-
-

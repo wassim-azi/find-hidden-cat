@@ -36,6 +36,15 @@ import { AccessoryId, VALID_ACCESSORY_IDS } from '../game/accessories';
 import { VALID_CAT_SET_IDS } from '../game/catSets';
 import { CatUnlockEntry, VALID_CAT_IDS } from '../game/collectibleCats';
 import { SeasonProgress } from '../game/seasons';
+import {
+  ChestBonus,
+  ChestState,
+  CHEST_ACCESSORY_FALLBACK_COINS,
+  CHEST_EVERY,
+  createInitialChestState,
+  MAX_PENDING_CHESTS,
+  PendingChest,
+} from '../game/chests';
 import { dateFromKey, toDateKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
@@ -82,6 +91,7 @@ export interface PersistedGameData {
   specialLevelsCompleted: number;
   totalStarsEarnedEver: number;
   progressStats: ProgressStats;
+  chests: ChestState;
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -145,6 +155,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   specialLevelsCompleted: 0,
   totalStarsEarnedEver: 0,
   progressStats: EMPTY_PROGRESS_STATS,
+  chests: createInitialChestState(),
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -451,6 +462,68 @@ function sanitizeSeasonProgress(raw: unknown): SeasonProgress | null {
     seasonKey: r.seasonKey,
     dailySolved,
     threeStarWins,
+  };
+}
+
+function sanitizeChestBonus(raw: unknown): ChestBonus | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.kind === 'coins') {
+    if (typeof r.amount !== 'number' || !Number.isFinite(r.amount) || r.amount < 0) return null;
+    const amount = Math.floor(r.amount);
+    return r.convertedFromAccessory === true
+      ? { kind: 'coins', amount: CHEST_ACCESSORY_FALLBACK_COINS, convertedFromAccessory: true }
+      : { kind: 'coins', amount };
+  }
+  if (r.kind === 'booster') {
+    return typeof r.id === 'string' && VALID_BOOSTER_IDS.has(r.id)
+      ? { kind: 'booster', id: r.id as BoosterId }
+      : null;
+  }
+  if (r.kind === 'accessory') {
+    return typeof r.id === 'string' && VALID_ACCESSORY_IDS.has(r.id)
+      ? { kind: 'accessory', id: r.id as AccessoryId }
+      : null;
+  }
+  return null;
+}
+
+function sanitizeChests(raw: unknown): ChestState {
+  if (!raw || typeof raw !== 'object') return createInitialChestState();
+  const r = raw as Record<string, unknown>;
+  const safeCount = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+
+  const pending: PendingChest[] = [];
+  const seenIds = new Set<string>();
+  if (Array.isArray(r.pending)) {
+    for (const item of r.pending) {
+      if (pending.length >= MAX_PENDING_CHESTS) break;
+      if (!item || typeof item !== 'object') continue;
+      const c = item as Record<string, unknown>;
+      if (typeof c.id !== 'string' || c.id.length === 0 || seenIds.has(c.id)) continue;
+      const bonus = sanitizeChestBonus(c.bonus);
+      if (!bonus) continue;
+      seenIds.add(c.id);
+      pending.push({
+        id: c.id,
+        earnedAt: typeof c.earnedAt === 'number' && Number.isFinite(c.earnedAt) ? c.earnedAt : 0,
+        bonus,
+      });
+    }
+  }
+
+  const rngState =
+    typeof r.rngState === 'number' && Number.isFinite(r.rngState)
+      ? Math.floor(r.rngState) >>> 0
+      : createInitialChestState().rngState;
+
+  return {
+    progress: Math.min(CHEST_EVERY - 1, safeCount(r.progress)),
+    pending,
+    rngState,
+    opened: safeCount(r.opened),
+    sinceLastAccessory: safeCount(r.sinceLastAccessory),
   };
 }
 
@@ -934,6 +1007,7 @@ export function loadPersistedState(): PersistedGameData {
           ? Math.max(0, Math.floor(parsed.totalStarsEarnedEver))
           : Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0),
       progressStats,
+      chests: sanitizeChests(parsed.chests),
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

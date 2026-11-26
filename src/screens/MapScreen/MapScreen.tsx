@@ -187,6 +187,8 @@ export const MapScreen: React.FC = () => {
   const activeAccessoryId = useGameStore((s) => s.activeAccessoryId);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const startLevel = useGameStore((s) => s.startLevel);
+  const pendingChestCount = useGameStore((s) => s.chests.pending.length);
+  const openNextChest = useGameStore((s) => s.openNextChest);
   const [detailsLevelId, setDetailsLevelId] = useState<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -627,6 +629,27 @@ export const MapScreen: React.FC = () => {
           })}
         </div>
       </div>
+
+      {pendingChestCount > 0 && (
+        <motion.button
+          id="btn-open-chest"
+          type="button"
+          onClick={() => openNextChest()}
+          aria-label={t('chests.openAria', { count: pendingChestCount })}
+          whileTap={{ scale: 0.92 }}
+          animate={reducedMotion ? undefined : { y: [0, -4, 0] }}
+          transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
+          className="absolute right-4 bottom-4 z-30 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FFE396] to-[#F3B038] text-[#6B4209] border-[3px] border-white shadow-[0_5px_0_#C48418,0_10px_18px_rgba(58,49,44,0.22)] flex items-center justify-center cursor-pointer"
+        >
+          <Gift className="w-7 h-7" />
+          <span
+            aria-hidden="true"
+            className="absolute -top-2 -right-2 min-w-6 h-6 px-1.5 rounded-full bg-[#FF6B6B] text-white text-[11px] font-black flex items-center justify-center border-2 border-white tabular-nums"
+          >
+            {pendingChestCount}
+          </span>
+        </motion.button>
+      )}
 
       <LevelDetailsSheet
         levelId={detailsLevelId}

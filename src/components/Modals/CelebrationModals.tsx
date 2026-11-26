@@ -189,6 +189,7 @@ export const CelebrationModals: React.FC = () => {
 
       {/* Treasure Chest Reveal */}
       <ModalSheet
+        id="chest-reveal-modal"
         open={Boolean(chestRevealModal)}
         onClose={dismissChestReveal}
         ariaLabel={chestRevealModal?.title ?? ''}
@@ -221,6 +222,22 @@ export const CelebrationModals: React.FC = () => {
                 </>
               )}
             </div>
+
+            {chestRevealModal.items.length > 0 && (
+              <ul
+                id="chest-reveal-items"
+                className="w-full -mt-3 mb-5 flex flex-col gap-1.5"
+              >
+                {chestRevealModal.items.map((line, idx) => (
+                  <li
+                    key={`${idx}-${line}`}
+                    className="rounded-xl bg-[#F3ECFD] border border-[#E2D6F7] px-3 py-1.5 text-[13px] font-black text-[#6B4EB5]"
+                  >
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <TactileButton variant="primary" fullWidth onClick={dismissChestReveal}>
               {t('celebrations.collectTreasure')}

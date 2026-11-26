@@ -38,6 +38,8 @@ import {
   Mission,
 } from '../../game/missions';
 import { formatRewardLabel } from '../../game/rewardLabels';
+import { CHEST_EVERY, CHEST_GUARANTEED } from '../../game/chests';
+import { ChestOddsSheet } from '../../components/Modals/ChestOddsSheet';
 import { buildUnlockContext } from '../../game/unlockContext';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
@@ -83,6 +85,7 @@ const ACH_ICONS: Record<AchievementDefinition['icon'], React.ReactNode> = {
 export const MissionsScreen: React.FC = () => {
   const { t } = useTranslation();
   const [tab, setTab] = useState<MissionsTab>('daily');
+  const [oddsOpen, setOddsOpen] = useState(false);
 
   const dailyMissions = useGameStore((s) => s.dailyMissions);
   const weeklyMissions = useGameStore((s) => s.weeklyMissions);
@@ -96,6 +99,8 @@ export const MissionsScreen: React.FC = () => {
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
   const claimedAchievementIds = useGameStore((s) => s.claimedAchievementIds);
   const claimedEventIds = useGameStore((s) => s.claimedEventIds);
+  const chests = useGameStore((s) => s.chests);
+  const openNextChest = useGameStore((s) => s.openNextChest);
 
   const claimMissionReward = useGameStore((s) => s.claimMissionReward);
   const rerollDailyMission = useGameStore((s) => s.rerollDailyMission);
@@ -227,7 +232,7 @@ export const MissionsScreen: React.FC = () => {
   };
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden">
+    <div className="h-full w-full flex flex-col overflow-hidden relative">
       <HubHeader title={t('missions.headerTitle')} />
 
       {/* Daily Calendar Quick Banner */}
@@ -419,6 +424,74 @@ export const MissionsScreen: React.FC = () => {
               )}
             </section>
           </>
+        )}
+
+        {tab === 'events' && (
+          <div
+            id="chest-track-card"
+            className="rounded-[22px] p-3.5 border border-[#EAE0D2] bg-gradient-to-br from-[#FFF6DF] to-[#FFE9C2] shadow-xs"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-black text-[#3A312C] leading-tight flex items-center gap-1.5">
+                  <Gift className="w-4 h-4 text-[#C48418]" />
+                  {t('chests.title')}
+                </h3>
+                <p className="text-[11.5px] font-bold text-[#6E6057] mt-0.5">
+                  {t('chests.progress', { count: CHEST_EVERY - chests.progress })}
+                </p>
+              </div>
+              {chests.pending.length > 0 && (
+                <TactileButton
+                  id="btn-chest-track-open"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => openNextChest()}
+                  ariaLabel={t('chests.openAria', { count: chests.pending.length })}
+                  className="h-8.5 px-3 text-[11px] shrink-0"
+                >
+                  <Gift className="w-3.5 h-3.5" />
+                  {t('common.openChest')} ×{chests.pending.length}
+                </TactileButton>
+              )}
+            </div>
+
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={CHEST_EVERY}
+              aria-valuenow={chests.progress}
+              aria-label={t('chests.title')}
+              className="mt-2.5 h-2.5 w-full rounded-full bg-white/80 overflow-hidden"
+            >
+              <div
+                className="h-full rounded-full bg-[#F0B23A]"
+                style={{ width: `${(chests.progress / CHEST_EVERY) * 100}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[10.5px] font-black text-[#6B4812] tabular-nums text-right">
+              {chests.progress}/{CHEST_EVERY}
+            </p>
+
+            <p className="text-[11px] font-bold text-[#6E6057] mt-1">
+              {t('chests.qualifyRule')}
+            </p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-[10.5px] font-black text-[#6B4812] bg-white/80 px-2.5 py-1 rounded-2xl leading-snug">
+                {t('chests.guaranteed', {
+                  reward: formatRewardLabel(CHEST_GUARANTEED.coins, CHEST_GUARANTEED.boosters, t),
+                })}
+              </span>
+              <button
+                id="btn-chest-odds"
+                type="button"
+                onClick={() => setOddsOpen(true)}
+                className="text-[11px] font-black text-[#6B4EB5] underline underline-offset-2 shrink-0 cursor-pointer"
+              >
+                {t('chests.oddsTitle')}
+              </button>
+            </div>
+          </div>
         )}
 
         {tab === 'events' &&
@@ -620,6 +693,8 @@ export const MissionsScreen: React.FC = () => {
             );
           })}
       </div>
+
+      <ChestOddsSheet open={oddsOpen} onClose={() => setOddsOpen(false)} />
     </div>
   );
 };

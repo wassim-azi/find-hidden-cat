@@ -984,5 +984,22 @@
     "deniedToast": "Browser notifications are blocked — enable them in browser settings anytime.",
     "unsupportedToast": "System notifications aren't supported here — in-app reminders will appear instead.",
     "testSentToast": "Preview reminder sent!"
+  },
+  "chests": {
+    "title": "Puzzle chest",
+    "progress_one": "Solve {{count}} more puzzle to earn a chest",
+    "progress_other": "Solve {{count}} more puzzles to earn a chest",
+    "qualifyRule": "Counts: first clears, improved replays and Daily/Golden puzzles in Classic.",
+    "guaranteed": "Always inside: {{reward}}",
+    "oddsTitle": "What's inside?",
+    "oddsCoins": "{{percent}}% — +{{coins}} Fish Coins",
+    "oddsBooster": "{{percent}}% — +1 {{name}}",
+    "oddsAccessory": "{{percent}}% — a chest-only accessory",
+    "fallbackRule": "If you own every chest accessory, you get +{{coins}} Fish Coins instead.",
+    "pityRule": "At least one accessory every {{n}} chests (while any remain).",
+    "notForSale": "Chests can't be bought — only earned by playing.",
+    "openAria_one": "Open chest ({{count}} waiting)",
+    "openAria_other": "Open chest ({{count}} waiting)",
+    "openedTitle": "Chest opened!"
   }
 }
