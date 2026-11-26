@@ -10,6 +10,7 @@ import {
   GameMode,
   HintResult,
   HintStage,
+  LastVisitSnapshot,
   LevelLastResult,
   LevelProgress,
   MAX_CLASSIC_HEARTS,
@@ -101,6 +102,7 @@ import {
   applySeasonEvent,
   ensureCurrentSeasonProgress,
   getNewlyEarnedSeasonalAccessories,
+  getSeasonForDate,
   SeasonProgress,
 } from '../game/seasons';
 import {
@@ -295,6 +297,7 @@ interface GameStoreState {
   skillProfile: SkillProfile;
   recommendationDismissed: Record<string, string>;
   dailyVariant: { dateKey: string; variant: DailyVariant } | null;
+  lastVisit: LastVisitSnapshot | null;
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -408,6 +411,7 @@ interface GameStoreState {
   resetAllProgress: () => void;
   resetSkillProfile: () => void;
   dismissRecommendation: (kind: RecommendationKind) => void;
+  updateLastVisit: (now?: number) => void;
 }
 
 let activeDragSession: DragPaintSession | null = null;
@@ -556,6 +560,10 @@ function getCampaignSaveLevelIds(): number[] {
   return Object.keys(campaignSaves)
     .map(Number)
     .sort((a, b) => a - b);
+}
+
+export function getCampaignSavesSnapshot(): Record<number, ActivePuzzleSave> {
+  return { ...campaignSaves };
 }
 
 function pruneCampaignSaves(): void {
@@ -887,6 +895,7 @@ function persistFromState(state: GameStoreState): void {
     skillProfile: state.skillProfile,
     recommendationDismissed: state.recommendationDismissed,
     dailyVariant: state.dailyVariant,
+    lastVisit: state.lastVisit,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -956,6 +965,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   skillProfile: persisted.skillProfile,
   recommendationDismissed: persisted.recommendationDismissed,
   dailyVariant: persisted.dailyVariant,
+  lastVisit: persisted.lastVisit,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -3470,6 +3480,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       skillProfile: EMPTY_SKILL_PROFILE,
       recommendationDismissed: {},
       dailyVariant: null,
+      lastVisit: null,
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],
@@ -3506,6 +3517,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({ skillProfile: EMPTY_SKILL_PROFILE });
     persistFromState(get());
     get().showToast(i18n.t('settings.skillResetDone'));
+  },
+
+  updateLastVisit: (now = Date.now()) => {
+    const d = new Date(now);
+    const seasonInfo = getSeasonForDate(d);
+    set({
+      lastVisit: {
+        at: now,
+        dateKey: toDateKey(d),
+        weekKey: getCurrentWeekKey(d),
+        seasonKey: seasonInfo.seasonKey,
+      },
+    });
+    persistFromState(get());
   },
 }));
 

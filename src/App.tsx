@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import { ScreenName, useGameStore } from './store/gameStore';
@@ -17,6 +17,7 @@ import {
 } from './services/pwaInstall';
 import {
   getBrowserNotificationPermission,
+  getLastSessionStart,
   loadNotificationPrefs,
   markKeepRemindersAsked,
   needsKeepRemindersCheckIn,
@@ -28,9 +29,12 @@ import {
   unregisterPeriodicSync,
 } from './services/localNotifications';
 import { getCurrentWeekKey } from './game/events';
+import { LastVisitSnapshot } from './game/gameTypes';
 import { TOTAL_LEVELS } from './game/levels';
+import { shouldShowWelcomeBack } from './game/welcomeBack';
 import { ModalSheet } from './components/Modals/ModalSheet';
 import { TactileButton } from './components/Buttons/TactileButton';
+import { useDailyVariantPicker } from './components/Modals/DailyVariantSheet';
 
 // Route-based & modal code splitting — keeps initial Welcome bundle ultra-light!
 const MapScreen = lazy(() =>
@@ -105,6 +109,11 @@ const NotificationSettingsModal = lazy(() =>
     default: m.NotificationSettingsModal,
   }))
 );
+const WelcomeBackSheet = lazy(() =>
+  import('./components/Modals/WelcomeBackSheet').then((m) => ({
+    default: m.WelcomeBackSheet,
+  }))
+);
 
 const HUB_SCREENS = new Set<ScreenName>([
   'map',
@@ -146,6 +155,12 @@ export const App: React.FC = () => {
   const [notifOnboardingOpen, setNotifOnboardingOpen] = useState(false);
   const [swUpdateReady, setSwUpdateReady] = useState(false);
   const [keepRemindersOpen, setKeepRemindersOpen] = useState(false);
+  const [welcomeBackOpen, setWelcomeBackOpen] = useState(false);
+  const [welcomeBackLastVisit, setWelcomeBackLastVisit] =
+    useState<LastVisitSnapshot | null>(null);
+  const welcomeBackShownRef = useRef(false);
+  const { requestDaily: requestDailyFromWelcomeBack, sheet: dailyVariantSheet } =
+    useDailyVariantPicker();
   const [isOffline, setIsOffline] = useState(() =>
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
@@ -182,9 +197,11 @@ export const App: React.FC = () => {
     const unsubInstall = subscribePwaInstall(setInstallState);
 
     // Handle PWA shortcut / notification click URL params on cold launch
+    let hadAction = false;
     try {
       const params = new URLSearchParams(window.location.search);
       const action = params.get('action');
+      hadAction = Boolean(action);
       if (action) {
         handleRouteAction(action);
         window.history.replaceState({}, '', window.location.pathname);
@@ -220,18 +237,39 @@ export const App: React.FC = () => {
       }
     });
 
-    // If reminders stopped because they kept going unanswered, ask once — decided BEFORE
-    // this visit is recorded (the visit itself counts as an answer and resumes them).
+    // Capture previous session start & reminders check BEFORE recording this visit
+    const prevStart = getLastSessionStart();
     const askKeepReminders = needsKeepRemindersCheckIn();
+    const initialStore = useGameStore.getState();
+    const showWelcomeBack = shouldShowWelcomeBack({
+      prevStart,
+      now: Date.now(),
+      hasSeenTutorial: initialStore.hasSeenTutorial,
+      hadAction,
+      askKeepReminders,
+      alreadyShown: welcomeBackShownRef.current,
+    });
+    if (showWelcomeBack) {
+      setWelcomeBackLastVisit(initialStore.lastVisit);
+      welcomeBackShownRef.current = true;
+    }
+
     if (recordAppSession()) {
       useGameStore.getState().recordSessionStart();
     }
+    useGameStore.getState().updateLastVisit();
+
+    const welcomeBackTimer = showWelcomeBack
+      ? window.setTimeout(() => setWelcomeBackOpen(true), 600)
+      : null;
     const askTimer = askKeepReminders
       ? window.setTimeout(() => setKeepRemindersOpen(true), 1200)
       : null;
     const onVisible = () => {
       if (!document.hidden && recordAppSession()) {
-        useGameStore.getState().recordSessionStart();
+        const st = useGameStore.getState();
+        st.recordSessionStart();
+        st.updateLastVisit();
       }
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -273,6 +311,7 @@ export const App: React.FC = () => {
       unsubPlan();
       setReminderContextProvider(null);
       document.removeEventListener('visibilitychange', onVisible);
+      if (welcomeBackTimer !== null) window.clearTimeout(welcomeBackTimer);
       if (askTimer !== null) window.clearTimeout(askTimer);
       window.clearTimeout(idleTimer);
     };
@@ -539,6 +578,17 @@ export const App: React.FC = () => {
               onToast={showToast}
             />
           )}
+
+          {welcomeBackOpen && (
+            <WelcomeBackSheet
+              open={welcomeBackOpen}
+              lastVisitForSummary={welcomeBackLastVisit}
+              onClose={() => setWelcomeBackOpen(false)}
+              onPlayDaily={() => requestDailyFromWelcomeBack()}
+            />
+          )}
+
+          {dailyVariantSheet}
         </Suspense>
       </div>
     </div>

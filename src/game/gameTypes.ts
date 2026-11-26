@@ -206,6 +206,13 @@ export interface PlayerAchievements {
   bestStreak: number;
 }
 
+export interface LastVisitSnapshot {
+  at: number;
+  dateKey: string;
+  weekKey: string;
+  seasonKey: string | null;
+}
+
 export function cellKey(row: number, col: number): string {
   return `${row},${col}`;
 }

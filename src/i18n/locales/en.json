@@ -1065,5 +1065,21 @@
     "tricky": "Tricky — for bold detectives",
     "recommended": "Recommended",
     "sameReward": "Same reward for every option. Your choice is kept for today."
+  },
+  "welcomeBack": {
+    "title": "Welcome back!",
+    "continueSaved": "Continue Level {{id}} — {{found}}/{{total}} cats found",
+    "continueNext": "Play Level {{id}}",
+    "continueBtn": "Continue",
+    "rewardReady": "Your daily treat is ready",
+    "claimBtn": "Open",
+    "dailyReady": "Today's Daily Kitty is waiting",
+    "dailyBtn": "Play",
+    "missionsTitle": "Almost there",
+    "newWeek": "New weekly missions are here",
+    "newSeason": "The {{season}} collection has started",
+    "badgesReady_one": "{{count}} badge ready to claim",
+    "badgesReady_other": "{{count}} badges ready to claim",
+    "dismiss": "Not now"
   }
 }

@@ -623,4 +623,35 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     );
     expect(loadPersistedState().hasSeenTutorial).toBe(true);
   });
+
+  it('defaults lastVisit to null for old saves and sanitizes stored values (#25)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    expect(loadPersistedState().lastVisit).toBeNull();
+
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        lastVisit: { at: 1700000000000, dateKey: '2026-11-25', weekKey: '2026-W48', seasonKey: 'autumn-2026' },
+      })
+    );
+    expect(loadPersistedState().lastVisit).toEqual({
+      at: 1700000000000,
+      dateKey: '2026-11-25',
+      weekKey: '2026-W48',
+      seasonKey: 'autumn-2026',
+    });
+
+    for (const bad of [
+      { at: -1, dateKey: '2026-11-25', weekKey: '2026-W48', seasonKey: null },
+      { at: 100, dateKey: 'bad', weekKey: '2026-W48', seasonKey: null },
+      { at: 100, dateKey: '2026-11-25', weekKey: 'bad', seasonKey: null },
+      'yesterday',
+    ]) {
+      ls.set('meowdoku_state_v2', JSON.stringify({ ...savedProgress, lastVisit: bad }));
+      expect(loadPersistedState().lastVisit).toBeNull();
+    }
+  });
 });

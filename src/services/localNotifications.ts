@@ -360,6 +360,12 @@ export function refreshReminderPlan(): void {
   }, 250);
 }
 
+/** Returns the timestamp of the most recent recorded session start, or null if none. */
+export function getLastSessionStart(): number | null {
+  const { sessionStarts } = loadEngagement();
+  return sessionStarts.length > 0 ? sessionStarts[sessionStarts.length - 1]! : null;
+}
+
 /** Records that the player opened/returned to the game (deduplicated per 90 minutes). Returns true if a new session started. */
 export function recordAppSession(now = Date.now()): boolean {
   const log = loadEngagement();

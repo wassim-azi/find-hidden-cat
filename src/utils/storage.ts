@@ -2,6 +2,7 @@ import {
   ActivePuzzleSave,
   DailyVariant,
   Difficulty,
+  LastVisitSnapshot,
   LevelProgress,
   LogicalTechnique,
   PlayerAchievements,
@@ -108,6 +109,8 @@ export interface PersistedGameData {
   recommendationDismissed: Record<string, string>;
   /** The Daily variant locked for a date once started (#24). */
   dailyVariant: { dateKey: string; variant: DailyVariant } | null;
+  /** Snapshot of the player's previous visit (#25). */
+  lastVisit: LastVisitSnapshot | null;
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -176,6 +179,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   skillProfile: EMPTY_SKILL_PROFILE,
   recommendationDismissed: {},
   dailyVariant: null,
+  lastVisit: null,
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -643,6 +647,26 @@ function sanitizeDailyVariantLock(raw: unknown): PersistedGameData['dailyVariant
   if (typeof r.dateKey !== 'string' || !DATE_KEY_RE.test(r.dateKey)) return null;
   if (r.variant !== 'relaxed' && r.variant !== 'standard' && r.variant !== 'tricky') return null;
   return { dateKey: r.dateKey, variant: r.variant };
+}
+
+function sanitizeLastVisit(raw: unknown): LastVisitSnapshot | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.at !== 'number' || !Number.isFinite(r.at) || r.at < 0) return null;
+  if (typeof r.dateKey !== 'string' || !DATE_KEY_RE.test(r.dateKey)) return null;
+  if (typeof r.weekKey !== 'string' || !/^\d{4}-W\d{2}$/.test(r.weekKey)) return null;
+  const seasonKey =
+    r.seasonKey === null || r.seasonKey === undefined
+      ? null
+      : typeof r.seasonKey === 'string' && /^(winter|spring|summer|autumn)-\d{4}$/.test(r.seasonKey)
+        ? r.seasonKey
+        : null;
+  return {
+    at: Math.floor(r.at),
+    dateKey: r.dateKey,
+    weekKey: r.weekKey,
+    seasonKey,
+  };
 }
 
 const MAX_CAMPAIGN_SAVES = 5;
@@ -1138,6 +1162,7 @@ export function loadPersistedState(): PersistedGameData {
       skillProfile: sanitizeSkillProfile(parsed.skillProfile),
       recommendationDismissed: sanitizeRecommendationDismissed(parsed.recommendationDismissed),
       dailyVariant: sanitizeDailyVariantLock(parsed.dailyVariant),
+      lastVisit: sanitizeLastVisit(parsed.lastVisit),
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

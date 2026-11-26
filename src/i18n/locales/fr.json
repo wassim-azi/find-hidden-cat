@@ -1065,5 +1065,21 @@
     "tricky": "Corsé — pour les détectives audacieux",
     "recommended": "Recommandé",
     "sameReward": "Même récompense pour chaque option. Ton choix est gardé pour aujourd'hui."
+  },
+  "welcomeBack": {
+    "title": "Bon retour !",
+    "continueSaved": "Continuer le niveau {{id}} — {{found}}/{{total}} chats trouvés",
+    "continueNext": "Jouer au niveau {{id}}",
+    "continueBtn": "Continuer",
+    "rewardReady": "Ton cadeau du jour est prêt",
+    "claimBtn": "Ouvrir",
+    "dailyReady": "Le Chat du Jour t'attend",
+    "dailyBtn": "Jouer",
+    "missionsTitle": "Presque fini",
+    "newWeek": "Les nouvelles missions de la semaine sont là",
+    "newSeason": "La collection {{season}} a commencé",
+    "badgesReady_one": "{{count}} badge prêt à récupérer",
+    "badgesReady_other": "{{count}} badges prêts à récupérer",
+    "dismiss": "Pas maintenant"
   }
 }
