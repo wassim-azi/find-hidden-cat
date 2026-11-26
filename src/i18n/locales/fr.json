@@ -1123,5 +1123,27 @@
     "gateSubmit": "Confirmer",
     "turnedOnToast": "Mode famille activé.",
     "turnedOffToast": "Mode famille désactivé."
+  },
+  "stats": {
+    "open": "Mes statistiques",
+    "title": "Mes statistiques",
+    "puzzles": "Grilles terminées",
+    "campaign": "Niveaux de campagne",
+    "daily": "Chats du Jour résolus",
+    "golden": "Chats Dorés résolus",
+    "threeStars": "Victoires 3 étoiles",
+    "noHint": "Résolues sans indice",
+    "noMistake": "Résolues sans erreur",
+    "playTime": "Temps de jeu total",
+    "longestStreak": "Plus longue série",
+    "cats": "Chats collectionnés",
+    "last14": "14 derniers jours",
+    "chartAria": "Grilles terminées ces 14 derniers jours : {{total}} au total",
+    "byTier": "Rythme par difficulté",
+    "timeRatio": "≈{{ratio}}× le temps de référence",
+    "techniques": "Techniques de logique rencontrées",
+    "export": "Exporter mes stats (JSON)",
+    "exportNote": "Crée un fichier sur ton appareil. Rien n'est envoyé.",
+    "empty": "Résous ta première grille pour voir tes stats ici !"
   }
 }

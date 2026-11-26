@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Award,
+  BarChart3,
   Bell,
   BookOpen,
   Compass,
@@ -24,6 +25,7 @@ import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
 import { TactileButton } from '../../components/Buttons/TactileButton';
+import { StatsSheet } from '../../components/Modals/StatsSheet';
 
 interface ProfileScreenProps {
   isPwaInstalled?: boolean;
@@ -37,6 +39,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenInstall,
 }) => {
   const { t } = useTranslation();
+  const [statsOpen, setStatsOpen] = useState(false);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const activeAccessoryId = useGameStore((s) => s.activeAccessoryId);
   const levelProgress = useGameStore((s) => s.levelProgress);
@@ -185,6 +188,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         )}
 
         <div className="flex flex-col gap-2 mt-1">
+          <TactileButton
+            id="btn-profile-stats"
+            variant="secondary"
+            fullWidth
+            onClick={() => setStatsOpen(true)}
+          >
+            <BarChart3 className="w-4.5 h-4.5 text-[#6B4EB5]" />
+            {t('stats.open')}
+          </TactileButton>
+
           {onOpenNotifications && (
             <TactileButton
               id="btn-profile-notifications"
@@ -228,6 +241,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </TactileButton>
         </div>
       </div>
+
+      <StatsSheet open={statsOpen} onClose={() => setStatsOpen(false)} />
     </div>
   );
 };

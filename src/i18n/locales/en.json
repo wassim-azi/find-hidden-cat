@@ -1123,5 +1123,27 @@
     "gateSubmit": "Confirm",
     "turnedOnToast": "Family mode is on.",
     "turnedOffToast": "Family mode is off."
+  },
+  "stats": {
+    "open": "My stats",
+    "title": "My stats",
+    "puzzles": "Puzzles completed",
+    "campaign": "Campaign levels",
+    "daily": "Daily Kitty solved",
+    "golden": "Golden Cat solved",
+    "threeStars": "3-star wins",
+    "noHint": "Solved without hints",
+    "noMistake": "Solved without mistakes",
+    "playTime": "Total play time",
+    "longestStreak": "Longest streak",
+    "cats": "Cats collected",
+    "last14": "Last 14 days",
+    "chartAria": "Puzzles completed over the last 14 days: {{total}} in total",
+    "byTier": "Pace by difficulty",
+    "timeRatio": "≈{{ratio}}× par time",
+    "techniques": "Logic techniques you've met",
+    "export": "Export my stats (JSON)",
+    "exportNote": "Creates a file on your device. Nothing is sent anywhere.",
+    "empty": "Solve your first puzzle to see your stats here!"
   }
 }
