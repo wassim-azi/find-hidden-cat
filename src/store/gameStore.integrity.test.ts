@@ -5,6 +5,8 @@ import { CellCoord, MAX_CLASSIC_HEARTS, PuzzleDefinition, coordsEqual } from '..
 import { createInitialBoard } from '../game/puzzleEngine';
 import { getLevelPuzzle, getTodayDateKey } from '../game/levels';
 import { getPlacedCats } from '../game/validation';
+import { onGameEvent } from '../game/gameEvents';
+import { GameEvent, getDayStats } from '../game/progressStats';
 
 const S = () => useGameStore.getState();
 
@@ -427,6 +429,64 @@ describe('Per-level campaign save slots (#9)', () => {
     expect(S().elapsedSec).toBe(0);
   });
 });
+
+describe('Gameplay event log and progressStats (#11)', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+  });
+
+  it('records puzzle_completed in byDay[today], notifies listeners, and emits reward_claimed on mission claim', () => {
+    const received: GameEvent[] = [];
+    const unsubscribe = onGameEvent((ev) => received.push(ev));
+
+    try {
+      S().startLevel(2, false);
+      solveCurrentPuzzle();
+
+      const today = getTodayDateKey();
+      const dayStats = getDayStats(S().progressStats, today);
+      expect(dayStats.puzzlesCompleted).toBe(1);
+      expect(dayStats.classicCompleted).toBe(1);
+      expect(dayStats.threeStarWins).toBe(1);
+      expect(S().progressStats.lifetime.campaignFirstClears).toBe(1);
+      expect(S().progressStats.lifetime.uniqueNoHintPuzzles).toBe(1);
+      expect(S().progressStats.lifetime.uniqueNoMistakePuzzles).toBe(1);
+
+      const completedEv = received.find((e) => e.type === 'puzzle_completed');
+      expect(completedEv).toBeDefined();
+      if (completedEv && completedEv.type === 'puzzle_completed') {
+        expect(completedEv.levelId).toBe(2);
+        expect(completedEv.worldId).toBe(1);
+        expect(completedEv.source).toBe('campaign');
+        expect(completedEv.mode).toBe('classic');
+      }
+
+      // Make first mission claimable and claim it -> emits reward_claimed
+      const firstMission = S().dailyMissions.missions[0]!;
+      useGameStore.setState({
+        dailyMissions: {
+          ...S().dailyMissions,
+          missions: S().dailyMissions.missions.map((m, i) =>
+            i === 0 ? { ...m, progress: m.target, claimed: false } : m
+          ),
+        },
+      });
+      expect(S().claimMissionReward(firstMission.id)).toBe(true);
+
+      const rewardEv = received.find((e) => e.type === 'reward_claimed');
+      expect(rewardEv).toBeDefined();
+      if (rewardEv && rewardEv.type === 'reward_claimed') {
+        expect(rewardEv.source).toBe('mission');
+        expect(rewardEv.coins).toBe(firstMission.rewardCoins);
+      }
+      expect(getDayStats(S().progressStats, today).rewardsClaimed).toBe(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+});
+
 
 
 

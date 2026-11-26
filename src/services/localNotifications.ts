@@ -360,12 +360,14 @@ export function refreshReminderPlan(): void {
   }, 250);
 }
 
-/** Records that the player opened/returned to the game (deduplicated per 90 minutes). */
-export function recordAppSession(now = Date.now()): void {
+/** Records that the player opened/returned to the game (deduplicated per 90 minutes). Returns true if a new session started. */
+export function recordAppSession(now = Date.now()): boolean {
   const log = loadEngagement();
   const next = recordSession(log, now);
-  if (next !== log) saveEngagement(next);
+  const added = next !== log;
+  if (added) saveEngagement(next);
   refreshReminderPlan();
+  return added;
 }
 
 /** Reminders stopped after being ignored repeatedly — ask the returning player once. */

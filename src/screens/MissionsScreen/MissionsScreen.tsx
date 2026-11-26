@@ -25,6 +25,7 @@ import {
 } from '../../game/events';
 import { canClaimDailyReward, getWeeklyClaimCount } from '../../game/dailyRewards';
 import { getTodayDateKey } from '../../game/levels';
+import { buildUnlockContext } from '../../game/unlockContext';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
 import { TactileButton } from '../../components/Buttons/TactileButton';
@@ -65,9 +66,7 @@ export const MissionsScreen: React.FC = () => {
   const dailyLogin = useGameStore((s) => s.dailyLogin);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
-  const achievements = useGameStore((s) => s.achievements);
-  const zeroMistakeSolves = useGameStore((s) => s.zeroMistakeSolves);
-  const specialLevelsCompleted = useGameStore((s) => s.specialLevelsCompleted);
+  const progressStats = useGameStore((s) => s.progressStats);
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const completedDailyDates = useGameStore((s) => s.completedDailyDates);
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
@@ -85,19 +84,14 @@ export const MissionsScreen: React.FC = () => {
   const weekKey = getCurrentWeekKey();
   const dailyClaimable = canClaimDailyReward(dailyLogin, todayKey);
   const solvedCount = Object.values(levelProgress).filter((p) => p.completed).length;
-  const totalStars = Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0);
-  const dailyOnlyCount = completedDailyDates.filter((d) => !d.startsWith('golden-')).length;
 
-  const achCtx = {
+  const achCtx = buildUnlockContext({
     levelProgress,
     unlockedLevelId,
-    noHintSolves: achievements.perfectLevels,
-    zeroMistakeSolves,
-    specialLevelsCompleted,
-    unlockedCatsCount: unlockedCatIds.length,
-    completedDailyCount: dailyOnlyCount,
-    totalStars,
-  };
+    progressStats,
+    unlockedAchievementIds,
+    unlockedCatIds,
+  });
 
   const claimableAchCount = unlockedAchievementIds.filter(
     (id) => !claimedAchievementIds.includes(id)

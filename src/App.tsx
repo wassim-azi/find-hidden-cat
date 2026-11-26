@@ -215,12 +215,16 @@ export const App: React.FC = () => {
     // If reminders stopped because they kept going unanswered, ask once — decided BEFORE
     // this visit is recorded (the visit itself counts as an answer and resumes them).
     const askKeepReminders = needsKeepRemindersCheckIn();
-    recordAppSession();
+    if (recordAppSession()) {
+      useGameStore.getState().recordSessionStart();
+    }
     const askTimer = askKeepReminders
       ? window.setTimeout(() => setKeepRemindersOpen(true), 1200)
       : null;
     const onVisible = () => {
-      if (!document.hidden) recordAppSession();
+      if (!document.hidden && recordAppSession()) {
+        useGameStore.getState().recordSessionStart();
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
 

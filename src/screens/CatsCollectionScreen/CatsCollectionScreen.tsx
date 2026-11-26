@@ -6,8 +6,8 @@ import { useGameStore } from '../../store/gameStore';
 import {
   CatRarity,
   COLLECTIBLE_CATS,
-  CatUnlockContext,
 } from '../../game/collectibleCats';
+import { buildUnlockContext } from '../../game/unlockContext';
 import { CatIllustration, CatSilhouette } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 
@@ -24,22 +24,17 @@ export const CatsCollectionScreen: React.FC = () => {
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
-  const achievements = useGameStore((s) => s.achievements);
-  const completedDailyDates = useGameStore((s) => s.completedDailyDates);
+  const progressStats = useGameStore((s) => s.progressStats);
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
   const selectMascotCat = useGameStore((s) => s.selectMascotCat);
 
-  const totalStars = Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0);
-  const dailyOnlyCount = completedDailyDates.filter((d) => !d.startsWith('golden-')).length;
-
-  const ctx: CatUnlockContext = {
+  const ctx = buildUnlockContext({
     levelProgress,
     unlockedLevelId,
-    totalStars,
-    noHintSolves: achievements.perfectLevels,
-    completedDailyCount: dailyOnlyCount,
-    unlockedAchievementsCount: unlockedAchievementIds.length,
-  };
+    progressStats,
+    unlockedAchievementIds,
+    unlockedCatIds,
+  });
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">

@@ -37,7 +37,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const levelProgress = useGameStore((s) => s.levelProgress);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const achievements = useGameStore((s) => s.achievements);
-  const zeroMistakeSolves = useGameStore((s) => s.zeroMistakeSolves);
+  const progressStats = useGameStore((s) => s.progressStats);
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
   const dailyLogin = useGameStore((s) => s.dailyLogin);
@@ -69,7 +69,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     },
     {
       label: t('profile.zeroMistakeWins'),
-      value: `${zeroMistakeSolves}`,
+      value: `${progressStats.lifetime.uniqueNoMistakePuzzles}`,
       icon: <Shield className="w-4 h-4 text-[#4D91B5]" />,
     },
     {

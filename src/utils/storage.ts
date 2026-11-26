@@ -2,6 +2,7 @@ import {
   ActivePuzzleSave,
   Difficulty,
   LevelProgress,
+  LogicalTechnique,
   PlayerAchievements,
   PlayerSettings,
 } from '../game/gameTypes';
@@ -12,7 +13,17 @@ import {
 } from '../game/economy';
 import { DailyLoginState, INITIAL_DAILY_LOGIN } from '../game/dailyRewards';
 import { getWeekKey } from '../game/dateKeys';
+import { getLevelPuzzle, getPuzzleAnalysis, TOTAL_LEVELS } from '../game/levels';
 import { DailyMissionsState } from '../game/missions';
+import {
+  backfillProgressStats,
+  EMPTY_PROGRESS_STATS,
+  MAX_BY_DAY_KEYS,
+  MAX_BY_WEEK_KEYS,
+  MAX_PROCESSED_EVENT_IDS,
+  PeriodStats,
+  ProgressStats,
+} from '../game/progressStats';
 import { dateFromKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
@@ -50,6 +61,7 @@ export interface PersistedGameData {
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
   totalStarsEarnedEver: number;
+  progressStats: ProgressStats;
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -104,6 +116,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   zeroMistakeSolves: 0,
   specialLevelsCompleted: 0,
   totalStarsEarnedEver: 0,
+  progressStats: EMPTY_PROGRESS_STATS,
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -256,6 +269,115 @@ function sanitizeActiveCampaignPuzzles(
   }
 
   return result;
+}
+
+const VALID_TECHNIQUES = new Set<LogicalTechnique>([
+  'naked_region_single',
+  'naked_row_single',
+  'naked_col_single',
+  'region_line_intersection',
+  'line_region_intersection',
+  'region_adjacency_exclusion',
+  'line_adjacency_exclusion',
+  'naked_pair_regions',
+  'line_group_confinement',
+  'contradiction_chain',
+]);
+
+function sanitizePeriodStats(raw: unknown): PeriodStats | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Partial<PeriodStats>;
+  const count = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+  const worldsPlayed = Array.isArray(p.worldsPlayed)
+    ? Array.from(
+        new Set(
+          p.worldsPlayed
+            .filter((w): w is number => typeof w === 'number' && Number.isInteger(w) && w >= 1)
+        )
+      ).sort((a, b) => a - b)
+    : [];
+  return {
+    puzzlesCompleted: count(p.puzzlesCompleted),
+    classicCompleted: count(p.classicCompleted),
+    threeStarWins: count(p.threeStarWins),
+    noHintWins: count(p.noHintWins),
+    noMistakeWins: count(p.noMistakeWins),
+    personalBests: count(p.personalBests),
+    dailySolved: count(p.dailySolved),
+    goldenSolved: count(p.goldenSolved),
+    worldsPlayed,
+    catsFound: count(p.catsFound),
+    rewardsClaimed: count(p.rewardsClaimed),
+    sessions: count(p.sessions),
+  };
+}
+
+function sanitizeProgressStats(raw: unknown): ProgressStats {
+  if (!raw || typeof raw !== 'object') return EMPTY_PROGRESS_STATS;
+  const r = raw as Partial<ProgressStats>;
+  if (r.version !== 1 || !r.lifetime || typeof r.lifetime !== 'object') {
+    return EMPTY_PROGRESS_STATS;
+  }
+  const baseLifetime = sanitizePeriodStats(r.lifetime);
+  if (!baseLifetime) return EMPTY_PROGRESS_STATS;
+
+  const lt = r.lifetime as Partial<ProgressStats['lifetime']>;
+  const count = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+
+  const techniquesSeen = Array.isArray(lt.techniquesSeen)
+    ? Array.from(
+        new Set(
+          lt.techniquesSeen.filter(
+            (t): t is LogicalTechnique =>
+              typeof t === 'string' && VALID_TECHNIQUES.has(t as LogicalTechnique)
+          )
+        )
+      ).sort()
+    : [];
+
+  const sanitizeMap = (
+    input: unknown,
+    keyPattern: RegExp,
+    maxKeys: number
+  ): Record<string, PeriodStats> => {
+    const out: Record<string, PeriodStats> = {};
+    if (!input || typeof input !== 'object') return out;
+    const validEntries: Array<[string, PeriodStats]> = [];
+    for (const [k, v] of Object.entries(input)) {
+      if (!keyPattern.test(k)) continue;
+      const clean = sanitizePeriodStats(v);
+      if (clean) validEntries.push([k, clean]);
+    }
+    validEntries.sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));
+    for (const [k, v] of validEntries.slice(0, maxKeys)) {
+      out[k] = v;
+    }
+    return out;
+  };
+
+  const processedEventIds = Array.isArray(r.processedEventIds)
+    ? r.processedEventIds
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        .slice(-MAX_PROCESSED_EVENT_IDS)
+    : [];
+
+  return {
+    version: 1,
+    lifetime: {
+      ...baseLifetime,
+      campaignFirstClears: count(lt.campaignFirstClears),
+      uniqueNoHintPuzzles: count(lt.uniqueNoHintPuzzles),
+      uniqueNoMistakePuzzles: count(lt.uniqueNoMistakePuzzles),
+      starsGained: count(lt.starsGained),
+      playTimeSec: count(lt.playTimeSec),
+      techniquesSeen,
+    },
+    byDay: sanitizeMap(r.byDay, /^\d{4}-\d{2}-\d{2}$/, MAX_BY_DAY_KEYS),
+    byWeek: sanitizeMap(r.byWeek, /^\d{4}-W\d{2}$/, MAX_BY_WEEK_KEYS),
+    processedEventIds,
+  };
 }
 
 /**
@@ -446,6 +568,25 @@ export function loadPersistedState(): PersistedGameData {
         ? parsed.activeMascotCatId
         : 'mochi';
 
+    const zeroMistakeSolves =
+      typeof parsed.zeroMistakeSolves === 'number'
+        ? Math.max(0, Math.floor(parsed.zeroMistakeSolves))
+        : 0;
+
+    const progressStats: ProgressStats =
+      parsed.progressStats !== undefined
+        ? sanitizeProgressStats(parsed.progressStats)
+        : backfillProgressStats({
+            levelProgress,
+            completedDailyDates,
+            achievements,
+            zeroMistakeSolves,
+            getTechniquesForLevel: (levelId) =>
+              levelId >= 1 && levelId <= TOTAL_LEVELS
+                ? getPuzzleAnalysis(getLevelPuzzle(levelId)).techniquesUsed
+                : [],
+          });
+
     const migrated: PersistedGameData = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       currentLevelId,
@@ -477,10 +618,7 @@ export function loadPersistedState(): PersistedGameData {
       unlockedCatIds,
       activeMascotCatId,
       claimedEventIds: stringArray(parsed.claimedEventIds, []),
-      zeroMistakeSolves:
-        typeof parsed.zeroMistakeSolves === 'number'
-          ? Math.max(0, Math.floor(parsed.zeroMistakeSolves))
-          : 0,
+      zeroMistakeSolves,
       specialLevelsCompleted:
         typeof parsed.specialLevelsCompleted === 'number'
           ? Math.max(0, Math.floor(parsed.specialLevelsCompleted))
@@ -489,6 +627,7 @@ export function loadPersistedState(): PersistedGameData {
         typeof parsed.totalStarsEarnedEver === 'number'
           ? Math.max(0, Math.floor(parsed.totalStarsEarnedEver))
           : Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0),
+      progressStats,
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

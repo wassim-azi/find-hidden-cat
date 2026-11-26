@@ -194,4 +194,47 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(keptKeys).toEqual([3, 4, 5, 6, 7]);
     expect(bounded.activeCampaignPuzzles['99']).toBeUndefined();
   });
+
+  it('back-fills progressStats when loading a legacy save without progressStats (#11)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        schemaVersion: 2,
+        currentLevelId: 6,
+        unlockedLevelId: 6,
+        levelProgress: {
+          1: { levelId: 1, completed: true, bestTimeSec: 25, stars: 3, bestHintsUsed: 0, bestMistakes: 0 },
+          2: { levelId: 2, completed: true, bestTimeSec: 30, stars: 3, bestHintsUsed: 0, bestMistakes: 0 },
+          3: { levelId: 3, completed: true, bestTimeSec: 40, stars: 2, bestHintsUsed: 1, bestMistakes: 1 },
+          4: { levelId: 4, completed: true, bestTimeSec: 50, stars: 3, bestHintsUsed: 0, bestMistakes: 0 },
+          5: { levelId: 5, completed: true, bestTimeSec: 60, stars: 1, bestHintsUsed: 2, bestMistakes: 2 },
+        },
+        completedDailyDates: ['2026-11-25', 'golden-2026-W48'],
+        achievements: {
+          totalCatsFound: 30,
+          perfectLevels: 3,
+          currentStreak: 2,
+          bestStreak: 4,
+        },
+        zeroMistakeSolves: 3,
+      })
+    );
+
+    const data = loadPersistedState();
+    expect(data.progressStats.version).toBe(1);
+    expect(data.progressStats.lifetime.campaignFirstClears).toBe(5);
+    expect(data.progressStats.lifetime.dailySolved).toBe(1);
+    expect(data.progressStats.lifetime.goldenSolved).toBe(1);
+    expect(data.progressStats.lifetime.puzzlesCompleted).toBe(7);
+    expect(data.progressStats.lifetime.classicCompleted).toBe(7);
+    expect(data.progressStats.lifetime.threeStarWins).toBe(3);
+    expect(data.progressStats.lifetime.starsGained).toBe(12);
+    expect(data.progressStats.lifetime.uniqueNoHintPuzzles).toBe(3);
+    expect(data.progressStats.lifetime.uniqueNoMistakePuzzles).toBe(3);
+    expect(data.progressStats.lifetime.techniquesSeen.length).toBeGreaterThan(0);
+    expect(data.progressStats.lifetime.techniquesSeen).not.toContain('oracle_fallback');
+    expect(data.progressStats.byDay).toEqual({});
+    expect(data.progressStats.byWeek).toEqual({});
+  });
 });

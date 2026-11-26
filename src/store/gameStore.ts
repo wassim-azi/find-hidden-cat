@@ -24,6 +24,7 @@ import {
 import {
   getDailyPuzzle,
   getLevelPuzzle,
+  getPuzzleAnalysis,
   getTodayDateKey,
   TOTAL_LEVELS,
 } from '../game/levels';
@@ -73,6 +74,7 @@ import {
 import {
   getNextWorldAfter,
   getSpecialNodeInfo,
+  getWorldForLevel,
   isWorldFinalLevel,
   WorldDefinition,
 } from '../game/worlds';
@@ -84,6 +86,18 @@ import {
   WORLD_EVENTS,
   WorldEventId,
 } from '../game/events';
+import { getWeekKey } from '../game/dateKeys';
+import {
+  applyGameEvent,
+  EMPTY_PROGRESS_STATS,
+  GameEvent,
+  ProgressStats,
+  PuzzleCompletedEvent,
+  PuzzleSource,
+} from '../game/progressStats';
+import { emitToListeners } from '../game/gameEvents';
+import { buildUnlockContext } from '../game/unlockContext';
+import { toDateKey } from '../services/reminderPlanner';
 import {
   RewardedAdPlacement,
   RewardedAdResult,
@@ -210,6 +224,7 @@ interface GameStoreState {
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
   totalStarsEarnedEver: number;
+  progressStats: ProgressStats;
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -276,6 +291,7 @@ interface GameStoreState {
   dismissHint: () => void;
   restartLevel: () => void;
   tickTimer: () => void;
+  recordSessionStart: () => void;
 
   // Economy, Shop, Daily, Missions, Cats, Achievements, Events, Ads
   purchaseBooster: (boosterId: BoosterId) => boolean;
@@ -641,6 +657,20 @@ function buildSessionSave(state: GameStoreState): ActivePuzzleSave {
   };
 }
 
+let lastEventAt = 0;
+function nextEventAt(): number {
+  const now = Date.now();
+  lastEventAt = now > lastEventAt ? now : lastEventAt + 1;
+  return lastEventAt;
+}
+
+function recordEvent(e: GameEvent): void {
+  useGameStore.setState((s) => ({
+    progressStats: applyGameEvent(s.progressStats, e),
+  }));
+  emitToListeners(e);
+}
+
 function persistFromState(state: GameStoreState): void {
   const finished = Boolean(
     state.victorySummary || state.isCelebratingBoard || state.validation.isSolved
@@ -695,6 +725,7 @@ function persistFromState(state: GameStoreState): void {
     zeroMistakeSolves: state.zeroMistakeSolves,
     specialLevelsCompleted: state.specialLevelsCompleted,
     totalStarsEarnedEver: state.totalStarsEarnedEver,
+    progressStats: state.progressStats,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -705,10 +736,6 @@ function persistFromState(state: GameStoreState): void {
   ) {
     useGameStore.setState({ campaignSaveLevelIds: nextIds });
   }
-}
-
-function computeTotalStars(progress: Record<number, LevelProgress>): number {
-  return Object.values(progress).reduce((sum, p) => sum + p.stars, 0);
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
@@ -750,6 +777,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   zeroMistakeSolves: persisted.zeroMistakeSolves,
   specialLevelsCompleted: persisted.specialLevelsCompleted,
   totalStarsEarnedEver: persisted.totalStarsEarnedEver,
+  progressStats: persisted.progressStats,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -1520,8 +1548,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       bestStreak: Math.max(state.achievements.bestStreak, newStreak),
     };
 
-    const totalStarsNow = computeTotalStars(updatedLevelProgress);
     const improvedBest = !isPractice && (isNewBestTime || computedStars > previousBestStars);
+    const catsFoundCount = state.puzzle.size - state.puzzle.initialCats.length;
 
     if (!isPractice) {
       updatedMissions = applyMissionEvent(updatedMissions, {
@@ -1531,20 +1559,66 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         mistakesCount: state.mistakesCount,
         elapsedSec: state.elapsedSec,
         improvedBest,
-        catsFound: state.puzzle.size - state.puzzle.initialCats.length,
+        catsFound: catsFoundCount,
       });
     }
 
-    const dailyOnlyCount = nextDailyDates.filter((d) => !d.startsWith('golden-')).length;
+    const eventAt = nextEventAt();
+    const eventDate = new Date(eventAt);
+    const eventSource: PuzzleSource = isGoldenTrial
+      ? 'golden'
+      : isDailyOrEvent
+        ? 'daily'
+        : 'campaign';
+    const puzzleKey =
+      isDailyOrEvent && state.puzzle.dailyDateKey
+        ? state.puzzle.dailyDateKey
+        : `L${state.puzzle.id}`;
+    const previousBestTimeSec = isDailyOrEvent ? null : (prevProg?.bestTimeSec ?? null);
+    const eventImprovedBest =
+      !isPractice &&
+      !isFirstCompletion &&
+      (computedStars > previousBestStars ||
+        (previousBestTimeSec !== null && state.elapsedSec < previousBestTimeSec));
+    const techniques = getPuzzleAnalysis(state.puzzle).techniquesUsed.filter(
+      (tech) => tech !== 'oracle_fallback'
+    );
+
+    const completedEvent: PuzzleCompletedEvent = {
+      type: 'puzzle_completed',
+      id: `${puzzleKey}:${eventAt}`,
+      at: eventAt,
+      dateKey: toDateKey(eventDate),
+      weekKey: getWeekKey(eventDate),
+      source: eventSource,
+      puzzleKey,
+      levelId: isDailyOrEvent ? null : state.puzzle.id,
+      worldId: isDailyOrEvent ? null : getWorldForLevel(state.puzzle.id).id,
+      mode: state.gameMode,
+      firstCompletion: isFirstCompletion,
+      stars: computedStars,
+      previousBestStars,
+      hintsUsed: state.hintsUsed,
+      mistakesCount: state.mistakesCount,
+      elapsedSec: state.elapsedSec,
+      previousBestTimeSec,
+      firstNoHint: earnedPerfectLevel,
+      firstNoMistake: earnedZeroMistake,
+      improvedBest: eventImprovedBest,
+      catsFound: catsFoundCount,
+      techniques,
+    };
+
+    const nextProgressStats = applyGameEvent(state.progressStats, completedEvent);
+
     const newlyUnlockedCats = getNewlyUnlockedCats(
-      {
+      buildUnlockContext({
         levelProgress: updatedLevelProgress,
         unlockedLevelId: nextUnlocked,
-        totalStars: totalStarsNow,
-        noHintSolves: updatedAchievements.perfectLevels,
-        completedDailyCount: dailyOnlyCount,
-        unlockedAchievementsCount: state.unlockedAchievementIds.length,
-      },
+        progressStats: nextProgressStats,
+        unlockedAchievementIds: state.unlockedAchievementIds,
+        unlockedCatIds: state.unlockedCatIds,
+      }),
       state.unlockedCatIds
     );
     const nextUnlockedCats = [
@@ -1555,16 +1629,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const newlyUnlockedAchs = isPractice
       ? []
       : getNewlyUnlockedAchievements(
-          {
+          buildUnlockContext({
             levelProgress: updatedLevelProgress,
             unlockedLevelId: nextUnlocked,
-            noHintSolves: updatedAchievements.perfectLevels,
-            zeroMistakeSolves: nextZeroMistakes,
-            specialLevelsCompleted: nextSpecialCompleted,
-            unlockedCatsCount: nextUnlockedCats.length,
-            completedDailyCount: dailyOnlyCount,
-            totalStars: totalStarsNow,
-          },
+            progressStats: nextProgressStats,
+            unlockedAchievementIds: state.unlockedAchievementIds,
+            unlockedCatIds: nextUnlockedCats,
+          }),
           state.unlockedAchievementIds
         );
     const nextUnlockedAchs = [
@@ -1615,12 +1686,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       zeroMistakeSolves: nextZeroMistakes,
       specialLevelsCompleted: nextSpecialCompleted,
       totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
+      progressStats: nextProgressStats,
       isMistakeShieldActive: false,
       isCelebratingBoard: true,
       victorySummary: null,
     });
 
     persistFromState(get());
+    emitToListeners(completedEvent);
 
     const delayMs = state.settings.reducedMotion ? 120 : 620;
     clearCelebrationTimer();
@@ -2263,6 +2336,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
   },
 
+  recordSessionStart: () => {
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'session_started',
+      id: `session:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+    });
+    persistFromState(get());
+  },
+
   purchaseBooster: (boosterId) => {
     // Double-tap idempotency guard: never deduct Fish Coins twice on rapid double tap!
     const now = Date.now();
@@ -2323,6 +2409,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       fishCoins: state.fishCoins + result.reward.coins,
       boosters: nextBoosters,
     });
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:daily_login:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'daily_login',
+      coins: result.reward.coins,
+    });
     persistFromState(get());
     return result;
   },
@@ -2354,6 +2451,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       boosters: nextBoosters,
     });
     state.showToast(i18n.t('toasts.claimedCoins', { coins: target.rewardCoins }));
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:mission:${missionId}:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'mission',
+      coins: target.rewardCoins,
+    });
     persistFromState(get());
     return true;
   },
@@ -2386,6 +2494,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     state.showToast(
       `${i18n.t(`achievements.${def.id}.title`)} : +${def.rewardCoins} ${i18n.t('common.fishCoinsLabel')}`
     );
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:achievement:${achievementId}:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'achievement',
+      coins: def.rewardCoins,
+    });
     persistFromState(get());
     return true;
   },
@@ -2433,6 +2552,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         coins: ev.rewardCoins,
         boosterLabel,
       },
+    });
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:event_chest:${claimKey}:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'event_chest',
+      coins: ev.rewardCoins,
     });
     persistFromState(get());
     return true;
@@ -2618,6 +2748,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       zeroMistakeSolves: 0,
       specialLevelsCompleted: 0,
       totalStarsEarnedEver: 0,
+      progressStats: EMPTY_PROGRESS_STATS,
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],
