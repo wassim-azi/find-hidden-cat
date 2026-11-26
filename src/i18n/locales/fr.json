@@ -554,6 +554,16 @@
   },
   "achievements": {
     "unlockedToast": "Succès débloqué : {{title}} !",
+    "unlockedManyToast": "{{count}} badges débloqués !",
+    "backfillToast_one": "{{count}} badge est prêt à récupérer.",
+    "backfillToast_other": "{{count}} badges sont prêts à récupérer.",
+    "groups": {
+      "progress": "Parcours",
+      "skill": "Talent",
+      "daily": "Quotidien et hebdo",
+      "world": "Mondes",
+      "technique": "Techniques de logique"
+    },
     "first_purr": {
       "title": "Premier Ronron",
       "desc": "Termine ton tout premier niveau."
@@ -585,6 +595,62 @@
     "puzzle_master": {
       "title": "Maître du Puzzle",
       "desc": "Gagne 30 étoiles au fil de l'aventure."
+    },
+    "sharp_whiskers_2": {
+      "title": "Moustaches affûtées",
+      "desc": "Résous 15 grilles différentes sans indice."
+    },
+    "sharp_whiskers_3": {
+      "title": "Moustaches de maître",
+      "desc": "Résous 40 grilles différentes sans indice."
+    },
+    "perfect_paws_2": {
+      "title": "Pattes sûres",
+      "desc": "Résous 10 grilles différentes sans erreur."
+    },
+    "perfect_paws_3": {
+      "title": "Pattes parfaites",
+      "desc": "Résous 30 grilles différentes sans erreur."
+    },
+    "daily_devotee_1": {
+      "title": "Ami du jour",
+      "desc": "Résous 7 Chats du Jour."
+    },
+    "daily_devotee_2": {
+      "title": "Fidèle du jour",
+      "desc": "Résous 30 Chats du Jour."
+    },
+    "daily_devotee_3": {
+      "title": "Légende du jour",
+      "desc": "Résous 100 Chats du Jour."
+    },
+    "golden_hunter": {
+      "title": "Chasseur doré",
+      "desc": "Résous 3 Épreuves du Chat Doré."
+    },
+    "world_clear": {
+      "title": "Explorateur : {{world}}",
+      "desc": "Termine tous les niveaux de {{world}}."
+    },
+    "world_stars": {
+      "title": "Étoile : {{world}}",
+      "desc": "Obtiens 3 étoiles sur tous les niveaux de {{world}}."
+    },
+    "tech_rank_1": {
+      "title": "Lecteur de zones",
+      "desc": "Résous une grille qui demande une intersection zone–ligne."
+    },
+    "tech_rank_2": {
+      "title": "Repère-blocages",
+      "desc": "Résous une grille qui demande une exclusion par blocage."
+    },
+    "tech_rank_3": {
+      "title": "Pro du confinement",
+      "desc": "Résous une grille qui demande un confinement de groupes."
+    },
+    "tech_rank_4": {
+      "title": "Magicien du « et si »",
+      "desc": "Résous une grille qui demande un test « et si »."
     }
   },
   "cats": {

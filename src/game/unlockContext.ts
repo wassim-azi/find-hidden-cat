@@ -33,5 +33,6 @@ export function buildUnlockContext(s: {
     completedDailyCount: s.progressStats.lifetime.dailySolved,
     unlockedCatsCount: s.unlockedCatIds.length,
     unlockedAchievementsCount: s.unlockedAchievementIds.length,
+    progressStats: s.progressStats,
   };
 }

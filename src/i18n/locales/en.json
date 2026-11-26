@@ -554,6 +554,16 @@
   },
   "achievements": {
     "unlockedToast": "Achievement Unlocked: {{title}}!",
+    "unlockedManyToast": "{{count}} badges unlocked!",
+    "backfillToast_one": "{{count}} badge is ready to claim.",
+    "backfillToast_other": "{{count}} badges are ready to claim.",
+    "groups": {
+      "progress": "Journey",
+      "skill": "Skill",
+      "daily": "Daily & weekly",
+      "world": "Worlds",
+      "technique": "Logic techniques"
+    },
     "first_purr": {
       "title": "First Purr",
       "desc": "Complete your very first puzzle level."
@@ -585,6 +595,62 @@
     "puzzle_master": {
       "title": "Puzzle Master",
       "desc": "Earn 30 total stars across your journey."
+    },
+    "sharp_whiskers_2": {
+      "title": "Keen Whiskers",
+      "desc": "Solve 15 different puzzles without hints."
+    },
+    "sharp_whiskers_3": {
+      "title": "Master Whiskers",
+      "desc": "Solve 40 different puzzles without hints."
+    },
+    "perfect_paws_2": {
+      "title": "Steady Paws",
+      "desc": "Solve 10 different puzzles with zero mistakes."
+    },
+    "perfect_paws_3": {
+      "title": "Flawless Paws",
+      "desc": "Solve 30 different puzzles with zero mistakes."
+    },
+    "daily_devotee_1": {
+      "title": "Daily Friend",
+      "desc": "Solve 7 Daily Kitty puzzles."
+    },
+    "daily_devotee_2": {
+      "title": "Daily Devotee",
+      "desc": "Solve 30 Daily Kitty puzzles."
+    },
+    "daily_devotee_3": {
+      "title": "Daily Legend",
+      "desc": "Solve 100 Daily Kitty puzzles."
+    },
+    "golden_hunter": {
+      "title": "Golden Hunter",
+      "desc": "Solve 3 Golden Cat Trials."
+    },
+    "world_clear": {
+      "title": "{{world}} Explorer",
+      "desc": "Complete every level in {{world}}."
+    },
+    "world_stars": {
+      "title": "{{world}} Star",
+      "desc": "Get 3 stars on every level in {{world}}."
+    },
+    "tech_rank_1": {
+      "title": "Region Reader",
+      "desc": "Solve a puzzle that needs a region–line intersection."
+    },
+    "tech_rank_2": {
+      "title": "Blocker Spotter",
+      "desc": "Solve a puzzle that needs blocking exclusion."
+    },
+    "tech_rank_3": {
+      "title": "Pigeonhole Pro",
+      "desc": "Solve a puzzle that needs group confinement."
+    },
+    "tech_rank_4": {
+      "title": "What-If Wizard",
+      "desc": "Solve a puzzle that needs a \"what if\" test."
     }
   },
   "cats": {

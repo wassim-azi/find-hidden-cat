@@ -17,7 +17,12 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
-import { ACHIEVEMENTS, AchievementDefinition } from '../../game/achievements';
+import {
+  ACHIEVEMENT_GROUP_ORDER,
+  ACHIEVEMENTS,
+  AchievementDefinition,
+  getAchievementCopy,
+} from '../../game/achievements';
 import {
   EventRewardPreview,
   getCurrentWeekKey,
@@ -502,77 +507,116 @@ export const MissionsScreen: React.FC = () => {
           })}
 
         {tab === 'achievements' &&
-          ACHIEVEMENTS.map((ach) => {
-            const current = Math.min(ach.target, ach.getProgress(achCtx));
-            const unlocked = unlockedAchievementIds.includes(ach.id) || current >= ach.target;
-            const claimed = claimedAchievementIds.includes(ach.id);
-            const pct = Math.round((current / ach.target) * 100);
-
+          ACHIEVEMENT_GROUP_ORDER.map((group) => {
+            const items = ACHIEVEMENTS.filter((a) => a.group === group);
+            if (items.length === 0) return null;
             return (
-              <div
-                key={ach.id}
-                className="meow-card rounded-[20px] p-3 flex items-center gap-3"
+              <section
+                key={group}
+                id={`ach-group-${group}`}
+                className="flex flex-col gap-2"
               >
-                <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                    unlocked
-                      ? 'bg-gradient-to-br from-[#FFE396] to-[#F3B038] text-[#6B4209]'
-                      : 'bg-[#F2EAE0] text-[#A99B90]'
-                  }`}
-                >
-                  {ACH_ICONS[ach.icon]}
-                </div>
+                <h3 className="text-[13px] font-black text-[#3A312C] px-0.5">
+                  {t(`achievements.groups.${group}`)}
+                </h3>
+                {items.map((ach) => {
+                  const current = Math.min(ach.target, ach.getProgress(achCtx));
+                  const unlocked =
+                    unlockedAchievementIds.includes(ach.id) || current >= ach.target;
+                  const claimed = claimedAchievementIds.includes(ach.id);
+                  const pct = Math.round((current / ach.target) * 100);
+                  const copy = getAchievementCopy(ach, t);
+                  const rewardLabel = formatRewardLabel(
+                    ach.rewardCoins,
+                    ach.rewardBooster ? { [ach.rewardBooster]: 1 } : undefined,
+                    t
+                  );
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <h3 className="text-[13.5px] font-black text-[#3A312C] truncate">
-                      {t(`achievements.${ach.id}.title`)}
-                    </h3>
-                    <span className="text-[10.5px] font-black text-[#8A7B70] tabular-nums shrink-0">
-                      {current}/{ach.target}
-                    </span>
-                  </div>
-                  <p className="text-[11px] font-semibold text-[#7E7067] leading-tight mt-0.5">
-                    {t(`achievements.${ach.id}.desc`)}
-                  </p>
-                  <div className="w-full h-1.5 bg-[#F2E9DC] rounded-full overflow-hidden mt-1.5">
+                  return (
                     <div
-                      className="h-full bg-[#F4B942] rounded-full"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="shrink-0">
-                  {claimed ? (
-                    <span className="w-8 h-8 rounded-full bg-[#E8F7EE] text-[#3B8B61] flex items-center justify-center">
-                      <Check className="w-4 h-4" strokeWidth={3} />
-                    </span>
-                  ) : unlocked ? (
-                    <TactileButton
-                      id={`btn-claim-ach-${ach.id}`}
-                      variant="primary"
-                      size="sm"
-                      onClick={() => claimAchievementReward(ach.id)}
-                      className="h-8 px-2.5 text-[11px]"
+                      key={ach.id}
+                      className="meow-card rounded-[20px] p-3 flex items-center gap-3"
                     >
-                      +{ach.rewardCoins}
-                    </TactileButton>
-                  ) : (
-                    <div className="flex flex-col items-end text-[10px] font-black text-[#8A7B70]">
-                      <span className="inline-flex items-center gap-0.5">
-                        <FishCoinIcon className="w-3.5 h-3.5" />
-                        {ach.rewardCoins}
-                      </span>
-                      {ach.rewardBooster && (
-                        <span className="text-[#8366CC] text-[9px]">
-                          +{t(`shop.items.${ach.rewardBooster}.short`)}
-                        </span>
-                      )}
+                      <div
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                          unlocked
+                            ? 'bg-gradient-to-br from-[#FFE396] to-[#F3B038] text-[#6B4209]'
+                            : 'bg-[#F2EAE0] text-[#A99B90]'
+                        }`}
+                      >
+                        {ACH_ICONS[ach.icon]}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h4 className="text-[13.5px] font-black text-[#3A312C] truncate">
+                              {copy.title}
+                            </h4>
+                            {ach.tier !== undefined && (
+                              <span
+                                className="inline-flex items-center gap-0.5 shrink-0"
+                                aria-label={`Tier ${ach.tier}`}
+                              >
+                                {Array.from({ length: ach.tier }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className="w-2.5 h-2.5 text-[#F4B942] fill-[#F4B942]"
+                                  />
+                                ))}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10.5px] font-black text-[#8A7B70] tabular-nums shrink-0">
+                            {current}/{ach.target}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-semibold text-[#7E7067] leading-tight mt-0.5">
+                          {copy.desc}
+                        </p>
+                        <div className="text-[10px] font-extrabold text-[#8A6128] mt-1">
+                          {rewardLabel}
+                        </div>
+                        <div
+                          role="progressbar"
+                          aria-valuenow={current}
+                          aria-valuemin={0}
+                          aria-valuemax={ach.target}
+                          aria-label={copy.title}
+                          className="w-full h-1.5 bg-[#F2E9DC] rounded-full overflow-hidden mt-1"
+                        >
+                          <div
+                            className="h-full bg-[#F4B942] rounded-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        {claimed ? (
+                          <span className="w-8 h-8 rounded-full bg-[#E8F7EE] text-[#3B8B61] flex items-center justify-center">
+                            <Check className="w-4 h-4" strokeWidth={3} />
+                          </span>
+                        ) : unlocked ? (
+                          <TactileButton
+                            id={`btn-claim-ach-${ach.id}`}
+                            variant="primary"
+                            size="sm"
+                            onClick={() => claimAchievementReward(ach.id)}
+                            className="h-8 px-2.5 text-[11px]"
+                          >
+                            {t('common.claim')}
+                          </TactileButton>
+                        ) : (
+                          <span className="text-[10px] font-extrabold text-[#A99B90] whitespace-nowrap">
+                            {t('common.inPlay')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                  );
+                })}
+              </section>
             );
           })}
       </div>

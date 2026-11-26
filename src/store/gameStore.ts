@@ -75,6 +75,9 @@ import {
 } from '../game/missions';
 import {
   ACHIEVEMENTS,
+  backfillAchievements,
+  formatAchievementUnlockToast,
+  getAchievementCopy,
   getNewlyUnlockedAchievements,
 } from '../game/achievements';
 import {
@@ -237,6 +240,7 @@ interface GameStoreState {
   milestoneIndex: number;
   unlockedAchievementIds: string[];
   claimedAchievementIds: string[];
+  pendingAchievementBackfillCount: number;
   unlockedCatIds: string[];
   activeMascotCatId: string;
   claimedEventIds: string[];
@@ -559,6 +563,22 @@ const initialWeeklyMissions = ensureWeeklyMissions(
   getCurrentWeekKey(),
   initialEligibility
 );
+const initialAchBackfill = backfillAchievements(
+  buildUnlockContext({
+    levelProgress: persisted.levelProgress,
+    unlockedLevelId: Math.min(persisted.unlockedLevelId, TOTAL_LEVELS),
+    progressStats: persisted.progressStats,
+    unlockedAchievementIds: persisted.unlockedAchievementIds,
+    unlockedCatIds: persisted.unlockedCatIds,
+  }),
+  persisted.unlockedAchievementIds
+);
+if (initialAchBackfill.addedCount > 0) {
+  savePersistedState({
+    ...persisted,
+    unlockedAchievementIds: initialAchBackfill.nextUnlockedIds,
+  });
+}
 
 type ResumeSource =
   | { kind: 'live' }
@@ -818,8 +838,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   dailyMissions: initialMissions,
   weeklyMissions: initialWeeklyMissions,
   milestoneIndex: persisted.milestoneIndex,
-  unlockedAchievementIds: persisted.unlockedAchievementIds,
+  unlockedAchievementIds: initialAchBackfill.nextUnlockedIds,
   claimedAchievementIds: persisted.claimedAchievementIds,
+  pendingAchievementBackfillCount: initialAchBackfill.addedCount,
   unlockedCatIds: persisted.unlockedCatIds,
   activeMascotCatId: persisted.activeMascotCatId,
   claimedEventIds: persisted.claimedEventIds,
@@ -888,11 +909,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       eligibility
     );
 
+    const backfillToNotify =
+      screen === 'missions' && state.pendingAchievementBackfillCount > 0
+        ? state.pendingAchievementBackfillCount
+        : 0;
+
     set({
       previousScreen: state.screen,
       screen,
       dailyMissions: freshMissions,
       weeklyMissions: freshWeekly,
+      ...(backfillToNotify > 0 ? { pendingAchievementBackfillCount: 0 } : {}),
       isPaused: false,
       outOfHearts: false,
       pendingBoosterConfirm: null,
@@ -900,6 +927,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       isCelebratingBoard: false,
       victorySummary: screen === 'game' ? state.victorySummary : null,
     });
+
+    if (backfillToNotify > 0) {
+      get().showToast(
+        i18n.t('achievements.backfillToast', { count: backfillToNotify })
+      );
+    }
   },
 
   startLevel: (levelId, resumeIfSaved = false) => {
@@ -1845,9 +1878,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const revealVictory = () => {
       celebrationTimer = null;
       set({ isCelebratingBoard: false, victorySummary: summary });
-      if (newlyUnlockedAchs.length > 0) {
-        const achTitle = i18n.t(`achievements.${newlyUnlockedAchs[0]!.id}.title`);
-        get().showToast(i18n.t('achievements.unlockedToast', { title: achTitle }));
+      const achToast = formatAchievementUnlockToast(
+        newlyUnlockedAchs,
+        i18n.t.bind(i18n)
+      );
+      if (achToast) {
+        get().showToast(achToast);
       }
     };
     if (typeof window !== 'undefined') {
@@ -2717,7 +2753,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       boosters: nextBoosters,
     });
     state.showToast(
-      `${i18n.t(`achievements.${def.id}.title`)} : +${def.rewardCoins} ${i18n.t('common.fishCoinsLabel')}`
+      `${getAchievementCopy(def, i18n.t.bind(i18n)).title} : +${def.rewardCoins} ${i18n.t('common.fishCoinsLabel')}`
     );
     const at = nextEventAt();
     const d = new Date(at);
@@ -3001,6 +3037,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       milestoneIndex: 0,
       unlockedAchievementIds: [],
       claimedAchievementIds: [],
+      pendingAchievementBackfillCount: 0,
       unlockedCatIds: ['mochi'],
       activeMascotCatId: 'mochi',
       claimedEventIds: [],
