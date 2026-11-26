@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
   Clock,
+  Gift,
   Lightbulb,
   Map,
   RotateCcw,
@@ -170,6 +171,25 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({
                     count: summary.stars - summary.previousBestStars,
                     coins: summary.rewardBreakdown.starImprovementBonus,
                   })}
+                </p>
+              )}
+
+              {summary.rewardBreakdown.perfectBonus > 0 && (
+                <p
+                  id="victory-perfect-bonus"
+                  className="text-[11.5px] font-extrabold text-[#357D56] mb-3 -mt-1.5 px-2"
+                >
+                  {t('victory.perfectBonus', { coins: summary.rewardBreakdown.perfectBonus })}
+                </p>
+              )}
+
+              {summary.chestMilestone && (
+                <p
+                  id="victory-chest-milestone"
+                  className="mb-3 rounded-2xl bg-[#FFF6DF] border border-[#F2DFB4] px-3 py-1.5 text-[11.5px] font-extrabold text-[#8A5A10] flex items-center justify-center gap-1.5"
+                >
+                  <Gift className="w-3.5 h-3.5 shrink-0" />
+                  {t('victory.chestMilestone')}
                 </p>
               )}
 

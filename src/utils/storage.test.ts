@@ -486,4 +486,18 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(second).toEqual(first);
     expect(first.rngState).toBe(123456);
   });
+
+  it('defaults perfectBonusLevels to [] for legacy saves (no back-fill) and sanitizes it (#22)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    // Legacy save with an already-perfect level: no back-fill, it can earn the bonus next time
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    expect(loadPersistedState().perfectBonusLevels).toEqual([]);
+
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({ ...savedProgress, perfectBonusLevels: [7, 2, 2, 0, 25, 3.5, '4', 24] })
+    );
+    expect(loadPersistedState().perfectBonusLevels).toEqual([2, 7, 24]);
+  });
 });

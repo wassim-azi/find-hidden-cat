@@ -68,9 +68,10 @@ describe('Puzzle chests in the store (#21)', () => {
   it('earns a chest after 3 first clears in Classic, but not from Practice', () => {
     useGameStore.setState({ unlockedLevelId: 24 });
     S().updateSetting('gameMode', 'practice');
-    S().startLevel(10, false);
+    S().startLevel(11, false); // not a campaign chest milestone level (#22)
     solveCurrentPuzzle();
     expect(S().chests.progress).toBe(0);
+    expect(S().chests.pending).toHaveLength(0);
 
     S().updateSetting('gameMode', 'classic');
     for (const id of [1, 2, 3]) {

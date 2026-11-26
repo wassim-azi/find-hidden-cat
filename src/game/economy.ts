@@ -102,6 +102,8 @@ export interface LevelRewardBreakdown {
   specialNodeBonus: number;
   worldMilestoneBonus: number;
   starImprovementBonus: number;
+  /** One-time perfect-level bonus (#22); computed by the store, 0 from calculateLevelCoinReward. */
+  perfectBonus: number;
   totalCoins: number;
 }
 
@@ -127,6 +129,7 @@ export function calculateLevelCoinReward(params: {
       specialNodeBonus: 0,
       worldMilestoneBonus: 0,
       starImprovementBonus: 0,
+      perfectBonus: 0,
       totalCoins: 0,
     };
   }
@@ -142,6 +145,7 @@ export function calculateLevelCoinReward(params: {
       specialNodeBonus: 0,
       worldMilestoneBonus: 0,
       starImprovementBonus,
+      perfectBonus: 0,
       totalCoins: starImprovementBonus,
     };
   }
@@ -166,6 +170,7 @@ export function calculateLevelCoinReward(params: {
     specialNodeBonus,
     worldMilestoneBonus,
     starImprovementBonus: 0,
+    perfectBonus: 0,
     totalCoins:
       baseCoins +
       firstClearBonus +

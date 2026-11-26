@@ -92,6 +92,7 @@ export interface PersistedGameData {
   totalStarsEarnedEver: number;
   progressStats: ProgressStats;
   chests: ChestState;
+  perfectBonusLevels: number[];
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -156,6 +157,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   totalStarsEarnedEver: 0,
   progressStats: EMPTY_PROGRESS_STATS,
   chests: createInitialChestState(),
+  perfectBonusLevels: [],
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -525,6 +527,18 @@ function sanitizeChests(raw: unknown): ChestState {
     opened: safeCount(r.opened),
     sinceLastAccessory: safeCount(r.sinceLastAccessory),
   };
+}
+
+function sanitizePerfectBonusLevels(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  return Array.from(
+    new Set(
+      raw.filter(
+        (id): id is number =>
+          typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= TOTAL_LEVELS
+      )
+    )
+  ).sort((a, b) => a - b);
 }
 
 const MAX_CAMPAIGN_SAVES = 5;
@@ -1008,6 +1022,7 @@ export function loadPersistedState(): PersistedGameData {
           : Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0),
       progressStats,
       chests: sanitizeChests(parsed.chests),
+      perfectBonusLevels: sanitizePerfectBonusLevels(parsed.perfectBonusLevels),
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

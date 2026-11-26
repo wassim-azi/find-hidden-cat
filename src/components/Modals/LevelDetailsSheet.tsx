@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, RotateCcw, Sparkles, Star } from 'lucide-react';
+import { BadgeCheck, Play, RotateCcw, Sparkles, Star } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { getLevelPuzzle } from '../../game/levels';
 import { formatTime } from '../../utils/format';
@@ -20,6 +20,7 @@ export const LevelDetailsSheet: React.FC<LevelDetailsSheetProps> = ({
   const levelProgress = useGameStore((s) => s.levelProgress);
   const campaignSaveLevelIds = useGameStore((s) => s.campaignSaveLevelIds);
   const startLevel = useGameStore((s) => s.startLevel);
+  const perfectBonusLevels = useGameStore((s) => s.perfectBonusLevels);
 
   const open = levelId !== null;
   const puzzle = levelId !== null ? getLevelPuzzle(levelId) : null;
@@ -125,6 +126,16 @@ export const LevelDetailsSheet: React.FC<LevelDetailsSheetProps> = ({
               </div>
             ))}
           </dl>
+
+          {levelId !== null && perfectBonusLevels.includes(levelId) && (
+            <p
+              id="level-details-perfect-earned"
+              className="mt-3 w-full rounded-xl bg-[#E8F7EE] border border-[#BFE3CC] px-3 py-2 text-[11px] font-black text-[#357D56] flex items-center justify-center gap-1.5"
+            >
+              <BadgeCheck className="w-3.5 h-3.5 shrink-0" />
+              {t('levelDetails.perfectEarned')}
+            </p>
+          )}
 
           {stars < 3 && (
             <p className="mt-3 w-full rounded-xl bg-[#FFF6DF] border border-[#F2DDA3] px-3 py-2 text-[11px] font-bold text-[#7B5614] flex items-center justify-center gap-1.5 leading-snug">

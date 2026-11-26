@@ -18,6 +18,7 @@ import {
   WorldDefinition,
 } from '../../game/worlds';
 import { getCurrentWeekKey } from '../../game/events';
+import { isCampaignChestLevel } from '../../game/bonusConfig';
 import { getUpcomingGoals } from '../../game/upcomingGoals';
 import { getCollectibleCat } from '../../game/collectibleCats';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
@@ -484,9 +485,10 @@ export const MapScreen: React.FC = () => {
                     id: node.levelId,
                     title: localizedTitle,
                   });
-            const nodeAriaLabel = hasSavedProgress
-              ? `${baseAriaLabel}${t('map.inProgressAria')}`
-              : baseAriaLabel;
+            const hasChestMilestone = !isCompleted && isCampaignChestLevel(node.levelId);
+            const nodeAriaLabel = `${baseAriaLabel}${hasSavedProgress ? t('map.inProgressAria') : ''}${
+              hasChestMilestone ? t('map.chestMilestoneAria') : ''
+            }`;
 
             return (
               <div
@@ -605,6 +607,16 @@ export const MapScreen: React.FC = () => {
                       </>
                     )}
                   </motion.button>
+
+                  {hasChestMilestone && (
+                    <span
+                      id={`level-chest-${node.levelId}`}
+                      aria-hidden="true"
+                      className="absolute -top-1.5 -right-2.5 w-6 h-6 rounded-lg bg-gradient-to-br from-[#FFE396] to-[#F3B038] text-[#6B4209] border-2 border-white shadow-xs flex items-center justify-center pointer-events-none"
+                    >
+                      <Gift className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                 </div>
 
                 {isCompleted && (

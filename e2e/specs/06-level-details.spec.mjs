@@ -29,6 +29,18 @@ export default async function levelDetailsSpec(browser, { check, BASE }) {
       }
 
       await page.locator('#btn-victory-levels').waitFor({ state: 'visible', timeout: 6000 });
+      const perfectVisible = await page
+        .locator('#victory-perfect-bonus')
+        .isVisible()
+        .catch(() => false);
+      const perfectText = perfectVisible
+        ? await page.locator('#victory-perfect-bonus').innerText()
+        : '';
+      check(
+        `level-details (${locale}): #victory-perfect-bonus shown for a no-hint, no-mistake clear (#22)`,
+        perfectVisible && perfectText.includes('+10'),
+        perfectText
+      );
       await page.locator('#btn-victory-levels').click();
       await page.waitForSelector('#level-card-1', { timeout: 5000 });
       await page.waitForTimeout(300);

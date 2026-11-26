@@ -82,12 +82,18 @@ import {
 } from '../game/achievements';
 import { AccessoryId } from '../game/accessories';
 import {
+  earnsPerfectLevelBonus,
+  isCampaignChestLevel,
+  PERFECT_LEVEL_BONUS_COINS,
+} from '../game/bonusConfig';
+import {
   applyChestProgress,
   ChestState,
   CHEST_ACCESSORY_FALLBACK_COINS,
   CHEST_GUARANTEED,
   createInitialChestState,
   getChestCoins,
+  grantChest,
 } from '../game/chests';
 import { CAT_SETS, CatSetId, getSetProgress } from '../game/catSets';
 import {
@@ -207,6 +213,8 @@ export interface VictorySummary {
   isPracticeMode?: boolean;
   isReplay: boolean;
   improvements: Improvement[];
+  /** First clear of a CAMPAIGN_CHEST_LEVELS level granted an extra Puzzle chest (#22). */
+  chestMilestone: boolean;
 }
 
 export interface ChestRevealModalData {
@@ -277,6 +285,7 @@ interface GameStoreState {
   totalStarsEarnedEver: number;
   progressStats: ProgressStats;
   chests: ChestState;
+  perfectBonusLevels: number[];
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -834,6 +843,7 @@ function persistFromState(state: GameStoreState): void {
     totalStarsEarnedEver: state.totalStarsEarnedEver,
     progressStats: state.progressStats,
     chests: state.chests,
+    perfectBonusLevels: state.perfectBonusLevels,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -897,6 +907,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   totalStarsEarnedEver: persisted.totalStarsEarnedEver,
   progressStats: persisted.progressStats,
   chests: persisted.chests,
+  perfectBonusLevels: persisted.perfectBonusLevels,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -1673,7 +1684,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     const practiceCoins = isFirstCompletion ? 8 : 0;
-    const rewardBreakdown: LevelRewardBreakdown = isPractice
+    const baseRewardBreakdown: LevelRewardBreakdown = isPractice
       ? {
           baseCoins: practiceCoins,
           firstClearBonus: 0,
@@ -1681,6 +1692,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           specialNodeBonus: 0,
           worldMilestoneBonus: 0,
           starImprovementBonus: 0,
+          perfectBonus: 0,
           totalCoins: practiceCoins,
         }
       : calculateLevelCoinReward({
@@ -1692,6 +1704,28 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           isDaily: isDailyOrEvent,
           previousBestStars,
         });
+
+    // Perfect-level bonus (#22): depends on save state, so it is computed outside
+    // calculateLevelCoinReward and paid at most once per campaign level.
+    const perfectBonus = earnsPerfectLevelBonus({
+      isCampaign: !isDailyOrEvent,
+      isPractice,
+      hintsUsed: state.hintsUsed,
+      mistakesCount: state.mistakesCount,
+      levelId: state.puzzle.id,
+      perfectBonusLevels: state.perfectBonusLevels,
+    })
+      ? PERFECT_LEVEL_BONUS_COINS
+      : 0;
+    const rewardBreakdown: LevelRewardBreakdown = {
+      ...baseRewardBreakdown,
+      perfectBonus,
+      totalCoins: baseRewardBreakdown.totalCoins + perfectBonus,
+    };
+    const nextPerfectBonusLevels =
+      perfectBonus > 0
+        ? [...state.perfectBonusLevels, state.puzzle.id].sort((a, b) => a - b)
+        : state.perfectBonusLevels;
 
     const nextCoins = state.fishCoins + rewardBreakdown.totalCoins;
     // Never award competitive zero-mistake / no-hint perfect achievements in Practice Mode,
@@ -1850,6 +1884,26 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }
 
+    const nextSeasonProgress = applySeasonEvent(state.seasonProgress, completedEvent);
+    const newlyEarnedSeasonal = getNewlyEarnedSeasonalAccessories(
+      nextSeasonProgress,
+      state.unlockedAccessoryIds
+    );
+    const nextUnlockedAccessories =
+      newlyEarnedSeasonal.length > 0
+        ? [...state.unlockedAccessoryIds, ...newlyEarnedSeasonal]
+        : state.unlockedAccessoryIds;
+
+    // Puzzle chest track (#21): the bonus is rolled now and persisted with the advanced RNG
+    let nextChests = applyChestProgress(state.chests, completedEvent, nextUnlockedAccessories);
+    // Campaign chest milestones (#22): first clear (any mode) of levels 5/10/15/20
+    let earnedChestMilestone = false;
+    if (!isDailyOrEvent && isFirstCompletion && isCampaignChestLevel(state.puzzle.id)) {
+      const withMilestone = grantChest(nextChests, nextUnlockedAccessories, eventAt);
+      earnedChestMilestone = withMilestone.pending.length > nextChests.pending.length;
+      nextChests = withMilestone;
+    }
+
     const summary: VictorySummary = {
       levelId: state.puzzle.id,
       dailyDateKey: state.puzzle.dailyDateKey,
@@ -1867,6 +1921,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       isPracticeMode: isPractice,
       isReplay: !isFirstCompletion,
       improvements,
+      chestMilestone: earnedChestMilestone,
     };
 
     let nextDailyLogin = state.dailyLogin;
@@ -1887,18 +1942,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }
 
-    const nextSeasonProgress = applySeasonEvent(state.seasonProgress, completedEvent);
-    const newlyEarnedSeasonal = getNewlyEarnedSeasonalAccessories(
-      nextSeasonProgress,
-      state.unlockedAccessoryIds
-    );
-    const nextUnlockedAccessories =
-      newlyEarnedSeasonal.length > 0
-        ? [...state.unlockedAccessoryIds, ...newlyEarnedSeasonal]
-        : state.unlockedAccessoryIds;
-
-    // Puzzle chest track (#21): the bonus is rolled now and persisted with the advanced RNG
-    const nextChests = applyChestProgress(state.chests, completedEvent, nextUnlockedAccessories);
 
     set({
       board: synced.board,
@@ -1932,6 +1975,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
       progressStats: nextProgressStats,
       chests: nextChests,
+      perfectBonusLevels: nextPerfectBonusLevels,
       isMistakeShieldActive: false,
       isCelebratingBoard: true,
       victorySummary: null,
@@ -3294,6 +3338,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       totalStarsEarnedEver: 0,
       progressStats: EMPTY_PROGRESS_STATS,
       chests: createInitialChestState(),
+      perfectBonusLevels: [],
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],

@@ -21,6 +21,7 @@ describe('calculateLevelCoinReward', () => {
       specialNodeBonus: 0,
       worldMilestoneBonus: 0,
       starImprovementBonus: 0,
+      perfectBonus: 0,
       totalCoins: 0,
     });
   });
@@ -42,6 +43,7 @@ describe('calculateLevelCoinReward', () => {
       specialNodeBonus: 0,
       worldMilestoneBonus: 0,
       starImprovementBonus: 20,
+      perfectBonus: 0,
       totalCoins: 20,
     });
   });
@@ -76,19 +78,19 @@ describe('calculateLevelCoinReward', () => {
 
     expect(table).toEqual([
       [
-        { difficulty: 'easy', stars: 1, baseCoins: 18, firstClearBonus: 15, starBonus: 0, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 33 },
-        { difficulty: 'easy', stars: 2, baseCoins: 18, firstClearBonus: 15, starBonus: 6, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 39 },
-        { difficulty: 'easy', stars: 3, baseCoins: 18, firstClearBonus: 15, starBonus: 15, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 48 },
+        { difficulty: 'easy', stars: 1, baseCoins: 18, firstClearBonus: 15, starBonus: 0, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 33 },
+        { difficulty: 'easy', stars: 2, baseCoins: 18, firstClearBonus: 15, starBonus: 6, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 39 },
+        { difficulty: 'easy', stars: 3, baseCoins: 18, firstClearBonus: 15, starBonus: 15, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 48 },
       ],
       [
-        { difficulty: 'medium', stars: 1, baseCoins: 26, firstClearBonus: 15, starBonus: 0, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 41 },
-        { difficulty: 'medium', stars: 2, baseCoins: 26, firstClearBonus: 15, starBonus: 6, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 47 },
-        { difficulty: 'medium', stars: 3, baseCoins: 26, firstClearBonus: 15, starBonus: 15, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 56 },
+        { difficulty: 'medium', stars: 1, baseCoins: 26, firstClearBonus: 15, starBonus: 0, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 41 },
+        { difficulty: 'medium', stars: 2, baseCoins: 26, firstClearBonus: 15, starBonus: 6, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 47 },
+        { difficulty: 'medium', stars: 3, baseCoins: 26, firstClearBonus: 15, starBonus: 15, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 56 },
       ],
       [
-        { difficulty: 'hard', stars: 1, baseCoins: 35, firstClearBonus: 15, starBonus: 0, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 50 },
-        { difficulty: 'hard', stars: 2, baseCoins: 35, firstClearBonus: 15, starBonus: 6, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 56 },
-        { difficulty: 'hard', stars: 3, baseCoins: 35, firstClearBonus: 15, starBonus: 15, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, totalCoins: 65 },
+        { difficulty: 'hard', stars: 1, baseCoins: 35, firstClearBonus: 15, starBonus: 0, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 50 },
+        { difficulty: 'hard', stars: 2, baseCoins: 35, firstClearBonus: 15, starBonus: 6, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 56 },
+        { difficulty: 'hard', stars: 3, baseCoins: 35, firstClearBonus: 15, starBonus: 15, specialNodeBonus: 0, worldMilestoneBonus: 0, starImprovementBonus: 0, perfectBonus: 0, totalCoins: 65 },
       ],
     ]);
   });
@@ -110,6 +112,7 @@ describe('calculateLevelCoinReward', () => {
       specialNodeBonus: 0,
       worldMilestoneBonus: 0,
       starImprovementBonus: 0,
+      perfectBonus: 0,
       totalCoins: 0,
     });
   });
