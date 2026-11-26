@@ -15,6 +15,7 @@
  */
 
 import { getWeekKey } from '../game/dateKeys';
+import { allowedReminderCategories } from '../game/familyMode';
 
 export type NotificationCategory =
   | 'streak'
@@ -68,6 +69,8 @@ export interface ReminderGameContext {
   pendingChests: number;
   /** Week key (`YYYY-WNN`) when an unclaimed weekly mission has target - progress === 1 */
   weeklyMissionNearlyDoneWeekKey: string | null;
+  /** When true, only dailyPuzzle reminders are planned (#29) */
+  familyMode: boolean;
 }
 
 export interface ReminderPlanSettings {
@@ -315,6 +318,16 @@ export function buildReminderPlan(
   let ignored = countIgnoredReminders(log);
   let lastSentDay = log.sentLog[log.sentLog.length - 1]?.dateKey ?? null;
 
+  const allowed = new Set(allowedReminderCategories({ familyMode: ctx.familyMode }));
+  const effectiveCategories: Record<NotificationCategory, boolean> = {
+    streak: allowed.has('streak') && settings.categories.streak,
+    dailyPuzzle: allowed.has('dailyPuzzle') && settings.categories.dailyPuzzle,
+    specialChallenges:
+      allowed.has('specialChallenges') && settings.categories.specialChallenges,
+    continueAdventure:
+      allowed.has('continueAdventure') && settings.categories.continueAdventure,
+  };
+
   const plan: ReminderPlanEntry[] = [];
   for (let i = 0; i < days; i++) {
     const dateKey = addDays(today, i);
@@ -323,7 +336,7 @@ export function buildReminderPlan(
     if (ignored >= BACKOFF_AFTER_IGNORED && lastSentDay && daysBetween(lastSentDay, dateKey) < 2) {
       continue;
     }
-    const kind = chooseKind(dateKey, ctx, settings.categories);
+    const kind = chooseKind(dateKey, ctx, effectiveCategories);
     if (!kind) continue;
     const text = copy(kind, {
       count: ctx.loginStreak,

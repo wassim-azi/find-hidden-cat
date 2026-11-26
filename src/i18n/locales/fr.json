@@ -1103,5 +1103,25 @@
   "breakNote": {
     "text": "Belle session — {{minutes}} minutes à chercher des chats ! Ta progression est sauvegardée si tu veux faire une pause.",
     "ok": "Compris"
+  },
+  "family": {
+    "title": "Mode famille",
+    "desc": "Masque les pubs et les séries, limite les rappels au Chat du Jour et propose des pauses.",
+    "offerTitle": "Tu installes le jeu pour un enfant ?",
+    "offerYes": "Activer le mode famille",
+    "offerNo": "Non merci",
+    "pinTitle": "Code parent (facultatif)",
+    "pinDesc": "Nécessaire pour désactiver le mode famille. Tu peux passer cette étape.",
+    "pinSave": "Enregistrer le code",
+    "pinSkip": "Passer",
+    "pinCheckTitle": "Saisis le code parent",
+    "pinWrong": "Ce code n'est pas correct.",
+    "forgot": "Code oublié ?",
+    "gateTitle": "Réservé aux adultes",
+    "gateQuestion": "Combien font {{a}} × {{b}} ?",
+    "gateWrong": "Pas tout à fait — en voici une autre.",
+    "gateSubmit": "Confirmer",
+    "turnedOnToast": "Mode famille activé.",
+    "turnedOffToast": "Mode famille désactivé."
   }
 }

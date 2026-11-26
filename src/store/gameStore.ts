@@ -262,6 +262,7 @@ interface GameStoreState {
   chestRevealModal: ChestRevealModalData | null;
   toastMessage: string | null;
   victorySummary: VictorySummary | null;
+  familyModalMode: 'set-pin' | 'turn-off' | null;
 
   // Progression & Economy
   currentLevelId: number;
@@ -300,6 +301,7 @@ interface GameStoreState {
   recommendationDismissed: Record<string, string>;
   dailyVariant: { dateKey: string; variant: DailyVariant } | null;
   lastVisit: LastVisitSnapshot | null;
+  familyModeOffered: boolean;
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -414,6 +416,12 @@ interface GameStoreState {
   resetSkillProfile: () => void;
   dismissRecommendation: (kind: RecommendationKind) => void;
   updateLastVisit: (now?: number) => void;
+  enableFamilyMode: () => void;
+  saveFamilyPin: (pinHash: string | null) => void;
+  requestDisableFamilyMode: () => void;
+  disableFamilyMode: () => void;
+  closeFamilyModal: () => void;
+  dismissFamilyModeOffer: () => void;
 }
 
 let activeDragSession: DragPaintSession | null = null;
@@ -898,6 +906,7 @@ function persistFromState(state: GameStoreState): void {
     recommendationDismissed: state.recommendationDismissed,
     dailyVariant: state.dailyVariant,
     lastVisit: state.lastVisit,
+    familyModeOffered: state.familyModeOffered,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -931,6 +940,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   chestRevealModal: null,
   toastMessage: null,
   victorySummary: null,
+  familyModalMode: null,
 
   currentLevelId: initialLevelId,
   unlockedLevelId: Math.min(persisted.unlockedLevelId, TOTAL_LEVELS),
@@ -968,6 +978,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   recommendationDismissed: persisted.recommendationDismissed,
   dailyVariant: persisted.dailyVariant,
   lastVisit: persisted.lastVisit,
+  familyModeOffered: persisted.familyModeOffered,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -3373,6 +3384,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return;
     }
 
+    if (key === 'familyMode' && value === true && state.settings.breakReminderMinutes === 0) {
+      set({ settings: { ...nextSettings, breakReminderMinutes: 30 } });
+      persistFromState(get());
+      return;
+    }
+
     set({ settings: nextSettings });
     persistFromState(get());
   },
@@ -3415,6 +3432,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       chestRevealModal: null,
       isCelebratingBoard: false,
       victorySummary: null,
+      familyModalMode: null,
       currentLevelId: 1,
       unlockedLevelId: 1,
       levelProgress: {},
@@ -3461,6 +3479,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       recommendationDismissed: {},
       dailyVariant: null,
       lastVisit: null,
+      familyModeOffered: false,
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],
@@ -3510,6 +3529,69 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         seasonKey: seasonInfo.seasonKey,
       },
     });
+    persistFromState(get());
+  },
+
+  enableFamilyMode: () => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    const nextBreak =
+      state.settings.breakReminderMinutes === 0 ? 30 : state.settings.breakReminderMinutes;
+    set({
+      settings: {
+        ...state.settings,
+        familyMode: true,
+        breakReminderMinutes: nextBreak,
+      },
+      familyModeOffered: true,
+      familyModalMode: 'set-pin',
+    });
+    persistFromState(get());
+    get().showToast(i18n.t('family.turnedOnToast'));
+  },
+
+  saveFamilyPin: (pinHash) => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    set({
+      settings: {
+        ...state.settings,
+        familyPinHash: pinHash,
+      },
+      familyModalMode: null,
+    });
+    persistFromState(get());
+  },
+
+  requestDisableFamilyMode: () => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    set({ familyModalMode: 'turn-off' });
+  },
+
+  disableFamilyMode: () => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    set({
+      settings: {
+        ...state.settings,
+        familyMode: false,
+        familyPinHash: null,
+      },
+      familyModalMode: null,
+    });
+    persistFromState(get());
+    get().showToast(i18n.t('family.turnedOffToast'));
+  },
+
+  closeFamilyModal: () => {
+    set({ familyModalMode: null });
+  },
+
+  dismissFamilyModeOffer: () => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    set({ familyModeOffered: true });
     persistFromState(get());
   },
 }));

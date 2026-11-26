@@ -183,6 +183,8 @@ export interface PlayerSettings {
   highContrast: boolean;
   largeText: boolean;
   breakReminderMinutes: 0 | 30 | 45 | 60;
+  familyMode: boolean;
+  familyPinHash: string | null;
 }
 
 export interface ActivePuzzleSave {

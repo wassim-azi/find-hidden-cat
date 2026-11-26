@@ -34,6 +34,7 @@ const ctx: ReminderGameContext = {
   isGoldenDoneForDate: () => false,
   pendingChests: 0,
   weeklyMissionNearlyDoneWeekKey: null,
+  familyMode: false,
 };
 const copy = (kind: string, p: { count?: number; level?: number }) => ({
   title: 'T',
@@ -255,5 +256,33 @@ describe('5. Chest, near-done mission kinds & copy variants (#27)', () => {
     expect(chestP[0]!.kind).toBe('chestReady');
     expect(chestP[1]!.kind).toBe('chestReady');
     expect(chestP[0]!.body).not.toBe(chestP[1]!.body);
+  });
+
+  it('with familyMode=true only plans dailyPuzzle entries regardless of other triggers (#29)', () => {
+    const p = plan(
+      log(),
+      {
+        familyMode: true,
+        lastLoginClaimDateKey: '2026-11-24',
+        loginStreak: 6,
+        pendingChests: 2,
+        weeklyMissionNearlyDoneWeekKey: '2026-W48',
+        completedDailyDates: ['2026-11-25'],
+      },
+      settings,
+      NOW
+    );
+    expect(p.length).toBeGreaterThan(0);
+    expect(p.every((e) => e.kind === 'dailyPuzzle')).toBe(true);
+    expect(p.some((e) => e.dateKey === '2026-11-25')).toBe(false);
+
+    // If dailyPuzzle category is off while familyMode is on, no entries are planned
+    const none = plan(
+      log(),
+      { familyMode: true, pendingChests: 2, loginStreak: 5, lastLoginClaimDateKey: '2026-11-24' },
+      { categories: { ...settings.categories, dailyPuzzle: false } },
+      NOW
+    );
+    expect(none).toEqual([]);
   });
 });

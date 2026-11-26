@@ -6,6 +6,7 @@ import { TactileButton } from '../Buttons/TactileButton';
 import { FishCoinIcon } from '../Currency/FishCoinIcon';
 import { REWARDED_AD_OFFERS, RewardedAdPlacement } from '../../services/rewardedAds';
 import { BoosterId } from '../../game/economy';
+import { isAdUiAllowed } from '../../game/familyMode';
 import { useGameStore } from '../../store/gameStore';
 
 const PLACEMENT_TO_BOOSTER: Partial<Record<RewardedAdPlacement, BoosterId>> = {
@@ -20,6 +21,7 @@ export const RewardedAdModal: React.FC = () => {
   const placement = useGameStore((s) => s.rewardedAdPlacement);
   const lastAdFeedback = useGameStore((s) => s.lastAdFeedback);
   const fishCoins = useGameStore((s) => s.fishCoins);
+  const settings = useGameStore((s) => s.settings);
   const attemptWatchRewardedAd = useGameStore((s) => s.attemptWatchRewardedAd);
   const purchaseBooster = useGameStore((s) => s.purchaseBooster);
   const closeRewardedAdPrompt = useGameStore((s) => s.closeRewardedAdPrompt);
@@ -31,6 +33,7 @@ export const RewardedAdModal: React.FC = () => {
   const boosterId = PLACEMENT_TO_BOOSTER[placement];
   const headline = t(`ads.offers.${placement}.headline`);
   const rewardLabel = t(`ads.offers.${placement}.reward`);
+  const adAllowed = isAdUiAllowed(settings);
 
   const handleWatchAd = async () => {
     setChecking(true);
@@ -95,16 +98,18 @@ export const RewardedAdModal: React.FC = () => {
         )}
 
         <div className="flex flex-col gap-2.5 mt-4">
-          <TactileButton
-            id="btn-ad-watch"
-            variant="primary"
-            fullWidth
-            disabled={checking}
-            onClick={() => void handleWatchAd()}
-          >
-            <Film className="w-4.5 h-4.5" />
-            {checking ? t('ads.checkingBtn') : t('ads.watchAdBtn')}
-          </TactileButton>
+          {adAllowed && (
+            <TactileButton
+              id="btn-ad-watch"
+              variant="primary"
+              fullWidth
+              disabled={checking}
+              onClick={() => void handleWatchAd()}
+            >
+              <Film className="w-4.5 h-4.5" />
+              {checking ? t('ads.checkingBtn') : t('ads.watchAdBtn')}
+            </TactileButton>
+          )}
 
           {boosterId && offer.coinAlternativeCost > 0 && (
             <TactileButton

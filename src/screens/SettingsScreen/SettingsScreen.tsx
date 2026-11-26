@@ -17,6 +17,7 @@ import {
   Heart,
   Layers,
   Music,
+  ShieldCheck,
   Smartphone,
   Sparkles,
   Star,
@@ -39,6 +40,7 @@ interface SettingsScreenProps {
   onOpenNotifications?: () => void;
   onOpenInstall?: () => void;
   onReplayTutorial?: () => void;
+  onToggleFamilyMode?: () => void;
   onUpdateSetting: <K extends keyof PlayerSettings>(
     key: K,
     value: PlayerSettings[K]
@@ -126,6 +128,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onOpenNotifications,
   onOpenInstall,
   onReplayTutorial,
+  onToggleFamilyMode,
   onUpdateSetting,
   onResetProgress,
   onResetSkillProfile,
@@ -539,6 +542,21 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               })}
             </div>
           </div>
+
+          <ToggleRow
+            id="toggle-family-mode"
+            icon={<ShieldCheck className="w-4 h-4 text-[#3B8B61]" />}
+            label={t('family.title')}
+            description={t('family.desc')}
+            checked={settings.familyMode}
+            onToggle={() => {
+              if (onToggleFamilyMode) {
+                onToggleFamilyMode();
+              } else {
+                onUpdateSetting('familyMode', !settings.familyMode);
+              }
+            }}
+          />
         </div>
 
         {/* Reset Skill Profile (#23): clears only the on-device suggestion model */}

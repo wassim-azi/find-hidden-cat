@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { BoosterId, SHOP_ITEMS } from '../../game/economy';
+import { isAdUiAllowed } from '../../game/familyMode';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
 import { TactileButton } from '../../components/Buttons/TactileButton';
@@ -28,10 +29,12 @@ export const ShopScreen: React.FC = () => {
   const { t } = useTranslation();
   const fishCoins = useGameStore((s) => s.fishCoins);
   const boosters = useGameStore((s) => s.boosters);
+  const settings = useGameStore((s) => s.settings);
   const purchaseBooster = useGameStore((s) => s.purchaseBooster);
   const openRewardedAdPrompt = useGameStore((s) => s.openRewardedAdPrompt);
 
   const nextGoalItem = SHOP_ITEMS.find((i) => i.priceCoins > fishCoins);
+  const adUiAllowed = isAdUiAllowed(settings);
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
@@ -119,40 +122,42 @@ export const ShopScreen: React.FC = () => {
           );
         })}
 
-        <div className="mt-1 rounded-[22px] bg-[#F4EEFD] border border-[#DFD2F8] p-3.5">
-          <div className="flex items-center gap-2 mb-1">
-            <Film className="w-4 h-4 text-[#7859C4] shrink-0" />
-            <h3 className="text-[13px] font-black text-[#4B367E]">
-              {t('shop.optionalRewardsTitle')}
-            </h3>
-            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white text-[#7859C4] whitespace-nowrap">
-              {t('common.comingSoon')}
-            </span>
+        {adUiAllowed && (
+          <div className="mt-1 rounded-[22px] bg-[#F4EEFD] border border-[#DFD2F8] p-3.5">
+            <div className="flex items-center gap-2 mb-1">
+              <Film className="w-4 h-4 text-[#7859C4] shrink-0" />
+              <h3 className="text-[13px] font-black text-[#4B367E]">
+                {t('shop.optionalRewardsTitle')}
+              </h3>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white text-[#7859C4] whitespace-nowrap">
+                {t('common.comingSoon')}
+              </span>
+            </div>
+            <p className="text-[11px] font-bold text-[#6E5B9B] mb-3">
+              {t('shop.optionalRewardsDesc')}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                id="btn-shop-ad-coins"
+                type="button"
+                onClick={() => openRewardedAdPrompt('bonus_coins')}
+                className="rounded-xl bg-white border border-[#DFD2F8] px-2.5 py-2 text-[11px] font-extrabold text-[#5D439E] flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Film className="w-3.5 h-3.5 shrink-0" />
+                {t('shop.adCoinsBtn')}
+              </button>
+              <button
+                id="btn-shop-ad-hint"
+                type="button"
+                onClick={() => openRewardedAdPrompt('free_hint')}
+                className="rounded-xl bg-white border border-[#DFD2F8] px-2.5 py-2 text-[11px] font-extrabold text-[#5D439E] flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Film className="w-3.5 h-3.5 shrink-0" />
+                {t('shop.adHintBtn')}
+              </button>
+            </div>
           </div>
-          <p className="text-[11px] font-bold text-[#6E5B9B] mb-3">
-            {t('shop.optionalRewardsDesc')}
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              id="btn-shop-ad-coins"
-              type="button"
-              onClick={() => openRewardedAdPrompt('bonus_coins')}
-              className="rounded-xl bg-white border border-[#DFD2F8] px-2.5 py-2 text-[11px] font-extrabold text-[#5D439E] flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <Film className="w-3.5 h-3.5 shrink-0" />
-              {t('shop.adCoinsBtn')}
-            </button>
-            <button
-              id="btn-shop-ad-hint"
-              type="button"
-              onClick={() => openRewardedAdPrompt('free_hint')}
-              className="rounded-xl bg-white border border-[#DFD2F8] px-2.5 py-2 text-[11px] font-extrabold text-[#5D439E] flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <Film className="w-3.5 h-3.5 shrink-0" />
-              {t('shop.adHintBtn')}
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

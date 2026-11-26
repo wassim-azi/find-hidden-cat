@@ -115,6 +115,11 @@ const WelcomeBackSheet = lazy(() =>
     default: m.WelcomeBackSheet,
   }))
 );
+const FamilyModals = lazy(() =>
+  import('./components/Modals/FamilyModals').then((m) => ({
+    default: m.FamilyModals,
+  }))
+);
 
 const HUB_SCREENS = new Set<ScreenName>([
   'map',
@@ -141,12 +146,15 @@ export const App: React.FC = () => {
   const unlockedWorldModal = useGameStore((s) => s.unlockedWorldModal);
   const unlockedCatModal = useGameStore((s) => s.unlockedCatModal);
   const chestRevealModal = useGameStore((s) => s.chestRevealModal);
+  const familyModalMode = useGameStore((s) => s.familyModalMode);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const toastMessage = useGameStore((s) => s.toastMessage);
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const markTutorialSeen = useGameStore((s) => s.markTutorialSeen);
   const openOnboarding = useGameStore((s) => s.openOnboarding);
   const updateSetting = useGameStore((s) => s.updateSetting);
+  const enableFamilyMode = useGameStore((s) => s.enableFamilyMode);
+  const requestDisableFamilyMode = useGameStore((s) => s.requestDisableFamilyMode);
   const resetAllProgress = useGameStore((s) => s.resetAllProgress);
   const resetSkillProfile = useGameStore((s) => s.resetSkillProfile);
   const showToast = useGameStore((s) => s.showToast);
@@ -230,6 +238,7 @@ export const App: React.FC = () => {
         )
           ? s.weeklyMissions.weekKey
           : null,
+        familyMode: s.settings.familyMode,
       };
     });
     // Replan whenever progress that changes tomorrow's message happens
@@ -240,7 +249,8 @@ export const App: React.FC = () => {
         s.currentLevelId !== prev.currentLevelId ||
         s.unlockedLevelId !== prev.unlockedLevelId ||
         s.chests.pending.length !== prev.chests.pending.length ||
-        s.weeklyMissions !== prev.weeklyMissions
+        s.weeklyMissions !== prev.weeklyMissions ||
+        s.settings.familyMode !== prev.settings.familyMode
       ) {
         refreshReminderPlan();
       }
@@ -503,6 +513,9 @@ export const App: React.FC = () => {
               onOpenNotifications={() => setNotifSettingsOpen(true)}
               onOpenInstall={() => setInstallModalOpen(true)}
               onReplayTutorial={openOnboarding}
+              onToggleFamilyMode={() =>
+                settings.familyMode ? requestDisableFamilyMode() : enableFamilyMode()
+              }
               onUpdateSetting={updateSetting}
               onResetProgress={resetAllProgress}
               onResetSkillProfile={resetSkillProfile}
@@ -521,6 +534,7 @@ export const App: React.FC = () => {
           {isDailyCalendarOpen && <DailyCalendarModal />}
           {rewardedAdPlacement && <RewardedAdModal />}
           {hasCelebrationModal && <CelebrationModals />}
+          {familyModalMode !== null && <FamilyModals />}
 
           {installModalOpen && (
             <InstallPromptModal

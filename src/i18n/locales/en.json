@@ -1103,5 +1103,25 @@
   "breakNote": {
     "text": "Nice session — {{minutes}} minutes of cat-finding! Your progress is saved if you'd like a break.",
     "ok": "Got it"
+  },
+  "family": {
+    "title": "Family-friendly mode",
+    "desc": "Hides ads and streaks, keeps reminders to the Daily Kitty only, and suggests breaks.",
+    "offerTitle": "Setting this up for a child?",
+    "offerYes": "Turn on family mode",
+    "offerNo": "No thanks",
+    "pinTitle": "Optional parent PIN",
+    "pinDesc": "Needed to turn family mode off. You can skip this.",
+    "pinSave": "Save PIN",
+    "pinSkip": "Skip",
+    "pinCheckTitle": "Enter the parent PIN",
+    "pinWrong": "That PIN isn't right.",
+    "forgot": "Forgot PIN?",
+    "gateTitle": "Grown-ups only",
+    "gateQuestion": "What is {{a}} × {{b}}?",
+    "gateWrong": "Not quite — here's a new one.",
+    "gateSubmit": "Confirm",
+    "turnedOnToast": "Family mode is on.",
+    "turnedOffToast": "Family mode is off."
   }
 }

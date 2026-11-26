@@ -677,4 +677,46 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
       expect(loadPersistedState().settings.breakReminderMinutes).toBe(0);
     }
   });
+
+  it('defaults familyMode, familyPinHash, and familyModeOffered for old saves and sanitizes them (#29)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    // Legacy save without familyMode / familyPinHash / familyModeOffered
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    const legacy = loadPersistedState();
+    expect(legacy.settings.familyMode).toBe(false);
+    expect(legacy.settings.familyPinHash).toBeNull();
+    expect(legacy.familyModeOffered).toBe(false);
+
+    // Valid SHA-256 hex hash & booleans are preserved
+    const validHash = 'a'.repeat(64);
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        familyModeOffered: true,
+        settings: { familyMode: true, familyPinHash: validHash },
+      })
+    );
+    const valid = loadPersistedState();
+    expect(valid.settings.familyMode).toBe(true);
+    expect(valid.settings.familyPinHash).toBe(validHash);
+    expect(valid.familyModeOffered).toBe(true);
+
+    // Invalid PIN hashes and non-boolean values are sanitized to safe defaults
+    for (const badHash of ['1234', 'not-a-hash', 'Z'.repeat(64), 12345, {}]) {
+      ls.set(
+        'meowdoku_state_v2',
+        JSON.stringify({
+          ...savedProgress,
+          familyModeOffered: 'yes',
+          settings: { familyMode: 'true', familyPinHash: badHash },
+        })
+      );
+      const dirty = loadPersistedState();
+      expect(dirty.settings.familyMode).toBe(false);
+      expect(dirty.settings.familyPinHash).toBeNull();
+      expect(dirty.familyModeOffered).toBe(false);
+    }
+  });
 });

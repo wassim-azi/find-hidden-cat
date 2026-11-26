@@ -37,6 +37,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
   const completedDailyDates = useGameStore((s) => s.completedDailyDates);
   const fishCoins = useGameStore((s) => s.fishCoins);
   const dailyLogin = useGameStore((s) => s.dailyLogin);
+  const hasSeenTutorial = useGameStore((s) => s.hasSeenTutorial);
+  const familyModeOffered = useGameStore((s) => s.familyModeOffered);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const continueGame = useGameStore((s) => s.continueGame);
   const { requestDaily, sheet: dailyVariantSheet } = useDailyVariantPicker();
@@ -44,6 +46,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
   const setTutorialOpen = useGameStore((s) => s.setTutorialOpen);
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const setDailyCalendarOpen = useGameStore((s) => s.setDailyCalendarOpen);
+  const enableFamilyMode = useGameStore((s) => s.enableFamilyMode);
+  const dismissFamilyModeOffer = useGameStore((s) => s.dismissFamilyModeOffer);
 
   const [installState, setInstallState] = useState<PwaInstallState>(() =>
     getPwaInstallState()
@@ -77,9 +81,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
   const canClaimDaily = canClaimDailyReward(dailyLogin, todayKey);
   const lang = i18n.language.startsWith('fr') ? 'fr' : 'en';
   const formattedToday = formatLocalizedDate(todayKey, lang);
+  const showFamilyOffer = !familyModeOffered && hasSeenTutorial;
 
   return (
-    <main className="h-full w-full flex flex-col justify-between px-5 pt-4 pb-5 overflow-hidden relative">
+    <main className="h-full w-full flex flex-col justify-between px-5 pt-4 pb-5 soft-scroll relative">
       {/* Top Bar: Coins + Optional Install + Daily Gift + Settings */}
       <div className="flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -220,6 +225,36 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
             </span>
           )}
         </button>
+        {showFamilyOffer && (
+          <div
+            id="family-mode-offer"
+            className="mt-2.5 w-full max-w-[330px] rounded-[20px] bg-[#EBF7F0] border border-[#C3E5D1] px-3.5 py-2.5 text-left"
+          >
+            <p className="text-[12px] font-black text-[#2D5E43] leading-snug">
+              {t('family.offerTitle')}
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <TactileButton
+                id="btn-family-offer-yes"
+                variant="primary"
+                size="sm"
+                onClick={enableFamilyMode}
+                className="flex-1 text-[11px]"
+              >
+                {t('family.offerYes')}
+              </TactileButton>
+              <TactileButton
+                id="btn-family-offer-no"
+                variant="secondary"
+                size="sm"
+                onClick={dismissFamilyModeOffer}
+                className="text-[11px]"
+              >
+                {t('family.offerNo')}
+              </TactileButton>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Primary Action Stack */}

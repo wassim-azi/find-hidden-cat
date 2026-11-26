@@ -111,6 +111,8 @@ export interface PersistedGameData {
   dailyVariant: { dateKey: string; variant: DailyVariant } | null;
   /** Snapshot of the player's previous visit (#25). */
   lastVisit: LastVisitSnapshot | null;
+  /** Whether the one-time Welcome family-mode offer has been answered (#29). */
+  familyModeOffered: boolean;
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -131,6 +133,8 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   highContrast: false,
   largeText: false,
   breakReminderMinutes: 0,
+  familyMode: false,
+  familyPinHash: null,
 };
 
 export const DEFAULT_ACHIEVEMENTS: PlayerAchievements = {
@@ -181,6 +185,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   recommendationDismissed: {},
   dailyVariant: null,
   lastVisit: null,
+  familyModeOffered: false,
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -974,6 +979,15 @@ export function loadPersistedState(): PersistedGameData {
         parsed.settings?.breakReminderMinutes === 60
           ? parsed.settings.breakReminderMinutes
           : DEFAULT_SETTINGS.breakReminderMinutes,
+      familyMode:
+        typeof parsed.settings?.familyMode === 'boolean'
+          ? parsed.settings.familyMode
+          : DEFAULT_SETTINGS.familyMode,
+      familyPinHash:
+        typeof parsed.settings?.familyPinHash === 'string' &&
+        /^[0-9a-f]{64}$/.test(parsed.settings.familyPinHash)
+          ? parsed.settings.familyPinHash
+          : null,
     };
 
     const validDifficulties = new Set(['all', 'easy', 'medium', 'hard']);
@@ -1171,6 +1185,7 @@ export function loadPersistedState(): PersistedGameData {
       recommendationDismissed: sanitizeRecommendationDismissed(parsed.recommendationDismissed),
       dailyVariant: sanitizeDailyVariantLock(parsed.dailyVariant),
       lastVisit: sanitizeLastVisit(parsed.lastVisit),
+      familyModeOffered: parsed.familyModeOffered === true,
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

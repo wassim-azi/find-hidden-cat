@@ -19,6 +19,7 @@ import { getUpcomingGoals } from '../../game/upcomingGoals';
 import { getCollectibleCat, COLLECTIBLE_CATS } from '../../game/collectibleCats';
 import { getWorldForLevel, WORLDS } from '../../game/worlds';
 import { ACHIEVEMENTS } from '../../game/achievements';
+import { isStreakUiAllowed } from '../../game/familyMode';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
@@ -48,6 +49,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const unlockedAchievementIds = useGameStore((s) => s.unlockedAchievementIds);
   const dailyLogin = useGameStore((s) => s.dailyLogin);
+  const settings = useGameStore((s) => s.settings);
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
   const setTutorialOpen = useGameStore((s) => s.setTutorialOpen);
   const goToScreen = useGameStore((s) => s.goToScreen);
@@ -57,6 +59,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const solvedCount = Object.values(levelProgress).filter((p) => p.completed).length;
   const totalStars = Object.values(levelProgress).reduce((sum, p) => sum + p.stars, 0);
   const worldsUnlocked = WORLDS.filter((w) => unlockedLevelId >= w.levelStart).length;
+  const streakUiAllowed = isStreakUiAllowed(settings);
   const upcomingGoals = getUpcomingGoals({
     levelProgress,
     unlockedLevelId,
@@ -96,18 +99,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       value: `${unlockedCatIds.length}/${COLLECTIBLE_CATS.length}`,
       icon: <Award className="w-4 h-4 text-[#E86A7B]" />,
     },
-    {
-      label: t('profile.loginStreak'),
-      value: t('common.days', { count: dailyLogin.streakCount }),
-      icon: <Flame className="w-4 h-4 text-[#E87A2A]" />,
-    },
-    {
-      label: t('profile.longestStreak'),
-      value: t('common.days', {
-        count: Math.max(dailyLogin.longestStreak, dailyLogin.streakCount),
-      }),
-      icon: <Flame className="w-4 h-4 text-[#D95B38]" />,
-    },
+    ...(streakUiAllowed
+      ? [
+          {
+            label: t('profile.loginStreak'),
+            value: t('common.days', { count: dailyLogin.streakCount }),
+            icon: <Flame className="w-4 h-4 text-[#E87A2A]" />,
+          },
+          {
+            label: t('profile.longestStreak'),
+            value: t('common.days', {
+              count: Math.max(dailyLogin.longestStreak, dailyLogin.streakCount),
+            }),
+            icon: <Flame className="w-4 h-4 text-[#D95B38]" />,
+          },
+        ]
+      : []),
   ];
 
   return (

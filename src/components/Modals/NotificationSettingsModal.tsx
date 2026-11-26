@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { ModalSheet } from './ModalSheet';
 import { TactileButton } from '../Buttons/TactileButton';
+import { allowedReminderCategories } from '../../game/familyMode';
+import { useGameStore } from '../../store/gameStore';
 import { getCurrentLanguage } from '../../i18n';
 import {
   BrowserPermissionState,
@@ -45,6 +47,8 @@ export const NotificationSettingsModal: React.FC<
   NotificationSettingsModalProps
 > = ({ open, onClose, onToast }) => {
   const { t } = useTranslation();
+  const settings = useGameStore((s) => s.settings);
+  const allowedCategories = allowedReminderCategories(settings);
   const [prefs, setPrefs] = useState<NotificationPreferences>(() =>
     loadNotificationPrefs()
   );
@@ -347,7 +351,9 @@ export const NotificationSettingsModal: React.FC<
                 descKey: 'notifications.catSpecialDesc',
               },
             ] as const
-          ).map((cat) => {
+          )
+            .filter((cat) => allowedCategories.includes(cat.id))
+            .map((cat) => {
             const active = prefs.categories[cat.id];
             return (
               <button

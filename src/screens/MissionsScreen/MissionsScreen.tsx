@@ -17,6 +17,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
+import { isStreakUiAllowed } from '../../game/familyMode';
 import {
   ACHIEVEMENT_GROUP_ORDER,
   ACHIEVEMENTS,
@@ -101,6 +102,7 @@ export const MissionsScreen: React.FC = () => {
   const claimedAchievementIds = useGameStore((s) => s.claimedAchievementIds);
   const claimedEventIds = useGameStore((s) => s.claimedEventIds);
   const chests = useGameStore((s) => s.chests);
+  const settings = useGameStore((s) => s.settings);
   const openNextChest = useGameStore((s) => s.openNextChest);
 
   const claimMissionReward = useGameStore((s) => s.claimMissionReward);
@@ -255,7 +257,9 @@ export const MissionsScreen: React.FC = () => {
               <div className="text-[10.5px] font-bold text-[#8A6128] mt-0.5 truncate">
                 {dailyClaimable
                   ? t('missions.dailyRewardsReady', { day: dailyLogin.currentDayIndex + 1 })
-                  : t('missions.dailyRewardsStreak', { count: dailyLogin.streakCount })}
+                  : isStreakUiAllowed(settings)
+                    ? t('missions.dailyRewardsStreak', { count: dailyLogin.streakCount })
+                    : t('dailyCalendar.claimedToday')}
               </div>
             </div>
           </div>

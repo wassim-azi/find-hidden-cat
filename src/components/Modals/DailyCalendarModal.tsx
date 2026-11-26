@@ -13,6 +13,7 @@ import {
   STREAK_MILESTONES,
 } from '../../game/dailyRewards';
 import { formatRewardLabel } from '../../game/rewardLabels';
+import { isAdUiAllowed, isStreakUiAllowed } from '../../game/familyMode';
 import { getTodayDateKey } from '../../game/levels';
 import { rewardedAdService } from '../../services/rewardedAds';
 import { useGameStore } from '../../store/gameStore';
@@ -21,6 +22,7 @@ export const DailyCalendarModal: React.FC = () => {
   const { t } = useTranslation();
   const open = useGameStore((s) => s.isDailyCalendarOpen);
   const dailyLogin = useGameStore((s) => s.dailyLogin);
+  const settings = useGameStore((s) => s.settings);
   const claimTodaysDailyReward = useGameStore((s) => s.claimTodaysDailyReward);
   const setDailyCalendarOpen = useGameStore((s) => s.setDailyCalendarOpen);
   const openRewardedAdPrompt = useGameStore((s) => s.openRewardedAdPrompt);
@@ -37,12 +39,14 @@ export const DailyCalendarModal: React.FC = () => {
     ? Math.floor((dailyLogin.totalClaims - 1) / 7)
     : Math.floor(dailyLogin.totalClaims / 7);
 
+  const streakUiAllowed = isStreakUiAllowed(settings);
   const claimedMilestones = dailyLogin.claimedStreakMilestones ?? [];
   const nextMilestone =
     STREAK_MILESTONES.find((m) => !claimedMilestones.includes(m.days)) ?? null;
-  const recoveryActive = isRecoverableActive(dailyLogin, todayKey);
+  const recoveryActive = streakUiAllowed && isRecoverableActive(dailyLogin, todayKey);
 
   const canShowDailyAd =
+    isAdUiAllowed(settings) &&
     rewardedAdService.isAvailable('daily_bonus') &&
     dailyLogin.adBonusDateKey !== todayKey;
 
@@ -53,17 +57,17 @@ export const DailyCalendarModal: React.FC = () => {
         res.reward.coins,
         res.reward.boosters,
         t,
-        res.reward.streakShields
+        streakUiAllowed ? res.reward.streakShields : undefined
       );
       const parts: string[] = [
-        res.usedStreakShield
+        streakUiAllowed && res.usedStreakShield
           ? t('dailyCalendar.shieldSavedToast', { title: rewardTitle })
           : t('dailyCalendar.claimedToast', { day: res.reward.day, title: rewardTitle }),
       ];
       if (res.luckyBonusCoins > 0) {
         parts.push(t('dailyCalendar.luckyToast', { coins: res.luckyBonusCoins }));
       }
-      if (res.milestone) {
+      if (streakUiAllowed && res.milestone) {
         parts.push(t('dailyCalendar.milestoneToast', { days: res.milestone.days }));
       }
       setJustClaimedText(parts.join(' · '));
@@ -117,30 +121,32 @@ export const DailyCalendarModal: React.FC = () => {
           </div>
 
           {/* Streak & Friendly Streak Freeze Strip */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="rounded-2xl bg-[#FFF5E4] border border-[#F3DCAD] px-3 py-2 flex items-center gap-2">
-              <Flame className="w-4.5 h-4.5 text-[#E87A2A] shrink-0" />
-              <div>
-                <div className="text-[13.5px] font-black text-[#3A312C] leading-none">
-                  {t('common.days', { count: dailyLogin.streakCount })}
+          {streakUiAllowed && (
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="rounded-2xl bg-[#FFF5E4] border border-[#F3DCAD] px-3 py-2 flex items-center gap-2">
+                <Flame className="w-4.5 h-4.5 text-[#E87A2A] shrink-0" />
+                <div>
+                  <div className="text-[13.5px] font-black text-[#3A312C] leading-none">
+                    {t('common.days', { count: dailyLogin.streakCount })}
+                  </div>
+                  <div className="text-[10px] font-bold text-[#946C2B] mt-0.5">
+                    {t('dailyCalendar.loginStreak')}
+                  </div>
                 </div>
-                <div className="text-[10px] font-bold text-[#946C2B] mt-0.5">
-                  {t('dailyCalendar.loginStreak')}
+              </div>
+              <div className="rounded-2xl bg-[#EBF7F0] border border-[#C3E5D1] px-3 py-2 flex items-center gap-2">
+                <Shield className="w-4.5 h-4.5 text-[#3B8B61] shrink-0" />
+                <div>
+                  <div className="text-[11.5px] font-black text-[#3A312C] leading-tight">
+                    {t('dailyCalendar.streakFreeze', { count: dailyLogin.streakShields })}
+                  </div>
+                  <div className="text-[10px] font-bold text-[#3D7A5A] mt-0.5">
+                    {t('dailyCalendar.streakGuard')}
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl bg-[#EBF7F0] border border-[#C3E5D1] px-3 py-2 flex items-center gap-2">
-              <Shield className="w-4.5 h-4.5 text-[#3B8B61] shrink-0" />
-              <div>
-                <div className="text-[11.5px] font-black text-[#3A312C] leading-tight">
-                  {t('dailyCalendar.streakFreeze', { count: dailyLogin.streakShields })}
-                </div>
-                <div className="text-[10px] font-bold text-[#3D7A5A] mt-0.5">
-                  {t('dailyCalendar.streakGuard')}
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* One-Tap Recovery Banner */}
           {recoveryActive && dailyLogin.recoverable && (
@@ -167,7 +173,7 @@ export const DailyCalendarModal: React.FC = () => {
           )}
 
           {/* Next Streak Milestone */}
-          {nextMilestone && (
+          {streakUiAllowed && nextMilestone && (
             <div
               id="calendar-next-milestone"
               className="mb-3 rounded-2xl bg-[#F4F0FA] border border-[#DFD4F3] px-3 py-2 flex items-center gap-2 text-[11px] font-extrabold text-[#574587]"
@@ -197,7 +203,7 @@ export const DailyCalendarModal: React.FC = () => {
                 slot.coins,
                 slot.boosters,
                 t,
-                slot.streakShields
+                streakUiAllowed ? slot.streakShields : undefined
               );
 
               return (
@@ -300,9 +306,11 @@ export const DailyCalendarModal: React.FC = () => {
             </div>
           )}
 
-          <p className="mt-2.5 text-center text-[10.5px] font-bold text-[#8A7B70] leading-snug">
-            {t('dailyCalendar.missedDayRule')}
-          </p>
+          {streakUiAllowed && (
+            <p className="mt-2.5 text-center text-[10.5px] font-bold text-[#8A7B70] leading-snug">
+              {t('dailyCalendar.missedDayRule')}
+            </p>
+          )}
         </div>
       </ModalSheet>
 
@@ -340,32 +348,36 @@ export const DailyCalendarModal: React.FC = () => {
             </p>
           </div>
 
-          <div className="text-[12px] font-black uppercase tracking-wider text-[#8A7B70] mb-2">
-            {t('dailyCalendar.milestonesTitle')}
-          </div>
-          <div className="space-y-1.5">
-            {STREAK_MILESTONES.map((m) => {
-              const reached = claimedMilestones.includes(m.days);
-              return (
-                <div
-                  key={m.days}
-                  className={`rounded-xl px-3 py-2 border flex items-center justify-between text-[12px] ${
-                    reached
-                      ? 'bg-[#EBF7F0] border-[#C3E5D1] text-[#2D754E]'
-                      : 'bg-[#FAF5EC] border-[#EAE0D2] text-[#3A312C]'
-                  }`}
-                >
-                  <span className="font-black flex items-center gap-1.5">
-                    {reached && <Check className="w-3.5 h-3.5 text-[#3B8B61]" />}
-                    {t('common.days', { count: m.days })}
-                  </span>
-                  <span className="font-bold text-right">
-                    {formatRewardLabel(m.coins, m.boosters, t)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {streakUiAllowed && (
+            <>
+              <div className="text-[12px] font-black uppercase tracking-wider text-[#8A7B70] mb-2">
+                {t('dailyCalendar.milestonesTitle')}
+              </div>
+              <div className="space-y-1.5">
+                {STREAK_MILESTONES.map((m) => {
+                  const reached = claimedMilestones.includes(m.days);
+                  return (
+                    <div
+                      key={m.days}
+                      className={`rounded-xl px-3 py-2 border flex items-center justify-between text-[12px] ${
+                        reached
+                          ? 'bg-[#EBF7F0] border-[#C3E5D1] text-[#2D754E]'
+                          : 'bg-[#FAF5EC] border-[#EAE0D2] text-[#3A312C]'
+                      }`}
+                    >
+                      <span className="font-black flex items-center gap-1.5">
+                        {reached && <Check className="w-3.5 h-3.5 text-[#3B8B61]" />}
+                        {t('common.days', { count: m.days })}
+                      </span>
+                      <span className="font-bold text-right">
+                        {formatRewardLabel(m.coins, m.boosters, t)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </ModalSheet>
     </>
