@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bell,
+  Brain,
   CheckCircle2,
   ChevronRight,
   Contrast,
@@ -40,6 +41,7 @@ interface SettingsScreenProps {
     value: PlayerSettings[K]
   ) => void;
   onResetProgress: () => void;
+  onResetSkillProfile: () => void;
   onClose: () => void;
 }
 
@@ -122,14 +124,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onOpenInstall,
   onUpdateSetting,
   onResetProgress,
+  onResetSkillProfile,
   onClose,
 }) => {
   const { t } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmSkillReset, setConfirmSkillReset] = useState(false);
   const currentLang = getCurrentLanguage();
 
   const handleClose = () => {
     setConfirmReset(false);
+    setConfirmSkillReset(false);
     onClose();
   };
 
@@ -466,6 +471,50 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               onUpdateSetting('hapticsEnabled', !settings.hapticsEnabled)
             }
           />
+        </div>
+
+        {/* Reset Skill Profile (#23): clears only the on-device suggestion model */}
+        <div className="mt-4 pt-3.5 border-t border-[#EFE6D8]">
+          <p className="text-[12.5px] font-black text-[#3A312C] flex items-center gap-1.5">
+            <Brain className="w-4 h-4 text-[#8B6CD6]" />
+            {t('settings.skillResetTitle')}
+          </p>
+          <p className="text-[11px] font-bold text-[#8A7B70] mt-0.5 mb-2">
+            {t('settings.skillResetDesc')}
+          </p>
+          {!confirmSkillReset ? (
+            <button
+              id="btn-reset-skill-profile"
+              type="button"
+              onClick={() => setConfirmSkillReset(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[13px] font-extrabold text-[#6B4EB5] bg-[#F3ECFD] hover:bg-[#E9DEFB] transition-colors cursor-pointer"
+            >
+              {t('settings.skillResetTitle')}
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <TactileButton
+                variant="secondary"
+                size="sm"
+                fullWidth
+                onClick={() => setConfirmSkillReset(false)}
+              >
+                {t('common.cancel')}
+              </TactileButton>
+              <TactileButton
+                id="btn-reset-skill-profile-confirm"
+                variant="danger"
+                size="sm"
+                fullWidth
+                onClick={() => {
+                  setConfirmSkillReset(false);
+                  onResetSkillProfile();
+                }}
+              >
+                {t('settings.skillResetConfirm')}
+              </TactileButton>
+            </div>
+          )}
         </div>
 
         {/* Reset Progress Section */}

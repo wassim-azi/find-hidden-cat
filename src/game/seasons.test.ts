@@ -35,6 +35,8 @@ function makeEvent(overrides: Partial<PuzzleCompletedEvent> = {}): PuzzleComplet
     improvedBest: false,
     catsFound: 6,
     techniques: [],
+    tier: 'easy',
+    parTimeSec: 60,
     ...overrides,
   };
 }

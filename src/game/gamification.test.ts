@@ -196,6 +196,8 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
       improvedBest: true,
       catsFound: 6,
       techniques: [],
+      tier: 'easy',
+      parTimeSec: 60,
     });
 
     const anyProgressed = nextMissions.some((m) => m.progress > 0);

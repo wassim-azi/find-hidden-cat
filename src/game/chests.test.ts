@@ -45,6 +45,8 @@ function completion(overrides: Partial<PuzzleCompletedEvent> = {}): PuzzleComple
     improvedBest: false,
     catsFound: 6,
     techniques: [],
+    tier: 'easy',
+    parTimeSec: 60,
     ...overrides,
   };
 }

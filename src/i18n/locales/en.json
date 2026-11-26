@@ -422,7 +422,11 @@
     "symbolsDesc": "Add colorblind-friendly icons to regions",
     "resetProgress": "Reset All Progress",
     "resetConfirmTitle": "Clear all solved levels, stars, Fish Coins, and cats?",
-    "resetConfirmYes": "Yes, Reset"
+    "resetConfirmYes": "Yes, Reset",
+    "skillResetTitle": "Reset my skill profile",
+    "skillResetDesc": "Clears what the game learned about your play style (used only for suggestions). Your progress stays.",
+    "skillResetConfirm": "Reset",
+    "skillResetDone": "Skill profile reset."
   },
   "dailyCalendar": {
     "dialogAria": "7-Day Daily Rewards Calendar",

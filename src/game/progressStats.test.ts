@@ -35,6 +35,8 @@ function makePuzzleEvent(
     improvedBest: false,
     catsFound: 5,
     techniques: ['naked_region_single', 'naked_row_single'],
+    tier: 'easy',
+    parTimeSec: 60,
     ...overrides,
   };
 }

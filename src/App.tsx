@@ -132,6 +132,7 @@ export const App: React.FC = () => {
   const markTutorialSeen = useGameStore((s) => s.markTutorialSeen);
   const updateSetting = useGameStore((s) => s.updateSetting);
   const resetAllProgress = useGameStore((s) => s.resetAllProgress);
+  const resetSkillProfile = useGameStore((s) => s.resetSkillProfile);
   const showToast = useGameStore((s) => s.showToast);
 
   const [installModalOpen, setInstallModalOpen] = useState(false);
@@ -439,6 +440,7 @@ export const App: React.FC = () => {
               onOpenInstall={() => setInstallModalOpen(true)}
               onUpdateSetting={updateSetting}
               onResetProgress={resetAllProgress}
+              onResetSkillProfile={resetSkillProfile}
               onClose={() => setSettingsOpen(false)}
             />
           )}

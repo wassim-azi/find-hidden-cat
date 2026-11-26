@@ -422,7 +422,11 @@
     "symbolsDesc": "Ajoute des icônes adaptées au daltonisme",
     "resetProgress": "Réinitialiser ma progression",
     "resetConfirmTitle": "Effacer tous les niveaux, étoiles, pièces poisson et chats ?",
-    "resetConfirmYes": "Oui, effacer"
+    "resetConfirmYes": "Oui, effacer",
+    "skillResetTitle": "Réinitialiser mon profil de niveau",
+    "skillResetDesc": "Efface ce que le jeu a appris de ta façon de jouer (utilisé seulement pour les suggestions). Ta progression est conservée.",
+    "skillResetConfirm": "Réinitialiser",
+    "skillResetDone": "Profil de niveau réinitialisé."
   },
   "dailyCalendar": {
     "dialogAria": "Calendrier des cadeaux sur 7 jours",

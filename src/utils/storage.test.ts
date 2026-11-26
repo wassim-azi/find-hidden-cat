@@ -500,4 +500,49 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     );
     expect(loadPersistedState().perfectBonusLevels).toEqual([2, 7, 24]);
   });
+
+  it('defaults skillProfile for legacy saves and sanitizes it (#23)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    expect(loadPersistedState().skillProfile).toEqual({
+      version: 1,
+      classic: {},
+      practice: {},
+      hintTechniqueCounts: {},
+      recent: [],
+    });
+
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        skillProfile: {
+          version: 1,
+          classic: {
+            easy: { samples: 4, timeRatio: 1.2, hints: -3, mistakes: 'x', successRate: 7 },
+            legendary: { samples: 9, timeRatio: 1, hints: 0, mistakes: 0, successRate: 1 },
+            hard: { samples: 0, timeRatio: 1, hints: 0, mistakes: 0, successRate: 1 },
+          },
+          practice: { normal: { samples: 2.9, timeRatio: Infinity, hints: 1, mistakes: 1, successRate: 0.5 } },
+          hintTechniqueCounts: { naked_pair_regions: 3, made_up: 4, contradiction_chain: -1 },
+          recent: [
+            ...Array.from({ length: 12 }, (_, i) => ({ at: i, success: 1 })),
+            { at: 99, success: 2 },
+            { at: 'x', success: 0 },
+          ],
+        },
+      })
+    );
+    const p = loadPersistedState().skillProfile;
+    expect(p.classic).toEqual({
+      easy: { samples: 4, timeRatio: 1.2, hints: 0, mistakes: 0, successRate: 1 },
+    });
+    expect(p.practice).toEqual({
+      normal: { samples: 2, timeRatio: 0, hints: 1, mistakes: 1, successRate: 0.5 },
+    });
+    expect(p.hintTechniqueCounts).toEqual({ naked_pair_regions: 3 });
+    expect(p.recent).toHaveLength(10);
+    expect(p.recent[0]).toEqual({ at: 2, success: 1 });
+  });
 });

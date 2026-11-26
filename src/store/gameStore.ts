@@ -134,6 +134,7 @@ import {
   PuzzleSource,
 } from '../game/progressStats';
 import { emitToListeners } from '../game/gameEvents';
+import { applySkillEvent, EMPTY_SKILL_PROFILE, SkillProfile } from '../game/skillProfile';
 import { buildUnlockContext } from '../game/unlockContext';
 import { toDateKey } from '../services/reminderPlanner';
 import {
@@ -286,6 +287,7 @@ interface GameStoreState {
   progressStats: ProgressStats;
   chests: ChestState;
   perfectBonusLevels: number[];
+  skillProfile: SkillProfile;
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -395,6 +397,7 @@ interface GameStoreState {
     value: PlayerSettings[K]
   ) => void;
   resetAllProgress: () => void;
+  resetSkillProfile: () => void;
 }
 
 let activeDragSession: DragPaintSession | null = null;
@@ -775,8 +778,33 @@ function nextEventAt(): number {
 function recordEvent(e: GameEvent): void {
   useGameStore.setState((s) => ({
     progressStats: applyGameEvent(s.progressStats, e),
+    skillProfile: applySkillEvent(s.skillProfile, e),
   }));
   emitToListeners(e);
+}
+
+/** Same key as the #11 completion event: campaign `L${id}`, Daily/Golden their dailyDateKey. */
+function puzzleKeyOf(puzzle: PuzzleDefinition): string {
+  return puzzle.dailyDateKey ? puzzle.dailyDateKey : `L${puzzle.id}`;
+}
+
+function eventStamp(): { at: number; dateKey: string; weekKey: string } {
+  const at = nextEventAt();
+  const d = new Date(at);
+  return { at, dateKey: toDateKey(d), weekKey: getWeekKey(d) };
+}
+
+function recordHintUsed(state: GameStoreState): void {
+  const stamp = eventStamp();
+  const puzzleKey = puzzleKeyOf(state.puzzle);
+  recordEvent({
+    type: 'hint_used',
+    id: `hint:${puzzleKey}:${stamp.at}`,
+    ...stamp,
+    puzzleKey,
+    technique: state.activeHint?.technique ?? null,
+    stage: state.hintStage,
+  });
 }
 
 function persistFromState(state: GameStoreState): void {
@@ -844,6 +872,7 @@ function persistFromState(state: GameStoreState): void {
     progressStats: state.progressStats,
     chests: state.chests,
     perfectBonusLevels: state.perfectBonusLevels,
+    skillProfile: state.skillProfile,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -908,6 +937,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   progressStats: persisted.progressStats,
   chests: persisted.chests,
   perfectBonusLevels: persisted.perfectBonusLevels,
+  skillProfile: persisted.skillProfile,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -1452,6 +1482,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           activeHint: null,
           hintStage: 1,
         });
+        if (nextHearts === 0) {
+          // Classic ran out of hearts (#23): feeds the on-device skill profile only
+          const stamp = eventStamp();
+          const puzzleKey = puzzleKeyOf(state.puzzle);
+          recordEvent({
+            type: 'puzzle_failed',
+            id: `failed:${puzzleKey}:${stamp.at}`,
+            ...stamp,
+            puzzleKey,
+            tier: getPuzzleAnalysis(state.puzzle).tier,
+            elapsedSec: state.elapsedSec,
+          });
+        }
         persistFromState(get());
       } else {
         // Practice Mode: teach gently without deducting hearts (mistakes are still tallied
@@ -1805,6 +1848,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       improvedBest: eventImprovedBest,
       catsFound: catsFoundCount,
       techniques,
+      tier: getPuzzleAnalysis(state.puzzle).tier,
+      parTimeSec: state.puzzle.parTimeSec,
     };
 
     updatedMissions = {
@@ -1817,6 +1862,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     };
 
     const nextProgressStats = applyGameEvent(state.progressStats, completedEvent);
+    const nextSkillProfile = applySkillEvent(state.skillProfile, completedEvent);
 
     const newlyUnlockedCats = getNewlyUnlockedCats(
       buildUnlockContext({
@@ -1974,6 +2020,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       specialLevelsCompleted: nextSpecialCompleted,
       totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
       progressStats: nextProgressStats,
+      skillProfile: nextSkillProfile,
       chests: nextChests,
       perfectBonusLevels: nextPerfectBonusLevels,
       isMistakeShieldActive: false,
@@ -2280,6 +2327,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       hintsUsed: state.hintsUsed + 1,
       mistakeFlash: null,
     });
+    recordHintUsed(get());
     persistFromState(get());
   },
 
@@ -2308,6 +2356,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       hintStage: hint.stage,
       selectedCell: hint.revealTargetCell ? hint.targetCell : state.selectedCell,
     });
+    recordHintUsed(get());
+    persistFromState(get());
   },
 
   requestUseBooster: (boosterId) => {
@@ -2587,6 +2637,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
+    // A deliberate restart after real effort is a soft failure signal (#23). A restart from the
+    // Out-of-Hearts screen was already recorded as puzzle_failed, so it is not counted twice.
+    if (state.elapsedSec >= 30 && !state.validation.isSolved && !state.outOfHearts) {
+      const stamp = eventStamp();
+      const puzzleKey = puzzleKeyOf(state.puzzle);
+      recordEvent({
+        type: 'puzzle_restarted',
+        id: `restart:${puzzleKey}:${stamp.at}`,
+        ...stamp,
+        puzzleKey,
+        tier: getPuzzleAnalysis(state.puzzle).tier,
+        elapsedSec: state.elapsedSec,
+      });
+    }
     if (!state.puzzle.dailyDateKey) {
       delete campaignSaves[state.puzzle.id];
     }
@@ -3339,6 +3403,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       progressStats: EMPTY_PROGRESS_STATS,
       chests: createInitialChestState(),
       perfectBonusLevels: [],
+      skillProfile: EMPTY_SKILL_PROFILE,
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],
@@ -3360,6 +3425,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       isMistakeShieldActive: false,
       settings: DEFAULT_SETTINGS,
     });
+  },
+
+  resetSkillProfile: () => {
+    set({ skillProfile: EMPTY_SKILL_PROFILE });
+    persistFromState(get());
+    get().showToast(i18n.t('settings.skillResetDone'));
   },
 }));
 

@@ -45,6 +45,14 @@ import {
   MAX_PENDING_CHESTS,
   PendingChest,
 } from '../game/chests';
+import {
+  DIFFICULTY_TIERS,
+  EMPTY_SKILL_PROFILE,
+  MAX_RECENT_OUTCOMES,
+  SkillProfile,
+  TierStats,
+} from '../game/skillProfile';
+import { TECHNIQUE_RANK } from '../game/logicalSolver';
 import { dateFromKey, toDateKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
@@ -93,6 +101,7 @@ export interface PersistedGameData {
   progressStats: ProgressStats;
   chests: ChestState;
   perfectBonusLevels: number[];
+  skillProfile: SkillProfile;
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -158,6 +167,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   progressStats: EMPTY_PROGRESS_STATS,
   chests: createInitialChestState(),
   perfectBonusLevels: [],
+  skillProfile: EMPTY_SKILL_PROFILE,
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -539,6 +549,70 @@ function sanitizePerfectBonusLevels(raw: unknown): number[] {
       )
     )
   ).sort((a, b) => a - b);
+}
+
+function sanitizeTierStats(raw: unknown): TierStats | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0;
+  const samples = Math.floor(num(r.samples));
+  if (samples <= 0) return null;
+  return {
+    samples,
+    timeRatio: num(r.timeRatio),
+    hints: num(r.hints),
+    mistakes: num(r.mistakes),
+    successRate: Math.min(1, num(r.successRate)),
+  };
+}
+
+function sanitizeTierBuckets(raw: unknown): SkillProfile['classic'] {
+  const out: SkillProfile['classic'] = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const r = raw as Record<string, unknown>;
+  for (const tier of DIFFICULTY_TIERS) {
+    const clean = sanitizeTierStats(r[tier]);
+    if (clean) out[tier] = clean;
+  }
+  return out;
+}
+
+function sanitizeSkillProfile(raw: unknown): SkillProfile {
+  if (!raw || typeof raw !== 'object') return EMPTY_SKILL_PROFILE;
+  const r = raw as Record<string, unknown>;
+
+  const hintTechniqueCounts: SkillProfile['hintTechniqueCounts'] = {};
+  if (r.hintTechniqueCounts && typeof r.hintTechniqueCounts === 'object') {
+    for (const [k, v] of Object.entries(r.hintTechniqueCounts as Record<string, unknown>)) {
+      if (!Object.prototype.hasOwnProperty.call(TECHNIQUE_RANK, k)) continue;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) continue;
+      hintTechniqueCounts[k as keyof typeof TECHNIQUE_RANK] = Math.floor(v);
+    }
+  }
+
+  const recent: SkillProfile['recent'] = Array.isArray(r.recent)
+    ? r.recent
+        .filter(
+          (x): x is { at: number; success: 0 | 1 } =>
+            Boolean(x) &&
+            typeof x === 'object' &&
+            typeof (x as { at?: unknown }).at === 'number' &&
+            Number.isFinite((x as { at: number }).at) &&
+            ((x as { success?: unknown }).success === 0 ||
+              (x as { success?: unknown }).success === 1)
+        )
+        .map((x) => ({ at: x.at, success: x.success }))
+        .slice(-MAX_RECENT_OUTCOMES)
+    : [];
+
+  return {
+    version: 1,
+    classic: sanitizeTierBuckets(r.classic),
+    practice: sanitizeTierBuckets(r.practice),
+    hintTechniqueCounts,
+    recent,
+  };
 }
 
 const MAX_CAMPAIGN_SAVES = 5;
@@ -1023,6 +1097,7 @@ export function loadPersistedState(): PersistedGameData {
       progressStats,
       chests: sanitizeChests(parsed.chests),
       perfectBonusLevels: sanitizePerfectBonusLevels(parsed.perfectBonusLevels),
+      skillProfile: sanitizeSkillProfile(parsed.skillProfile),
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

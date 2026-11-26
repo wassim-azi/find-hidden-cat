@@ -1,4 +1,11 @@
-import type { GameMode, LevelProgress, LogicalTechnique, PlayerAchievements } from './gameTypes';
+import type {
+  DifficultyTier,
+  GameMode,
+  HintStage,
+  LevelProgress,
+  LogicalTechnique,
+  PlayerAchievements,
+} from './gameTypes';
 
 export type PuzzleSource = 'campaign' | 'daily' | 'golden';
 
@@ -25,6 +32,44 @@ export interface PuzzleCompletedEvent {
   improvedBest: boolean; // Classic && !firstCompletion && (stars > previousBestStars || (previousBestTimeSec !== null && elapsedSec < previousBestTimeSec))
   catsFound: number; // puzzle.size - puzzle.initialCats.length
   techniques: LogicalTechnique[]; // getPuzzleAnalysis(puzzle).techniquesUsed without 'oracle_fallback'
+  tier: DifficultyTier; // getPuzzleAnalysis(puzzle).tier (#23)
+  parTimeSec: number; // puzzle.parTimeSec (#23)
+}
+
+/** Classic ran out of hearts (#23). */
+export interface PuzzleFailedEvent {
+  type: 'puzzle_failed';
+  id: string;
+  at: number;
+  dateKey: string;
+  weekKey: string;
+  puzzleKey: string;
+  tier: DifficultyTier;
+  elapsedSec: number;
+}
+
+/** restartLevel() after at least 30 s on an unsolved board (#23). */
+export interface PuzzleRestartedEvent {
+  type: 'puzzle_restarted';
+  id: string;
+  at: number;
+  dateKey: string;
+  weekKey: string;
+  puzzleKey: string;
+  tier: DifficultyTier;
+  elapsedSec: number;
+}
+
+/** A hint was shown or escalated (#23). */
+export interface HintUsedEvent {
+  type: 'hint_used';
+  id: string;
+  at: number;
+  dateKey: string;
+  weekKey: string;
+  puzzleKey: string;
+  technique: LogicalTechnique | null;
+  stage: HintStage;
 }
 
 export interface RewardClaimedEvent {
@@ -45,7 +90,20 @@ export interface SessionStartedEvent {
   weekKey: string;
 }
 
-export type GameEvent = PuzzleCompletedEvent | RewardClaimedEvent | SessionStartedEvent;
+export type GameEvent =
+  | PuzzleCompletedEvent
+  | RewardClaimedEvent
+  | SessionStartedEvent
+  | PuzzleFailedEvent
+  | PuzzleRestartedEvent
+  | HintUsedEvent;
+
+/** Events that only feed the skill profile (#23) and never touch PeriodStats. */
+export type SkillOnlyEvent = PuzzleFailedEvent | PuzzleRestartedEvent | HintUsedEvent;
+
+export function isSkillOnlyEvent(e: GameEvent): e is SkillOnlyEvent {
+  return e.type === 'puzzle_failed' || e.type === 'puzzle_restarted' || e.type === 'hint_used';
+}
 
 export interface PeriodStats {
   puzzlesCompleted: number; // every completion, any mode
@@ -144,7 +202,10 @@ function mergeSortedTechniques(
   return Array.from(set).sort();
 }
 
-function applyEventToPeriod(period: PeriodStats, e: GameEvent): PeriodStats {
+function applyEventToPeriod(
+  period: PeriodStats,
+  e: Exclude<GameEvent, SkillOnlyEvent>
+): PeriodStats {
   if (e.type === 'session_started') {
     return { ...period, sessions: period.sessions + 1 };
   }
@@ -186,7 +247,10 @@ function computeStarsGained(e: PuzzleCompletedEvent): number {
   return isClassic && e.firstCompletion ? e.stars : 0;
 }
 
-function applyEventToLifetime(lifetime: LifetimeStats, e: GameEvent): LifetimeStats {
+function applyEventToLifetime(
+  lifetime: LifetimeStats,
+  e: Exclude<GameEvent, SkillOnlyEvent>
+): LifetimeStats {
   const nextPeriod = applyEventToPeriod(lifetime, e);
   if (e.type !== 'puzzle_completed') {
     return {
@@ -232,6 +296,10 @@ function prunePeriodMap(
  * Duplicate event ids (already in `processedEventIds`) are ignored.
  */
 export function applyGameEvent(stats: ProgressStats, e: GameEvent): ProgressStats {
+  // Failures, restarts and hints only feed the skill profile (#23)
+  if (isSkillOnlyEvent(e)) {
+    return stats;
+  }
   if (stats.processedEventIds.includes(e.id)) {
     return stats;
   }
