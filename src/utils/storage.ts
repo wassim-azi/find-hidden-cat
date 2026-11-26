@@ -35,6 +35,7 @@ import {
 import { AccessoryId, VALID_ACCESSORY_IDS } from '../game/accessories';
 import { VALID_CAT_SET_IDS } from '../game/catSets';
 import { CatUnlockEntry, VALID_CAT_IDS } from '../game/collectibleCats';
+import { SeasonProgress } from '../game/seasons';
 import { dateFromKey, toDateKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
@@ -75,6 +76,7 @@ export interface PersistedGameData {
   unlockedAccessoryIds: AccessoryId[];
   activeAccessoryId: AccessoryId | null;
   claimedSetIds: string[];
+  seasonProgress: SeasonProgress | null;
   claimedEventIds: string[];
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
@@ -137,6 +139,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   unlockedAccessoryIds: [],
   activeAccessoryId: null,
   claimedSetIds: [],
+  seasonProgress: null,
   claimedEventIds: [],
   zeroMistakeSolves: 0,
   specialLevelsCompleted: 0,
@@ -425,6 +428,30 @@ function sanitizeClaimedSetIds(raw: unknown): string[] {
       raw.filter((id): id is string => typeof id === 'string' && VALID_CAT_SET_IDS.has(id))
     )
   );
+}
+
+function sanitizeSeasonProgress(raw: unknown): SeasonProgress | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.seasonKey !== 'string' ||
+    !/^(winter|spring|summer|autumn)-\d{4}$/.test(r.seasonKey)
+  ) {
+    return null;
+  }
+  const dailySolved =
+    typeof r.dailySolved === 'number' && Number.isFinite(r.dailySolved)
+      ? Math.max(0, Math.floor(r.dailySolved))
+      : 0;
+  const threeStarWins =
+    typeof r.threeStarWins === 'number' && Number.isFinite(r.threeStarWins)
+      ? Math.max(0, Math.floor(r.threeStarWins))
+      : 0;
+  return {
+    seasonKey: r.seasonKey,
+    dailySolved,
+    threeStarWins,
+  };
 }
 
 const MAX_CAMPAIGN_SAVES = 5;
@@ -895,6 +922,7 @@ export function loadPersistedState(): PersistedGameData {
         };
       })(),
       claimedSetIds: sanitizeClaimedSetIds(parsed.claimedSetIds),
+      seasonProgress: sanitizeSeasonProgress(parsed.seasonProgress),
       claimedEventIds: stringArray(parsed.claimedEventIds, []),
       zeroMistakeSolves,
       specialLevelsCompleted:

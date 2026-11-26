@@ -772,6 +772,29 @@
     "pawCharm": "Breloque patte",
     "roundGlasses": "Lunettes rondes"
   },
+  "seasons": {
+    "names": {
+      "winter": "Hiver",
+      "spring": "Printemps",
+      "summer": "Été",
+      "autumn": "Automne"
+    },
+    "namesLower": {
+      "winter": "hiver",
+      "spring": "printemps",
+      "summer": "été",
+      "autumn": "automne"
+    },
+    "title": "Collection {{season}}",
+    "until": "La saison se termine le {{date}}",
+    "reqDaily": "Résous {{target}} Chats du Jour cette saison",
+    "reqStars": "Obtiens 3 étoiles {{target}} fois cette saison",
+    "earned": "Obtenu",
+    "returns": "Un objet manqué ? Il revient l'an prochain — rien n'est perdu.",
+    "returnsEvery": "Revient chaque {{season}}",
+    "allSeasons": "Toutes les saisons",
+    "itemEarnedToast": "Nouvel accessoire de saison : {{item}} !"
+  },
   "shop": {
     "headerTitle": "Boutique",
     "yourCoins": "Tes pièces poisson",

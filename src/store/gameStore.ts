@@ -83,6 +83,12 @@ import {
 import { AccessoryId } from '../game/accessories';
 import { CAT_SETS, CatSetId, getSetProgress } from '../game/catSets';
 import {
+  applySeasonEvent,
+  ensureCurrentSeasonProgress,
+  getNewlyEarnedSeasonalAccessories,
+  SeasonProgress,
+} from '../game/seasons';
+import {
   CatUnlockEntry,
   CollectibleCat,
   getCollectibleCat,
@@ -254,6 +260,7 @@ interface GameStoreState {
   unlockedAccessoryIds: AccessoryId[];
   activeAccessoryId: AccessoryId | null;
   claimedSetIds: string[];
+  seasonProgress: SeasonProgress;
   claimedEventIds: string[];
   zeroMistakeSolves: number;
   specialLevelsCompleted: number;
@@ -808,6 +815,7 @@ function persistFromState(state: GameStoreState): void {
     unlockedAccessoryIds: state.unlockedAccessoryIds,
     activeAccessoryId: state.activeAccessoryId,
     claimedSetIds: state.claimedSetIds,
+    seasonProgress: state.seasonProgress,
     claimedEventIds: state.claimedEventIds,
     zeroMistakeSolves: state.zeroMistakeSolves,
     specialLevelsCompleted: state.specialLevelsCompleted,
@@ -869,6 +877,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   unlockedAccessoryIds: persisted.unlockedAccessoryIds,
   activeAccessoryId: persisted.activeAccessoryId,
   claimedSetIds: persisted.claimedSetIds,
+  seasonProgress: ensureCurrentSeasonProgress(persisted.seasonProgress, new Date()),
   claimedEventIds: persisted.claimedEventIds,
   zeroMistakeSolves: persisted.zeroMistakeSolves,
   specialLevelsCompleted: persisted.specialLevelsCompleted,
@@ -934,6 +943,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       getCurrentWeekKey(),
       eligibility
     );
+    const freshSeason = ensureCurrentSeasonProgress(state.seasonProgress, new Date());
 
     const backfillToNotify =
       screen === 'missions' && state.pendingAchievementBackfillCount > 0
@@ -945,6 +955,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       screen,
       dailyMissions: freshMissions,
       weeklyMissions: freshWeekly,
+      seasonProgress: freshSeason,
       ...(backfillToNotify > 0 ? { pendingAchievementBackfillCount: 0 } : {}),
       isPaused: false,
       outOfHearts: false,
@@ -1862,6 +1873,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }
 
+    const nextSeasonProgress = applySeasonEvent(state.seasonProgress, completedEvent);
+    const newlyEarnedSeasonal = getNewlyEarnedSeasonalAccessories(
+      nextSeasonProgress,
+      state.unlockedAccessoryIds
+    );
+    const nextUnlockedAccessories =
+      newlyEarnedSeasonal.length > 0
+        ? [...state.unlockedAccessoryIds, ...newlyEarnedSeasonal]
+        : state.unlockedAccessoryIds;
+
     set({
       board: synced.board,
       manualXKeys: synced.manualXKeys,
@@ -1887,6 +1908,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       unlockedAchievementIds: nextUnlockedAchs,
       unlockedCatIds: nextUnlockedCats,
       catUnlockLog: nextCatUnlockLog,
+      unlockedAccessoryIds: nextUnlockedAccessories,
+      seasonProgress: nextSeasonProgress,
       zeroMistakeSolves: nextZeroMistakes,
       specialLevelsCompleted: nextSpecialCompleted,
       totalStarsEarnedEver: state.totalStarsEarnedEver + starsEarnedDelta,
@@ -1898,7 +1921,23 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     persistFromState(get());
     emitToListeners(completedEvent);
-    if (recoveredStreakCount !== null && freezeEarnedFromGolden) {
+    for (const accId of newlyEarnedSeasonal) {
+      const at = nextEventAt();
+      const d = new Date(at);
+      recordEvent({
+        type: 'reward_claimed',
+        id: `reward:season:${accId}:${at}`,
+        at,
+        dateKey: toDateKey(d),
+        weekKey: getWeekKey(d),
+        source: 'event_chest',
+        coins: 0,
+      });
+    }
+    if (newlyEarnedSeasonal.length > 0) {
+      const itemLabel = i18n.t(`accessories.${newlyEarnedSeasonal[0]!}`);
+      get().showToast(i18n.t('seasons.itemEarnedToast', { item: itemLabel }));
+    } else if (recoveredStreakCount !== null && freezeEarnedFromGolden) {
       get().showToast(
         `${i18n.t('dailyCalendar.recoveredToast', { count: recoveredStreakCount })} · ${i18n.t('dailyCalendar.freezeEarnedToast')}`
       );
@@ -3166,6 +3205,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       unlockedAccessoryIds: [],
       activeAccessoryId: null,
       claimedSetIds: [],
+      seasonProgress: ensureCurrentSeasonProgress(null, new Date()),
       claimedEventIds: [],
       zeroMistakeSolves: 0,
       specialLevelsCompleted: 0,

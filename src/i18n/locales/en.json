@@ -772,6 +772,29 @@
     "pawCharm": "Paw Charm",
     "roundGlasses": "Round Glasses"
   },
+  "seasons": {
+    "names": {
+      "winter": "Winter",
+      "spring": "Spring",
+      "summer": "Summer",
+      "autumn": "Autumn"
+    },
+    "namesLower": {
+      "winter": "winter",
+      "spring": "spring",
+      "summer": "summer",
+      "autumn": "autumn"
+    },
+    "title": "{{season}} collection",
+    "until": "Season ends {{date}}",
+    "reqDaily": "Solve {{target}} Daily Kitty puzzles this season",
+    "reqStars": "Earn 3 stars {{target}} times this season",
+    "earned": "Earned",
+    "returns": "Missed an item? It comes back next year — nothing is lost.",
+    "returnsEvery": "Returns every {{season}}",
+    "allSeasons": "All seasons",
+    "itemEarnedToast": "New seasonal accessory: {{item}}!"
+  },
   "shop": {
     "headerTitle": "Kitty Shop",
     "yourCoins": "Your Fish Coins",

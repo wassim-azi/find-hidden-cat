@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Check, Gift, Heart, Lock, Sparkles } from 'lucide-react';
+import { Calendar, Check, ChevronDown, ChevronUp, Gift, Heart, Lock, Sparkles } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import {
   CatRarity,
   COLLECTIBLE_CATS,
   CollectibleCat,
+  getCollectibleCat,
 } from '../../game/collectibleCats';
 import { CAT_SETS, getSetProgress } from '../../game/catSets';
+import {
+  ensureCurrentSeasonProgress,
+  getSeasonForDate,
+  SEASON_ITEMS,
+  SEASONS_ORDER,
+} from '../../game/seasons';
 import { formatRewardLabel } from '../../game/rewardLabels';
 import { buildUnlockContext } from '../../game/unlockContext';
+import { formatLocalizedDate } from '../../i18n';
 import { CatIllustration, CatSilhouette } from '../../components/Cat/CatIllustration';
 import { CatProfileSheet } from '../../components/Modals/CatProfileSheet';
 import { HubHeader } from '../../components/Navigation/HubHeader';
@@ -24,14 +32,17 @@ const RARITY_STYLES: Record<CatRarity, { bg: string; text: string }> = {
 };
 
 export const CatsCollectionScreen: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedCat, setSelectedCat] = useState<CollectibleCat | null>(null);
+  const [showAllSeasons, setShowAllSeasons] = useState(false);
 
   const unlockedCatIds = useGameStore((s) => s.unlockedCatIds);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
+  const unlockedAccessoryIds = useGameStore((s) => s.unlockedAccessoryIds);
   const activeAccessoryId = useGameStore((s) => s.activeAccessoryId);
   const favouriteCatIds = useGameStore((s) => s.favouriteCatIds);
   const claimedSetIds = useGameStore((s) => s.claimedSetIds);
+  const seasonProgressRaw = useGameStore((s) => s.seasonProgress);
   const levelProgress = useGameStore((s) => s.levelProgress);
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const progressStats = useGameStore((s) => s.progressStats);
@@ -46,8 +57,31 @@ export const CatsCollectionScreen: React.FC = () => {
     unlockedCatIds,
   });
 
+  const lang = i18n.language.startsWith('fr') ? 'fr' : 'en';
+  const now = new Date();
+  const seasonInfo = getSeasonForDate(now);
+  const seasonProgress = ensureCurrentSeasonProgress(seasonProgressRaw, now);
+  const currentSeasonDef = SEASON_ITEMS[seasonInfo.season];
+  const companion = getCollectibleCat(activeMascotCatId);
+
   const unlockedSet = new Set(unlockedCatIds);
   const favSet = new Set(favouriteCatIds);
+  const unlockedAccSet = new Set(unlockedAccessoryIds);
+
+  const seasonalCards = [
+    {
+      id: currentSeasonDef.dailyItem,
+      current: Math.min(currentSeasonDef.dailyTarget, seasonProgress.dailySolved),
+      target: currentSeasonDef.dailyTarget,
+      reqText: t('seasons.reqDaily', { target: currentSeasonDef.dailyTarget }),
+    },
+    {
+      id: currentSeasonDef.starsItem,
+      current: Math.min(currentSeasonDef.starsTarget, seasonProgress.threeStarWins),
+      target: currentSeasonDef.starsTarget,
+      reqText: t('seasons.reqStars', { target: currentSeasonDef.starsTarget }),
+    },
+  ];
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
@@ -71,6 +105,157 @@ export const CatsCollectionScreen: React.FC = () => {
       </div>
 
       <div className="flex-1 soft-scroll px-3.5 pb-4 flex flex-col gap-4">
+        {/* Seasonal Accessory Collection (#20) */}
+        <section
+          id="seasonal-section"
+          className="meow-card rounded-[24px] p-3.5 border border-[#E5DDF5] bg-gradient-to-br from-[#FAF7FF] to-[#FFF9EE] flex flex-col gap-2.5"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-[14.5px] font-black text-[#3A312C] leading-tight">
+                {t('seasons.title', {
+                  season: t(`seasons.names.${seasonInfo.season}`),
+                })}
+              </h3>
+              <p className="inline-flex items-center gap-1 text-[11px] font-bold text-[#7E7067] mt-0.5">
+                <Calendar className="w-3 h-3 shrink-0" />
+                {t('seasons.until', {
+                  date: formatLocalizedDate(seasonInfo.endKey, lang),
+                })}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            {seasonalCards.map((item) => {
+              const owned = unlockedAccSet.has(item.id);
+              const pct = Math.round((item.current / item.target) * 100);
+              const itemName = t(`accessories.${item.id}`);
+
+              return (
+                <div
+                  key={item.id}
+                  data-seasonal-item={item.id}
+                  className="rounded-2xl bg-white/90 border border-[#EAE0D2] p-2.5 flex items-center gap-3"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FFF6E4] to-[#FFE7EC] flex items-center justify-center shrink-0">
+                    <CatIllustration
+                      breed={companion.breed}
+                      mood="idle"
+                      alive={false}
+                      accessory={item.id}
+                      className="w-12 h-12"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[13px] font-black text-[#3A312C] truncate">
+                        {itemName}
+                      </span>
+                      {owned ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#3B8B61] bg-[#E8F7EE] px-2 py-0.5 rounded-full shrink-0">
+                          <Check className="w-3 h-3" strokeWidth={3} />
+                          {t('seasons.earned')}
+                        </span>
+                      ) : (
+                        <span className="text-[10.5px] font-black text-[#8A7B70] tabular-nums shrink-0">
+                          {item.current}/{item.target}
+                        </span>
+                      )}
+                    </div>
+                    {!owned && (
+                      <>
+                        <p className="text-[10.5px] font-semibold text-[#7E7067] mt-0.5 leading-snug">
+                          {item.reqText}
+                        </p>
+                        <div
+                          role="progressbar"
+                          aria-valuenow={item.current}
+                          aria-valuemin={0}
+                          aria-valuemax={item.target}
+                          aria-label={itemName}
+                          className="w-full h-1.5 bg-[#EFE6D8] rounded-full overflow-hidden mt-1.5"
+                        >
+                          <div
+                            className="h-full bg-gradient-to-r from-[#9B7FE0] to-[#6EB58E] rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[10.5px] font-bold text-[#7E7067] leading-snug">
+            {t('seasons.returns')}
+          </p>
+
+          {/* Collapsible All Seasons List */}
+          <div id="seasonal-all" className="border-t border-[#EAE0D2]/80 pt-2">
+            <button
+              type="button"
+              aria-expanded={showAllSeasons}
+              onClick={() => setShowAllSeasons((v) => !v)}
+              className="w-full flex items-center justify-between text-[11.5px] font-black text-[#5C4F47] cursor-pointer py-0.5"
+            >
+              <span>{t('seasons.allSeasons')}</span>
+              {showAllSeasons ? (
+                <ChevronUp className="w-4 h-4 text-[#8A7B70]" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-[#8A7B70]" />
+              )}
+            </button>
+
+            {showAllSeasons && (
+              <div className="mt-2 flex flex-col gap-1.5">
+                {SEASONS_ORDER.map((s) => {
+                  const def = SEASON_ITEMS[s];
+                  const items = [def.dailyItem, def.starsItem];
+                  return (
+                    <div
+                      key={s}
+                      className="rounded-xl bg-white/80 border border-[#EAE0D2] px-2.5 py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11.5px] font-black text-[#3A312C]">
+                          {t(`seasons.names.${s}`)}
+                        </span>
+                        <span className="text-[10px] font-bold text-[#8A7B70]">
+                          {t('seasons.returnsEvery', {
+                            season: t(`seasons.namesLower.${s}`),
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {items.map((accId) => {
+                          const hasIt = unlockedAccSet.has(accId);
+                          return (
+                            <span
+                              key={accId}
+                              className={`inline-flex items-center gap-1 text-[10.5px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                hasIt
+                                  ? 'bg-[#E8F7EE] border-[#C3E5D1] text-[#2D754E]'
+                                  : 'bg-[#FAF5EC] border-[#EAE0D2] text-[#7E7067]'
+                              }`}
+                            >
+                              {hasIt && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
+                              {t(`accessories.${accId}`)}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Cat Sets (#19) */}
         {CAT_SETS.map((catSet) => {
           const progress = getSetProgress(catSet, unlockedCatIds);
           const isClaimed = claimedSetIds.includes(catSet.id);

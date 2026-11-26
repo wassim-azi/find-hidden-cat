@@ -394,7 +394,37 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     );
     expect(loadPersistedState().activeAccessoryId).toBe('roundGlasses');
   });
+
+  it('sanitizes seasonProgress and drops invalid season keys (#20)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    expect(loadPersistedState().seasonProgress).toBeNull();
+
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        seasonProgress: { seasonKey: 'winter-2026', dailySolved: 3, threeStarWins: 7 },
+      })
+    );
+    expect(loadPersistedState().seasonProgress).toEqual({
+      seasonKey: 'winter-2026',
+      dailySolved: 3,
+      threeStarWins: 7,
+    });
+
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        seasonProgress: { seasonKey: 'bogus', dailySolved: 99, threeStarWins: 99 },
+      })
+    );
+    expect(loadPersistedState().seasonProgress).toBeNull();
+  });
 });
+
 
 
 
