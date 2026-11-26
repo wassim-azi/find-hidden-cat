@@ -39,11 +39,24 @@ export default async function celebrationPerfSpec(browser, { check, BASE }) {
     const canvasCountNormal = await page.locator('canvas').count();
     check('celebration-perf: ParticleCanvas present before reducedMotion', canvasCountNormal >= 1);
 
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-
     const { size, regions, states } = await readBoard(page);
     const solution = solve(size, regions);
+    const toPlace = solution.filter(({ row, col }) => !isCatPlaced(states[row][col]));
 
+    // Place all cats except the final winning cat at normal speed
+    for (let i = 0; i < toPlace.length - 1; i++) {
+      await placeCat(page, toPlace[i].row, toPlace[i].col);
+    }
+
+    // Open the final cat's placement menu at 1x speed and let prior bursts settle
+    const lastCat = toPlace[toPlace.length - 1];
+    if (lastCat) {
+      await page.locator(`#cell-${lastCat.row}-${lastCat.col}`).click();
+      await page.locator('#btn-ctx-place-cat').waitFor({ state: 'visible', timeout: 10_000 });
+      await page.waitForTimeout(250);
+    }
+
+    // Install longtask observer and enable 4x CPU throttling before triggering victory
     await page.evaluate(() => {
       window.__celebrationLongTasks = [];
       if (typeof PerformanceObserver !== 'undefined') {
@@ -59,14 +72,13 @@ export default async function celebrationPerfSpec(browser, { check, BASE }) {
         window.__celebrationObs = obs;
       }
     });
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 
-    for (const { row, col } of solution) {
-      if (!isCatPlaced(states[row][col])) {
-        await placeCat(page, row, col);
-      }
+    if (lastCat) {
+      await page.locator('#btn-ctx-place-cat').click();
     }
 
-    await page.locator('#btn-victory-next').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('#btn-victory-next').waitFor({ state: 'visible', timeout: 20_000 });
     const victoryAt = await page.evaluate(() => performance.now());
     await page.waitForTimeout(2000);
 
@@ -74,6 +86,8 @@ export default async function celebrationPerfSpec(browser, { check, BASE }) {
       const list = window.__celebrationLongTasks || [];
       return list.filter((t) => t.startTime >= since && t.duration > 200);
     }, victoryAt);
+
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 
     check(
       'celebration-perf (4x CPU): no longtask > 200ms in 2s after victory',

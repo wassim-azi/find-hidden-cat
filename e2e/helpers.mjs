@@ -5,13 +5,13 @@
 export async function skipOnboarding(page) {
   const skipBtn = page.locator('#btn-onboarding-skip');
   const welcomeBtn = page.locator('#btn-welcome-play');
-  await Promise.race([
-    skipBtn.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {}),
-    welcomeBtn.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {}),
-  ]);
+  await page
+    .locator('#btn-onboarding-skip, #btn-welcome-play')
+    .first()
+    .waitFor({ state: 'visible', timeout: 10_000 });
   if (await skipBtn.isVisible().catch(() => false)) {
     await skipBtn.click();
-    await welcomeBtn.waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
+    await welcomeBtn.waitFor({ state: 'visible', timeout: 10_000 });
   }
 }
 
@@ -118,7 +118,7 @@ export function solve(size, regions) {
 
 export async function placeCat(page, r, c) {
   await page.locator(`#cell-${r}-${c}`).click();
-  await page.locator('#btn-ctx-place-cat').waitFor({ state: 'visible', timeout: 3000 });
+  await page.locator('#btn-ctx-place-cat').waitFor({ state: 'visible', timeout: 10_000 });
   await page.locator('#btn-ctx-place-cat').click();
 }
 

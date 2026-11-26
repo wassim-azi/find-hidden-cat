@@ -77,7 +77,10 @@ async function main() {
       .filter((f) => f.endsWith('.spec.mjs'))
       .sort();
 
-    browser = await chromium.launch();
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage'],
+    });
 
     for (const file of files) {
       console.log(`\n=== ${file} ===`);

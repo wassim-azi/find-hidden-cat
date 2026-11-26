@@ -12,8 +12,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![PWA](https://img.shields.io/badge/PWA-Offline--First-5A0FC8?style=flat-square&logo=pwa&logoColor=white)](#offline-first-pwa--architecture)
 [![i18n](https://img.shields.io/badge/Languages-EN%20%7C%20FR-FF8585?style=flat-square)](#localization-en--fr)
-[![Vitest](https://img.shields.io/badge/Vitest-179_Tests-6E9F18?style=flat-square&logo=vitest&logoColor=white)](#testing--quality-assurance)
-[![Playwright](https://img.shields.io/badge/Playwright_E2E-60_Checks-2EAD33?style=flat-square&logo=playwright&logoColor=white)](#testing--quality-assurance)
+[![Vitest](https://img.shields.io/badge/Vitest-278_Tests-6E9F18?style=flat-square&logo=vitest&logoColor=white)](#testing--quality-assurance)
+[![Playwright](https://img.shields.io/badge/Playwright_E2E-134_Checks-2EAD33?style=flat-square&logo=playwright&logoColor=white)](#testing--quality-assurance)
 
 <br />
 
@@ -38,7 +38,9 @@ Designed as an installable **offline-first Progressive Web App (PWA)**, Meowdoku
 | **Daily & Weekly Modes** | Deterministic **Daily Kitty (`8×8`)** puzzle and weekly **Golden Cat Trial (`8×8`)** |
 | **Play Modes** | **Classic Mode** (3 hearts, stars, personal bests) & **Practice Mode** (stress-free, no hearts lost) |
 | **Collection & Cosmetics** | **10 collectible cats** across **3 sets** + **14 procedural SVG accessories** (100% cosmetic-only) |
-| **Progression** | Daily reward calendar v2, Streak Freezes (max 3) & one-tap recovery, Daily/Weekly/Milestone missions, **28 achievements** |
+| **Progression & Rewards** | Daily reward calendar v2, Streak Freezes (max 3) & recovery, Daily/Weekly/Milestone missions, **28 achievements**, Treasure chests v2 (published 70/25/5 odds) & perfect-solve bonuses |
+| **Adaptive & Onboarding** | Guided 4×4 interactive first-run onboarding, on-device skill profile, adaptive recommendations, and Relaxed/Standard/Tricky Daily difficulty choice |
+| **Session, Safety & Stats** | Welcome-back summaries, break reminders, varied local reminders v2, opt-in Family-friendly mode (parent gate), and local "My stats" sheet with 14-day chart & JSON export |
 | **Languages** | Full **English** and **French (`fr-FR`)** UI, tutorials, voice/audio, dates, and localized pluralization |
 | **Platform** | Installable **Offline-First PWA** (Android, iOS Safari, Desktop) with Service Worker + IndexedDB + LocalStorage |
 
@@ -120,17 +122,18 @@ find-hidden-cat/
 ├── src/
 │   ├── components/             # Game board, SVG CatIllustration & accessories, modals, nav
 │   ├── game/                   # Pure TypeScript puzzle engine, solver, hints, economy,
-│   │                           # daily rewards, missions, achievements, cats, sets & seasons
+│   │                           # daily rewards, missions, achievements, cats, sets, seasons, chests,
+│   │                           # adaptive skill & recommendations, family mode & stats export
 │   ├── i18n/locales/           # Complete EN and FR translation bundles + parity tests
-│   ├── screens/                # Lazy-loaded screens (Welcome, Map, Game, Victory,
+│   ├── screens/                # Lazy-loaded screens (Welcome, Onboarding, Map, Game, Victory,
 │   │                           # Missions, Cats, Shop, Profile, Settings, Tutorial)
-│   ├── services/               # PWA lifecycle, local reminder planner, notifications, ads
+│   ├── services/               # PWA lifecycle, local reminder planner, notifications, play session, ads
 │   ├── store/                  # Zustand gameStore + integrity tests
 │   └── utils/                  # Schema-validated storage, IndexedDB mirror, audio, haptics
 └── e2e/
     ├── run.mjs                 # Playwright runner against Vite production preview
-    └── specs/                  # 13 E2E specs covering smoke, hearts, offline, layout,
-                                # reminders, goals, calendar, missions, badges, cats & seasons
+    └── specs/                  # 21 E2E specs covering smoke, hearts, offline, layout, onboarding,
+                                # chests, daily variants, welcome-back, exits, 4x CPU perf, family mode & stats
 ```
 
 ---
@@ -159,9 +162,9 @@ Open the local URL printed by Vite (default `http://localhost:5173`).
 | `npm run dev` | Start Vite dev server with LAN host access (`--host`) |
 | `npm run build` | Run strict TypeScript project check (`tsc -b`) and Vite production build |
 | `npm run preview` | Preview the built production bundle locally |
-| `npm test` | Run all **23 Vitest test suites (179 tests)** |
+| `npm test` | Run all **38 Vitest test suites (278 tests)** |
 | `npm run test:watch` | Run Vitest in interactive watch mode |
-| `npm run e2e` | Build production app and run all **13 Playwright E2E specs (60 checks)** across EN & FR |
+| `npm run e2e` | Build production app and run all **21 Playwright E2E specs (134 checks)** across EN & FR |
 
 ---
 
@@ -169,8 +172,8 @@ Open the local URL printed by Vite (default `http://localhost:5173`).
 
 Meowdoku enforces strict quality gates before every release:
 
-- **Unit & Engine Integrity (`npm test`)** — 23 test files / 179 tests verifying puzzle uniqueness, logical solvability without guessing, hint correctness, economy payout integrity, clock-tampering protection, storage migrations, EN/FR i18n parity, and the cosmetic-only guarantee.
-- **End-to-End Mobile Browser Suite (`npm run e2e`)** — 13 Playwright specs / 60 assertions validating full gameplay solves, Classic heart depletion, offline Service Worker reloads, responsive viewports (`320×568` through `412×915`) with zero horizontal overflow, reminders, daily calendar, missions, badges, cat profiles, all 14 SVG accessories, and seasonal collections in both `en-US` and `fr-FR`.
+- **Unit & Engine Integrity (`npm test`)** — 38 test files / 278 tests verifying puzzle uniqueness, logical solvability without guessing, hint correctness, economy payout integrity, clock-tampering protection, storage migrations, EN/FR i18n parity, and the cosmetic-only guarantee.
+- **End-to-End Mobile Browser Suite (`npm run e2e`)** — 21 Playwright specs / 134 checks validating full gameplay solves, guided 4×4 onboarding, Classic heart depletion, offline Service Worker reloads, responsive viewports (`320×568` through `412×915`) with zero horizontal overflow, reminders, daily calendar, missions, badges, cat profiles, all 14 SVG accessories, seasonal collections, treasure chests with published odds, daily difficulty variants, welcome-back summaries, clean screen exits, 4× CPU victory celebration performance, opt-in family-friendly mode with parent gate, and local stats JSON export in both `en-US` and `fr-FR`.
 
 ---
 
@@ -194,5 +197,5 @@ Yes. Every screen, puzzle hint, modal, notification, date format, and achievemen
 
 Development follows a phased public roadmap tracked in [Issue #31](https://github.com/wassim-azi/find-hidden-cat/issues/31):
 
-- **Phases 0–4 (Completed):** Core integrity & E2E suite, gameplay event stats, personal bests & "next goal" engine, Daily Calendar v2, friendlier streaks & freezes, Missions v2, Achievements v2 (28 badges), Cat profiles & unlock history, Cat sets & 14 SVG accessories, and Seasonal collections.
-- **Phases 5–9 (Upcoming):** Treasure chests v2 with published odds, on-device adaptive skill recommendations, welcome-back summaries, natural stopping points & break reminders, family-friendly mode, and local player stats.
+- **Phases 0–4 (Completed):** Core integrity & E2E suite, gameplay event stats, personal bests & "next goal" engine, Daily Calendar v2, friendlier streaks & freezes, guided 4×4 interactive onboarding, Missions v2, Achievements v2 (28 badges), Cat profiles & unlock history, Cat sets & 14 SVG accessories, and Seasonal collections.
+- **Phases 5–9 (Completed):** Treasure chests v2 with published 70/25/5 odds, perfect-solve & milestone chests, on-device skill profile, adaptive recommendations & Relaxed/Standard/Tricky Daily difficulty choice, welcome-back summaries, break reminders & exit audit, varied reminders v2, 60fps `ParticleCanvas` celebrations, opt-in Family-friendly mode with parent gate, and local "My stats" sheet with 14-day chart & anonymous JSON export.

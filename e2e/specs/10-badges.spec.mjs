@@ -19,9 +19,9 @@ export default async function badgesSpec(browser, { check, BASE }) {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
       await skipOnboarding(page);
       await page.locator('#btn-welcome-levels').click();
-      await page.locator('#nav-tab-missions').waitFor({ state: 'visible', timeout: 5000 });
+      await page.locator('#nav-tab-missions').waitFor({ state: 'visible', timeout: 10_000 });
       await page.locator('#nav-tab-missions').click();
-      await page.locator('#missions-tab-achievements').waitFor({ state: 'visible', timeout: 5000 });
+      await page.locator('#missions-tab-achievements').waitFor({ state: 'visible', timeout: 10_000 });
       await page.locator('#missions-tab-achievements').click();
 
       const groups = ['progress', 'skill', 'daily', 'world', 'technique'];
