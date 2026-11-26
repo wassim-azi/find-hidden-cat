@@ -178,6 +178,7 @@ export interface ActivePuzzleSave {
   mistakesCount?: number;
   hearts?: number;
   gameMode?: GameMode;
+  savedAt?: number;
 }
 
 export interface PlayerAchievements {

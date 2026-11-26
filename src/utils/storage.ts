@@ -28,7 +28,10 @@ export interface PersistedGameData {
   settings: PlayerSettings;
   selectedDifficulty: Difficulty | 'all';
   hasSeenTutorial: boolean;
+  /** Legacy single campaign save slot (read-only for migration; always written as null). */
   activePuzzle: ActivePuzzleSave | null;
+  /** Per-level in-progress campaign boards keyed by levelId string (bounded to 5 most recent). */
+  activeCampaignPuzzles: Record<string, ActivePuzzleSave>;
   /** In-progress Daily Kitty / Golden Cat boards keyed by dailyDateKey */
   activeSpecialPuzzles: Record<string, ActivePuzzleSave & { dailyDateKey: string }>;
   achievements: PlayerAchievements;
@@ -84,6 +87,7 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   selectedDifficulty: 'all',
   hasSeenTutorial: false,
   activePuzzle: null,
+  activeCampaignPuzzles: {},
   activeSpecialPuzzles: {},
   achievements: DEFAULT_ACHIEVEMENTS,
   completedDailyDates: [],
@@ -179,6 +183,8 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
   };
 }
 
+const MAX_CAMPAIGN_SAVES = 5;
+
 function sanitizeActivePuzzle(raw: unknown, fallbackMode: PlayerSettings['gameMode']): ActivePuzzleSave | null {
   const validGameModes = new Set(['classic', 'practice']);
   const ap = raw as Partial<ActivePuzzleSave> | null | undefined;
@@ -196,6 +202,8 @@ function sanitizeActivePuzzle(raw: unknown, fallbackMode: PlayerSettings['gameMo
   }
   const num = (v: unknown, fallback: number) =>
     typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : fallback;
+  const savedAt =
+    typeof ap.savedAt === 'number' && Number.isFinite(ap.savedAt) ? ap.savedAt : undefined;
   return {
     levelId: ap.levelId,
     board: ap.board as ActivePuzzleSave['board'],
@@ -209,7 +217,45 @@ function sanitizeActivePuzzle(raw: unknown, fallbackMode: PlayerSettings['gameMo
       typeof ap.gameMode === 'string' && validGameModes.has(ap.gameMode)
         ? ap.gameMode
         : fallbackMode,
+    ...(savedAt !== undefined ? { savedAt } : {}),
   };
+}
+
+function sanitizeActiveCampaignPuzzles(
+  raw: unknown,
+  legacyActivePuzzle: ActivePuzzleSave | null,
+  fallbackMode: PlayerSettings['gameMode']
+): Record<string, ActivePuzzleSave> {
+  const entries: Array<[string, ActivePuzzleSave]> = [];
+  if (raw && typeof raw === 'object') {
+    for (const [key, val] of Object.entries(raw)) {
+      if (!/^\d{1,3}$/.test(key)) continue;
+      const clean = sanitizeActivePuzzle(val, fallbackMode);
+      if (!clean || Number(key) !== clean.levelId) continue;
+      entries.push([key, clean]);
+    }
+  }
+
+  entries.sort((a, b) => (b[1].savedAt ?? 0) - (a[1].savedAt ?? 0));
+  const result: Record<string, ActivePuzzleSave> = {};
+  for (const [key, save] of entries.slice(0, MAX_CAMPAIGN_SAVES)) {
+    result[key] = save;
+  }
+
+  // Migrate legacy single-slot activePuzzle when activeCampaignPuzzles is missing/empty
+  if (
+    Object.keys(result).length === 0 &&
+    legacyActivePuzzle &&
+    Number.isInteger(legacyActivePuzzle.levelId) &&
+    legacyActivePuzzle.levelId >= 1
+  ) {
+    result[String(legacyActivePuzzle.levelId)] = {
+      ...legacyActivePuzzle,
+      savedAt: legacyActivePuzzle.savedAt ?? 0,
+    };
+  }
+
+  return result;
 }
 
 /**
@@ -348,7 +394,12 @@ export function loadPersistedState(): PersistedGameData {
       }
     }
 
-    const activePuzzle = sanitizeActivePuzzle(parsed.activePuzzle, settings.gameMode);
+    const legacyActivePuzzle = sanitizeActivePuzzle(parsed.activePuzzle, settings.gameMode);
+    const activeCampaignPuzzles = sanitizeActiveCampaignPuzzles(
+      parsed.activeCampaignPuzzles,
+      legacyActivePuzzle,
+      settings.gameMode
+    );
     const activeSpecialPuzzles: PersistedGameData['activeSpecialPuzzles'] = {};
     if (parsed.activeSpecialPuzzles && typeof parsed.activeSpecialPuzzles === 'object') {
       for (const [key, raw] of Object.entries(parsed.activeSpecialPuzzles).slice(0, 4)) {
@@ -403,7 +454,8 @@ export function loadPersistedState(): PersistedGameData {
       settings,
       selectedDifficulty,
       hasSeenTutorial: Boolean(parsed.hasSeenTutorial),
-      activePuzzle,
+      activePuzzle: null,
+      activeCampaignPuzzles,
       activeSpecialPuzzles,
       achievements,
       completedDailyDates,

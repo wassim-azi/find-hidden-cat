@@ -74,6 +74,8 @@
     "nodeAriaCompleted": "Niveau {{id}}, {{title}}, terminé avec {{stars}} étoiles",
     "nodeAriaCurrent": "Niveau {{id}}, {{title}}, prochain niveau, touche pour jouer",
     "nodeAriaLocked": "Niveau {{id}}, {{title}}, verrouillé, termine le niveau précédent d'abord",
+    "inProgressBadge": "En cours",
+    "inProgressAria": ", grille en cours",
     "special": {
       "treasure": "Coffre au trésor",
       "boss_6": "Boss du village",

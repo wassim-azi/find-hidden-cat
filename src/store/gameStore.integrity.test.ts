@@ -361,4 +361,72 @@ describe('Heart Refill (undoToken) booster (#8)', () => {
   });
 });
 
+describe('Per-level campaign save slots (#9)', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+  });
+
+  it('preserves level 12 progress while playing and finishing level 3, and syncs campaignSaveLevelIds', () => {
+    // Start level 12, place 2 non-starter cats, lose 1 heart, advance timer
+    S().startLevel(12, false);
+    const lvl12 = S().puzzle;
+    const lvl12Cats = lvl12.solution.filter(
+      (s) => !lvl12.initialCats.some((ic) => coordsEqual(ic, s))
+    );
+    expect(lvl12Cats.length).toBeGreaterThanOrEqual(2);
+    const catA = lvl12Cats[0]!;
+    const catB = lvl12Cats[1]!;
+
+    S().attemptPlaceCat(catA);
+    S().attemptPlaceCat(catB);
+    S().attemptPlaceCat(wrongCellFor(lvl12)); // hearts -> 2
+    useGameStore.setState({ elapsedSec: 77 });
+    S().tickTimer(); // elapsedSec -> 78
+    // Persist the timer/hearts snapshot by toggling a mark or calling goToScreen -> actually attemptPlaceCat already saved hearts=2; let's force a persist via tickTimer at multiple of 5:
+    useGameStore.setState({ elapsedSec: 79 });
+    S().tickTimer(); // elapsedSec -> 80 (divisible by 5 -> persists!)
+    expect(S().hearts).toBe(2);
+    expect(S().elapsedSec).toBe(80);
+    expect(S().campaignSaveLevelIds).toEqual([12]);
+
+    // Switch to level 3 and place 1 cat
+    S().startLevel(3, false);
+    const lvl3 = S().puzzle;
+    const lvl3Cat = lvl3.solution.find(
+      (s) => !lvl3.initialCats.some((ic) => coordsEqual(ic, s))
+    )!;
+    S().attemptPlaceCat(lvl3Cat);
+    expect(S().campaignSaveLevelIds).toEqual([3, 12]);
+
+    // Resume level 12 -> both cats, hearts, and elapsedSec are restored
+    S().startLevel(12, true);
+    expect(S().puzzle.id).toBe(12);
+    expect(S().board[catA.row]![catA.col]).toBe('cat');
+    expect(S().board[catB.row]![catB.col]).toBe('cat');
+    expect(S().hearts).toBe(2);
+    expect(S().elapsedSec).toBe(80);
+
+    // Resume level 3 and finish it -> removes only slot 3, slot 12 survives
+    S().startLevel(3, true);
+    expect(S().board[lvl3Cat.row]![lvl3Cat.col]).toBe('cat');
+    solveCurrentPuzzle();
+    expect(S().campaignSaveLevelIds).toEqual([12]);
+
+    // Level 12 can still be resumed with both cats intact
+    S().startLevel(12, true);
+    expect(S().board[catA.row]![catA.col]).toBe('cat');
+    expect(S().board[catB.row]![catB.col]).toBe('cat');
+
+    // resetAllProgress clears all slots
+    S().resetAllProgress();
+    expect(S().campaignSaveLevelIds).toEqual([]);
+    unlockAll();
+    S().startLevel(12, true);
+    expect(S().board[catA.row]![catA.col]).not.toBe('cat');
+    expect(S().elapsedSec).toBe(0);
+  });
+});
+
+
 

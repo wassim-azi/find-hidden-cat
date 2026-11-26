@@ -141,4 +141,57 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
       count: 0,
     });
   });
+
+  it('migrates legacy activePuzzle into activeCampaignPuzzles, caps at 5 newest, and drops mismatched keys (#9)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    const board6 = Array.from({ length: 6 }, () => Array.from({ length: 6 }, () => 'empty'));
+
+    // 1. Old save with only activePuzzle (levelId 12) -> migrated into activeCampaignPuzzles['12']
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        activePuzzle: {
+          levelId: 12,
+          board: board6,
+          elapsedSec: 33,
+          hintsUsed: 1,
+          hearts: 2,
+          gameMode: 'classic',
+        },
+      })
+    );
+    const migrated = loadPersistedState();
+    expect(migrated.activePuzzle).toBeNull();
+    expect(migrated.activeCampaignPuzzles['12']).toBeDefined();
+    expect(migrated.activeCampaignPuzzles['12']?.elapsedSec).toBe(33);
+    expect(migrated.activeCampaignPuzzles['12']?.savedAt).toBe(0);
+
+    // 2. 7 entries + 1 mismatched key -> drops mismatch and keeps only 5 newest savedAt
+    const rawSlots: Record<string, unknown> = {
+      '99': { levelId: 4, board: board6, elapsedSec: 1, hintsUsed: 0, savedAt: 99999 },
+    };
+    for (let id = 1; id <= 7; id++) {
+      rawSlots[String(id)] = {
+        levelId: id,
+        board: board6,
+        elapsedSec: id * 10,
+        hintsUsed: 0,
+        savedAt: id * 1000,
+      };
+    }
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        activeCampaignPuzzles: rawSlots,
+      })
+    );
+    const bounded = loadPersistedState();
+    const keptKeys = Object.keys(bounded.activeCampaignPuzzles)
+      .map(Number)
+      .sort((a, b) => a - b);
+    expect(keptKeys).toEqual([3, 4, 5, 6, 7]);
+    expect(bounded.activeCampaignPuzzles['99']).toBeUndefined();
+  });
 });

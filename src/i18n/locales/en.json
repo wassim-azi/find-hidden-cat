@@ -74,6 +74,8 @@
     "nodeAriaCompleted": "Level {{id}}, {{title}}, completed with {{stars}} stars",
     "nodeAriaCurrent": "Level {{id}}, {{title}}, current next level, tap to play",
     "nodeAriaLocked": "Level {{id}}, {{title}}, locked, complete previous level first",
+    "inProgressBadge": "In progress",
+    "inProgressAria": ", puzzle in progress",
     "special": {
       "treasure": "Treasure Chest",
       "boss_6": "Village Boss",

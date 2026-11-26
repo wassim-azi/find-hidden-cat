@@ -193,6 +193,7 @@ interface GameStoreState {
   currentLevelId: number;
   unlockedLevelId: number;
   levelProgress: Record<number, LevelProgress>;
+  campaignSaveLevelIds: number[];
   completedDailyDates: string[];
   selectedDifficulty: Difficulty | 'all';
   hasSeenTutorial: boolean;
@@ -436,23 +437,51 @@ const persisted = loadPersistedState();
 const initialTodayKey = getTodayDateKey();
 const initialLevelId = Math.min(persisted.currentLevelId, TOTAL_LEVELS);
 const initialPuzzle = getLevelPuzzle(initialLevelId);
-const hasMatchingSave = isResumableSave(persisted.activePuzzle, initialPuzzle);
+
+const MAX_CAMPAIGN_SAVES = 5;
 
 /**
- * Last known in-progress CAMPAIGN session. Playing a Daily/Golden puzzle or finishing a
- * different level never clobbers it, so "Continue" always returns to the real campaign board.
+ * Per-level in-progress CAMPAIGN saves (at most 5 most recently touched).
+ * Replaying another campaign level or Daily/Golden puzzle never clobbers other slots.
  */
-let campaignSave: ActivePuzzleSave | null = persisted.activePuzzle;
+let campaignSaves: Record<number, ActivePuzzleSave> = {};
+for (const [key, save] of Object.entries(persisted.activeCampaignPuzzles)) {
+  const id = Number(key);
+  if (Number.isInteger(id) && id >= 1 && id === save.levelId) {
+    campaignSaves[id] = save;
+  }
+}
+
+function getCampaignSaveLevelIds(): number[] {
+  return Object.keys(campaignSaves)
+    .map(Number)
+    .sort((a, b) => a - b);
+}
+
+function pruneCampaignSaves(): void {
+  const entries = Object.entries(campaignSaves);
+  if (entries.length <= MAX_CAMPAIGN_SAVES) return;
+  entries.sort((a, b) => (b[1].savedAt ?? 0) - (a[1].savedAt ?? 0));
+  const next: Record<number, ActivePuzzleSave> = {};
+  for (const [k, v] of entries.slice(0, MAX_CAMPAIGN_SAVES)) {
+    next[Number(k)] = v;
+  }
+  campaignSaves = next;
+}
+
+const initialCampaignSave = campaignSaves[initialLevelId] ?? null;
+const hasMatchingSave = isResumableSave(initialCampaignSave, initialPuzzle);
+
 type DailySessionSave = ActivePuzzleSave & { dailyDateKey: string };
 /** In-progress Daily Kitty / Golden Cat sessions, keyed by their dailyDateKey. */
 let specialSaves: Record<string, DailySessionSave> = { ...persisted.activeSpecialPuzzles };
 
 const rawInitialBoard = hasMatchingSave
-  ? cloneBoard(persisted.activePuzzle!.board)
+  ? cloneBoard(initialCampaignSave!.board)
   : createInitialBoard(initialPuzzle);
 
 const initialManualX = hasMatchingSave
-  ? (persisted.activePuzzle!.manualXKeys ??
+  ? (initialCampaignSave!.manualXKeys ??
     extractLegacyManualXKeys(initialPuzzle, rawInitialBoard, persisted.settings.autoMarkX))
   : [];
 
@@ -464,7 +493,7 @@ const initialSynced = syncBoardMarks(
 );
 
 const initialCandidates: Record<string, CandidateMark> = hasMatchingSave
-  ? { ...(persisted.activePuzzle!.candidateMarks ?? {}) }
+  ? { ...(initialCampaignSave!.candidateMarks ?? {}) }
   : {};
 
 const initialValidation = validateBoard(initialPuzzle, initialSynced.board);
@@ -627,10 +656,18 @@ function persistFromState(state: GameStoreState): void {
     if (!finished) next[dailyKey] = { ...buildSessionSave(state), dailyDateKey: dailyKey };
     specialSaves = next;
   } else if (finished) {
-    // Only clear the campaign slot if it belongs to the level that was just completed
-    if (campaignSave?.levelId === state.puzzle.id) campaignSave = null;
+    delete campaignSaves[state.puzzle.id];
   } else {
-    campaignSave = buildSessionSave(state);
+    campaignSaves[state.puzzle.id] = {
+      ...buildSessionSave(state),
+      savedAt: Date.now(),
+    };
+    pruneCampaignSaves();
+  }
+
+  const activeCampaignPuzzles: Record<string, ActivePuzzleSave> = {};
+  for (const [id, save] of Object.entries(campaignSaves)) {
+    activeCampaignPuzzles[String(id)] = save;
   }
 
   savePersistedState({
@@ -641,7 +678,8 @@ function persistFromState(state: GameStoreState): void {
     settings: state.settings,
     selectedDifficulty: state.selectedDifficulty,
     hasSeenTutorial: state.hasSeenTutorial,
-    activePuzzle: campaignSave,
+    activePuzzle: null,
+    activeCampaignPuzzles,
     activeSpecialPuzzles: specialSaves,
     achievements: state.achievements,
     completedDailyDates: state.completedDailyDates,
@@ -658,6 +696,15 @@ function persistFromState(state: GameStoreState): void {
     specialLevelsCompleted: state.specialLevelsCompleted,
     totalStarsEarnedEver: state.totalStarsEarnedEver,
   });
+
+  const nextIds = getCampaignSaveLevelIds();
+  const prevIds = useGameStore.getState().campaignSaveLevelIds;
+  if (
+    nextIds.length !== prevIds.length ||
+    nextIds.some((id, idx) => id !== prevIds[idx])
+  ) {
+    useGameStore.setState({ campaignSaveLevelIds: nextIds });
+  }
 }
 
 function computeTotalStars(progress: Record<number, LevelProgress>): number {
@@ -686,6 +733,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   currentLevelId: initialLevelId,
   unlockedLevelId: Math.min(persisted.unlockedLevelId, TOTAL_LEVELS),
   levelProgress: persisted.levelProgress,
+  campaignSaveLevelIds: getCampaignSaveLevelIds(),
   completedDailyDates: persisted.completedDailyDates,
   selectedDifficulty: persisted.selectedDifficulty,
   hasSeenTutorial: persisted.hasSeenTutorial,
@@ -713,19 +761,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   pencilMode: false,
   pencilSubMode: 'x',
   gameMode: hasMatchingSave
-    ? (persisted.activePuzzle!.gameMode ?? persisted.settings.gameMode)
+    ? (initialCampaignSave!.gameMode ?? persisted.settings.gameMode)
     : persisted.settings.gameMode,
   hearts: hasMatchingSave
-    ? Math.max(0, persisted.activePuzzle!.hearts ?? MAX_CLASSIC_HEARTS)
+    ? Math.max(0, initialCampaignSave!.hearts ?? MAX_CLASSIC_HEARTS)
     : MAX_CLASSIC_HEARTS,
   mistakeFlash: null,
   undoStack: [],
   redoStack: [],
   activeHint: null,
   hintStage: 1,
-  elapsedSec: hasMatchingSave ? persisted.activePuzzle!.elapsedSec : 0,
-  hintsUsed: hasMatchingSave ? persisted.activePuzzle!.hintsUsed : 0,
-  mistakesCount: hasMatchingSave ? (persisted.activePuzzle!.mistakesCount ?? 0) : 0,
+  elapsedSec: hasMatchingSave ? initialCampaignSave!.elapsedSec : 0,
+  hintsUsed: hasMatchingSave ? initialCampaignSave!.hintsUsed : 0,
+  mistakesCount: hasMatchingSave ? (initialCampaignSave!.mistakesCount ?? 0) : 0,
   isMistakeShieldActive: false,
   shakeNonce: 0,
 
@@ -787,12 +835,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     const puzzle = getLevelPuzzle(clampedId);
+    const savedSlot = campaignSaves[clampedId];
     const source: ResumeSource = !resumeIfSaved
       ? { kind: 'fresh' }
       : canContinueLiveSession(state, puzzle)
         ? { kind: 'live' }
-        : campaignSave && isResumableSave(campaignSave, puzzle)
-          ? { kind: 'saved', save: campaignSave }
+        : savedSlot && isResumableSave(savedSlot, puzzle)
+          ? { kind: 'saved', save: savedSlot }
           : { kind: 'fresh' };
 
     soundManager.play('button', state.settings.soundEnabled);
@@ -2146,6 +2195,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
+    if (!state.puzzle.dailyDateKey) {
+      delete campaignSaves[state.puzzle.id];
+    }
     const freshSynced = syncBoardMarks(
       state.puzzle,
       createInitialBoard(state.puzzle),
@@ -2516,7 +2568,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     clearCelebrationTimer();
     clearMistakeFlashTimer();
     activeDragSession = null;
-    campaignSave = null;
+    campaignSaves = {};
     specialSaves = {};
     clearPersistedState();
     soundManager.setMusic(false);
@@ -2549,6 +2601,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       currentLevelId: 1,
       unlockedLevelId: 1,
       levelProgress: {},
+      campaignSaveLevelIds: [],
       completedDailyDates: [],
       selectedDifficulty: 'all',
       hasSeenTutorial: false,

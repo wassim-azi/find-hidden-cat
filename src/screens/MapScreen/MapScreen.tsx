@@ -173,6 +173,7 @@ export const MapScreen: React.FC = () => {
   const { t } = useTranslation();
   const unlockedLevelId = useGameStore((s) => s.unlockedLevelId);
   const levelProgress = useGameStore((s) => s.levelProgress);
+  const campaignSaveLevelIds = useGameStore((s) => s.campaignSaveLevelIds);
   const activeMascotCatId = useGameStore((s) => s.activeMascotCatId);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const startLevel = useGameStore((s) => s.startLevel);
@@ -435,6 +436,25 @@ export const MapScreen: React.FC = () => {
                         : node.world.nodeShadow;
 
             const nodeDim = isCurrent || special.type === 'boss' ? 68 : 60;
+            const hasSavedProgress = campaignSaveLevelIds.includes(node.levelId);
+            const baseAriaLabel = isCompleted
+              ? t('map.nodeAriaCompleted', {
+                  id: node.levelId,
+                  title: localizedTitle,
+                  stars: prog?.stars ?? 0,
+                })
+              : isCurrent
+                ? t('map.nodeAriaCurrent', {
+                    id: node.levelId,
+                    title: localizedTitle,
+                  })
+                : t('map.nodeAriaLocked', {
+                    id: node.levelId,
+                    title: localizedTitle,
+                  });
+            const nodeAriaLabel = hasSavedProgress
+              ? `${baseAriaLabel}${t('map.inProgressAria')}`
+              : baseAriaLabel;
 
             return (
               <div
@@ -451,6 +471,15 @@ export const MapScreen: React.FC = () => {
                   >
                     {t('map.playTag')}
                   </motion.div>
+                )}
+
+                {!isCurrent && hasSavedProgress && (
+                  <span
+                    id={`level-inprogress-${node.levelId}`}
+                    className="mb-1 px-2 py-0.5 rounded-full bg-[#FFF3D1] border border-[#F2CFA0] text-[#8A5A10] text-[8.5px] font-black uppercase tracking-tight whitespace-nowrap shadow-xs"
+                  >
+                    {t('map.inProgressBadge')}
+                  </span>
                 )}
 
                 {!isCurrent && isSpecial && specialKey && (
@@ -496,23 +525,7 @@ export const MapScreen: React.FC = () => {
                     type="button"
                     whileTap={{ scale: 0.91 }}
                     onClick={() => startLevel(node.levelId, true)}
-                    aria-label={
-                      isCompleted
-                        ? t('map.nodeAriaCompleted', {
-                            id: node.levelId,
-                            title: localizedTitle,
-                            stars: prog?.stars ?? 0,
-                          })
-                        : isCurrent
-                          ? t('map.nodeAriaCurrent', {
-                              id: node.levelId,
-                              title: localizedTitle,
-                            })
-                          : t('map.nodeAriaLocked', {
-                              id: node.levelId,
-                              title: localizedTitle,
-                            })
-                    }
+                    aria-label={nodeAriaLabel}
                     style={{
                       width: `${nodeDim}px`,
                       height: `${nodeDim}px`,
