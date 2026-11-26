@@ -170,20 +170,35 @@ describe('Candy Crush Progression, Economy, Daily & Engagement Systems', () => {
   });
 
   it('tracks real gameplay events on generated Daily Missions', () => {
-    let state = generateDailyMissions('2026-11-25');
+    const state = generateDailyMissions('2026-11-25');
     expect(state.missions).toHaveLength(3);
 
-    state = applyMissionEvent(state, {
-      type: 'level_completed',
-      starsEarned: 3,
+    const nextMissions = applyMissionEvent(state.missions, {
+      type: 'puzzle_completed',
+      id: 'L1:1',
+      at: 1,
+      dateKey: '2026-11-25',
+      weekKey: '2026-W48',
+      source: 'campaign',
+      puzzleKey: 'L1',
+      levelId: 1,
+      worldId: 1,
+      mode: 'classic',
+      firstCompletion: false,
+      stars: 3,
+      previousBestStars: 2,
       hintsUsed: 0,
       mistakesCount: 0,
       elapsedSec: 45,
+      previousBestTimeSec: 60,
+      firstNoHint: true,
+      firstNoMistake: true,
       improvedBest: true,
       catsFound: 6,
+      techniques: [],
     });
 
-    const anyProgressed = state.missions.some((m) => m.progress > 0);
+    const anyProgressed = nextMissions.some((m) => m.progress > 0);
     expect(anyProgressed).toBe(true);
   });
 

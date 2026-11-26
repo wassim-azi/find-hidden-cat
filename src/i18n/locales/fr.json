@@ -468,6 +468,13 @@
     "tabBadges": "Succès",
     "tabBadgesCount": "Succès ({{count}})",
     "progressLabel": "Progression",
+    "sectionDaily": "Missions du jour",
+    "sectionWeekly": "Missions de la semaine",
+    "sectionMilestone": "Grand objectif",
+    "resetsDaily": "Nouvelles missions chaque jour à minuit",
+    "resetsWeekly": "Nouvelles missions chaque dimanche",
+    "reroll": "Changer (1 gratuit par jour)",
+    "allMilestonesDone": "Tous les grands objectifs sont accomplis !",
     "items": {
       "levels_completed": {
         "title": "Explorateur douillet",
@@ -479,7 +486,7 @@
       },
       "no_hint_level": {
         "title": "Instinct affûté",
-        "desc": "Termine 1 niveau sans utiliser d'indice"
+        "desc": "Termine {{target}} niveau sans utiliser d'indice"
       },
       "earn_stars": {
         "title": "Chasseur d'étoiles",
@@ -487,16 +494,36 @@
       },
       "fast_solve": {
         "title": "Pattes rapides",
-        "desc": "Termine une grille en moins de 3 minutes"
+        "desc": "Termine {{target}} grille en moins de 3 minutes"
       },
       "no_mistake_level": {
         "title": "Précision parfaite",
-        "desc": "Termine un niveau sans aucune erreur"
+        "desc": "Termine {{target}} grilles sans aucune erreur"
       },
       "improve_score": {
         "title": "Bats ton record",
-        "desc": "Rejoue un niveau ou établis un nouveau record"
+        "desc": "Bats ton record personnel {{target}} fois"
+      },
+      "three_star_wins": {
+        "title": "Artiste étoilé",
+        "desc": "Obtiens 3 étoiles sur {{target}} grilles"
+      },
+      "daily_solved": {
+        "title": "Habitué du jour",
+        "desc": "Résous {{target}} Chats du Jour"
+      },
+      "worlds_played": {
+        "title": "Globe-trotteur",
+        "desc": "Résous des grilles dans {{target}} mondes différents"
       }
+    },
+    "milestones": {
+      "completeWorld": "Termine {{world}}",
+      "stars15": "Collectionne 15 étoiles",
+      "daily5": "Résous 5 Chats du Jour",
+      "threeStar10": "Obtiens 3 étoiles sur 10 niveaux",
+      "golden3": "Résous 3 Épreuves du Chat Doré",
+      "allThreeStars": "Obtiens 3 étoiles sur tous les niveaux"
     }
   },
   "events": {

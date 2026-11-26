@@ -201,12 +201,12 @@ describe('Cat Finder mission cannot be farmed (#5)', () => {
     useGameStore.setState({
       dailyMissions: {
         dateKey: getTodayDateKey(),
+        rerollUsed: false,
         missions: [
           {
             id: 'm1',
+            scope: 'daily',
             metric: 'place_cats',
-            title: '',
-            description: '',
             target: 8,
             progress: 0,
             rewardCoins: 20,
@@ -214,9 +214,8 @@ describe('Cat Finder mission cannot be farmed (#5)', () => {
           },
           {
             id: 'm2',
+            scope: 'daily',
             metric: 'levels_completed',
-            title: '',
-            description: '',
             target: 2,
             progress: 0,
             rewardCoins: 30,
@@ -224,9 +223,8 @@ describe('Cat Finder mission cannot be farmed (#5)', () => {
           },
           {
             id: 'm3',
+            scope: 'daily',
             metric: 'fast_solve',
-            title: '',
-            description: '',
             target: 1,
             progress: 0,
             rewardCoins: 25,

@@ -66,6 +66,12 @@ import {
   applyMissionEvent,
   DailyMissionsState,
   ensureTodaysMissions,
+  ensureWeeklyMissions,
+  getMilestoneProgress,
+  MILESTONE_LADDER,
+  MissionEligibilityContext,
+  rerollDailyMission as rerollDailyMissionPure,
+  WeeklyMissionsState,
 } from '../game/missions';
 import {
   ACHIEVEMENTS,
@@ -227,6 +233,8 @@ interface GameStoreState {
   boosters: BoosterInventory;
   dailyLogin: DailyLoginState;
   dailyMissions: DailyMissionsState;
+  weeklyMissions: WeeklyMissionsState;
+  milestoneIndex: number;
   unlockedAchievementIds: string[];
   claimedAchievementIds: string[];
   unlockedCatIds: string[];
@@ -315,6 +323,8 @@ interface GameStoreState {
     milestone: StreakMilestone | null;
   };
   claimMissionReward: (missionId: string) => boolean;
+  rerollDailyMission: (missionId: string) => boolean;
+  claimMilestone: () => boolean;
   claimAchievementReward: (achievementId: string) => boolean;
   claimEventChest: (eventId: WorldEventId) => boolean;
   selectMascotCat: (catId: string) => void;
@@ -526,8 +536,29 @@ const initialCandidates: Record<string, CandidateMark> = hasMatchingSave
   ? { ...(initialCampaignSave!.candidateMarks ?? {}) }
   : {};
 
+function missionEligibilityFromState(
+  levelProgress: Record<number, LevelProgress>,
+  unlockedLevelId: number
+): MissionEligibilityContext {
+  const completedLevelCount = Object.values(levelProgress).filter((p) => p.completed).length;
+  return { completedLevelCount, unlockedLevelId };
+}
+
+const initialEligibility = missionEligibilityFromState(
+  persisted.levelProgress,
+  Math.min(persisted.unlockedLevelId, TOTAL_LEVELS)
+);
 const initialValidation = validateBoard(initialPuzzle, initialSynced.board);
-const initialMissions = ensureTodaysMissions(persisted.dailyMissions, initialTodayKey);
+const initialMissions = ensureTodaysMissions(
+  persisted.dailyMissions,
+  initialTodayKey,
+  initialEligibility
+);
+const initialWeeklyMissions = ensureWeeklyMissions(
+  persisted.weeklyMissions,
+  getCurrentWeekKey(),
+  initialEligibility
+);
 
 type ResumeSource =
   | { kind: 'live' }
@@ -731,6 +762,8 @@ function persistFromState(state: GameStoreState): void {
     boosters: state.boosters,
     dailyLogin: state.dailyLogin,
     dailyMissions: state.dailyMissions,
+    weeklyMissions: state.weeklyMissions,
+    milestoneIndex: state.milestoneIndex,
     unlockedAchievementIds: state.unlockedAchievementIds,
     claimedAchievementIds: state.claimedAchievementIds,
     unlockedCatIds: state.unlockedCatIds,
@@ -783,6 +816,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   boosters: persisted.boosters,
   dailyLogin: persisted.dailyLogin,
   dailyMissions: initialMissions,
+  weeklyMissions: initialWeeklyMissions,
+  milestoneIndex: persisted.milestoneIndex,
   unlockedAchievementIds: persisted.unlockedAchievementIds,
   claimedAchievementIds: persisted.claimedAchievementIds,
   unlockedCatIds: persisted.unlockedCatIds,
@@ -842,12 +877,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     soundManager.play('button', state.settings.soundEnabled);
 
     const todayKey = getTodayDateKey();
-    const freshMissions = ensureTodaysMissions(state.dailyMissions, todayKey);
+    const eligibility = missionEligibilityFromState(
+      state.levelProgress,
+      state.unlockedLevelId
+    );
+    const freshMissions = ensureTodaysMissions(state.dailyMissions, todayKey, eligibility);
+    const freshWeekly = ensureWeeklyMissions(
+      state.weeklyMissions,
+      getCurrentWeekKey(),
+      eligibility
+    );
 
     set({
       previousScreen: state.screen,
       screen,
       dailyMissions: freshMissions,
+      weeklyMissions: freshWeekly,
       isPaused: false,
       outOfHearts: false,
       pendingBoosterConfirm: null,
@@ -1347,9 +1392,18 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const regionId = state.puzzle.regions[coord.row]?.[coord.col] ?? 0;
     const theme = getRegionTheme(regionId);
 
-    // Ensure today's daily missions are rolled over cleanly
+    // Ensure today's daily and this week's weekly missions are rolled over cleanly
     const todayKey = getTodayDateKey();
-    let updatedMissions = ensureTodaysMissions(state.dailyMissions, todayKey);
+    const eligibility = missionEligibilityFromState(
+      state.levelProgress,
+      state.unlockedLevelId
+    );
+    let updatedMissions = ensureTodaysMissions(state.dailyMissions, todayKey, eligibility);
+    let updatedWeeklyMissions = ensureWeeklyMissions(
+      state.weeklyMissions,
+      getCurrentWeekKey(),
+      eligibility
+    );
 
     if (!nextValidation.isSolved) {
       soundManager.play('placeCat', state.settings.soundEnabled);
@@ -1375,6 +1429,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         hintStage: 1,
         mistakeFlash: null,
         dailyMissions: updatedMissions,
+        weeklyMissions: updatedWeeklyMissions,
       });
       persistFromState(get());
       return true;
@@ -1587,20 +1642,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       bestStreak: Math.max(state.achievements.bestStreak, newStreak),
     };
 
-    const improvedBest = !isPractice && (isNewBestTime || computedStars > previousBestStars);
     const catsFoundCount = state.puzzle.size - state.puzzle.initialCats.length;
-
-    if (!isPractice) {
-      updatedMissions = applyMissionEvent(updatedMissions, {
-        type: 'level_completed',
-        starsEarned: computedStars,
-        hintsUsed: state.hintsUsed,
-        mistakesCount: state.mistakesCount,
-        elapsedSec: state.elapsedSec,
-        improvedBest,
-        catsFound: catsFoundCount,
-      });
-    }
 
     const eventDate = new Date(eventAt);
     const eventSource: PuzzleSource = isGoldenTrial
@@ -1645,6 +1687,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       improvedBest: eventImprovedBest,
       catsFound: catsFoundCount,
       techniques,
+    };
+
+    updatedMissions = {
+      ...updatedMissions,
+      missions: applyMissionEvent(updatedMissions.missions, completedEvent),
+    };
+    updatedWeeklyMissions = {
+      ...updatedWeeklyMissions,
+      missions: applyMissionEvent(updatedWeeklyMissions.missions, completedEvent),
     };
 
     const nextProgressStats = applyGameEvent(state.progressStats, completedEvent);
@@ -1763,6 +1814,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       boosters: nextBoosters,
       dailyLogin: nextDailyLogin,
       dailyMissions: updatedMissions,
+      weeklyMissions: updatedWeeklyMissions,
       unlockedAchievementIds: nextUnlockedAchs,
       unlockedCatIds: nextUnlockedCats,
       zeroMistakeSolves: nextZeroMistakes,
@@ -2527,7 +2579,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   claimMissionReward: (missionId) => {
     const state = get();
-    const target = state.dailyMissions.missions.find((m) => m.id === missionId);
+    const dailyTarget = state.dailyMissions.missions.find((m) => m.id === missionId);
+    const weeklyTarget = dailyTarget
+      ? undefined
+      : state.weeklyMissions.missions.find((m) => m.id === missionId);
+    const target = dailyTarget ?? weeklyTarget;
     if (!target || target.claimed || target.progress < target.target) return false;
 
     const nextBoosters = { ...state.boosters };
@@ -2535,19 +2591,31 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       nextBoosters[target.rewardBooster] += 1;
     }
 
-    const nextMissions: DailyMissionsState = {
-      ...state.dailyMissions,
-      missions: state.dailyMissions.missions.map((m) =>
-        m.id === missionId ? { ...m, claimed: true } : m
-      ),
-    };
+    const nextDailyMissions: DailyMissionsState = dailyTarget
+      ? {
+          ...state.dailyMissions,
+          missions: state.dailyMissions.missions.map((m) =>
+            m.id === missionId ? { ...m, claimed: true } : m
+          ),
+        }
+      : state.dailyMissions;
+
+    const nextWeeklyMissions: WeeklyMissionsState = weeklyTarget
+      ? {
+          ...state.weeklyMissions,
+          missions: state.weeklyMissions.missions.map((m) =>
+            m.id === missionId ? { ...m, claimed: true } : m
+          ),
+        }
+      : state.weeklyMissions;
 
     soundManager.play('victory', state.settings.soundEnabled);
     triggerHaptic('cat', state.settings.hapticsEnabled);
     particleBus.victoryFountain();
 
     set({
-      dailyMissions: nextMissions,
+      dailyMissions: nextDailyMissions,
+      weeklyMissions: nextWeeklyMissions,
       fishCoins: state.fishCoins + target.rewardCoins,
       boosters: nextBoosters,
     });
@@ -2562,6 +2630,62 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       weekKey: getWeekKey(d),
       source: 'mission',
       coins: target.rewardCoins,
+    });
+    persistFromState(get());
+    return true;
+  },
+
+  rerollDailyMission: (missionId) => {
+    const state = get();
+    const eligibility = missionEligibilityFromState(
+      state.levelProgress,
+      state.unlockedLevelId
+    );
+    const next = rerollDailyMissionPure(state.dailyMissions, missionId, eligibility);
+    if (!next) return false;
+
+    soundManager.play('button', state.settings.soundEnabled);
+    set({ dailyMissions: next });
+    persistFromState(get());
+    return true;
+  },
+
+  claimMilestone: () => {
+    const state = get();
+    const def = MILESTONE_LADDER[state.milestoneIndex];
+    if (!def) return false;
+
+    const { current, target } = getMilestoneProgress(state.milestoneIndex, {
+      levelProgress: state.levelProgress,
+      progressStats: state.progressStats,
+    });
+    if (target <= 0 || current < target) return false;
+
+    const nextBoosters = { ...state.boosters };
+    if (def.rewardBooster) {
+      nextBoosters[def.rewardBooster] += 1;
+    }
+
+    soundManager.play('victory', state.settings.soundEnabled);
+    triggerHaptic('victory', state.settings.hapticsEnabled);
+    particleBus.victoryFountain();
+
+    set({
+      milestoneIndex: state.milestoneIndex + 1,
+      fishCoins: state.fishCoins + def.rewardCoins,
+      boosters: nextBoosters,
+    });
+    state.showToast(i18n.t('toasts.claimedCoins', { coins: def.rewardCoins }));
+    const at = nextEventAt();
+    const d = new Date(at);
+    recordEvent({
+      type: 'reward_claimed',
+      id: `reward:milestone:${def.id}:${at}`,
+      at,
+      dateKey: toDateKey(d),
+      weekKey: getWeekKey(d),
+      source: 'mission',
+      coins: def.rewardCoins,
     });
     persistFromState(get());
     return true;
@@ -2866,7 +2990,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         weekClaims: { ...INITIAL_DAILY_LOGIN.weekClaims },
         claimedStreakMilestones: [],
       },
-      dailyMissions: ensureTodaysMissions(null, todayKey),
+      dailyMissions: ensureTodaysMissions(null, todayKey, {
+        completedLevelCount: 0,
+        unlockedLevelId: 1,
+      }),
+      weeklyMissions: ensureWeeklyMissions(null, getCurrentWeekKey(), {
+        completedLevelCount: 0,
+        unlockedLevelId: 1,
+      }),
+      milestoneIndex: 0,
       unlockedAchievementIds: [],
       claimedAchievementIds: [],
       unlockedCatIds: ['mochi'],
@@ -2906,9 +3038,25 @@ export function hasClaimableDailyOrMission(state: GameStoreState): {
   achievementsClaimableCount: number;
 } {
   const dailyClaimable = canClaimDailyReward(state.dailyLogin, getTodayDateKey());
-  const missionsClaimableCount = state.dailyMissions.missions.filter(
+  const dailyClaimableCount = state.dailyMissions.missions.filter(
     (m) => !m.claimed && m.progress >= m.target
   ).length;
+  const weeklyClaimableCount = state.weeklyMissions.missions.filter(
+    (m) => !m.claimed && m.progress >= m.target
+  ).length;
+  const milestoneDef = MILESTONE_LADDER[state.milestoneIndex];
+  const milestoneProg = milestoneDef
+    ? getMilestoneProgress(state.milestoneIndex, {
+        levelProgress: state.levelProgress,
+        progressStats: state.progressStats,
+      })
+    : { current: 0, target: 0 };
+  const milestoneClaimableCount =
+    milestoneDef && milestoneProg.target > 0 && milestoneProg.current >= milestoneProg.target
+      ? 1
+      : 0;
+  const missionsClaimableCount =
+    dailyClaimableCount + weeklyClaimableCount + milestoneClaimableCount;
   const achievementsClaimableCount = state.unlockedAchievementIds.filter(
     (id) => !state.claimedAchievementIds.includes(id)
   ).length;

@@ -468,6 +468,13 @@
     "tabBadges": "Badges",
     "tabBadgesCount": "Badges ({{count}})",
     "progressLabel": "Progress",
+    "sectionDaily": "Daily missions",
+    "sectionWeekly": "Weekly missions",
+    "sectionMilestone": "Milestone",
+    "resetsDaily": "New missions every day at midnight",
+    "resetsWeekly": "New missions every Sunday",
+    "reroll": "Swap (1 free per day)",
+    "allMilestonesDone": "All milestones complete!",
     "items": {
       "levels_completed": {
         "title": "Cozy Explorer",
@@ -479,7 +486,7 @@
       },
       "no_hint_level": {
         "title": "Sharp Instincts",
-        "desc": "Finish 1 level without using hints"
+        "desc": "Finish {{target}} level without using hints"
       },
       "earn_stars": {
         "title": "Star Collector",
@@ -487,16 +494,36 @@
       },
       "fast_solve": {
         "title": "Quick Paws",
-        "desc": "Finish a puzzle in under 3 minutes"
+        "desc": "Finish {{target}} puzzle in under 3 minutes"
       },
       "no_mistake_level": {
         "title": "Purr-fect Accuracy",
-        "desc": "Complete a level with zero mistakes"
+        "desc": "Complete {{target}} puzzles with zero mistakes"
       },
       "improve_score": {
         "title": "Beat Your Best",
-        "desc": "Replay a level or set a new personal best"
+        "desc": "Beat your personal best {{target}} times"
+      },
+      "three_star_wins": {
+        "title": "Star Performer",
+        "desc": "Earn 3 stars on {{target}} puzzles"
+      },
+      "daily_solved": {
+        "title": "Daily Regular",
+        "desc": "Solve {{target}} Daily Kitty puzzles"
+      },
+      "worlds_played": {
+        "title": "Globetrotter",
+        "desc": "Solve puzzles in {{target}} different worlds"
       }
+    },
+    "milestones": {
+      "completeWorld": "Complete {{world}}",
+      "stars15": "Collect 15 stars",
+      "daily5": "Solve 5 Daily Kitty puzzles",
+      "threeStar10": "Get 3 stars on 10 levels",
+      "golden3": "Solve 3 Golden Cat Trials",
+      "allThreeStars": "Get 3 stars on every level"
     }
   },
   "events": {

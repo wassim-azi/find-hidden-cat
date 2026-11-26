@@ -14,7 +14,15 @@ import {
 import { DailyLoginState, INITIAL_DAILY_LOGIN, MAX_STREAK_FREEZES } from '../game/dailyRewards';
 import { getWeekKey } from '../game/dateKeys';
 import { getLevelPuzzle, getPuzzleAnalysis, TOTAL_LEVELS } from '../game/levels';
-import { DailyMissionsState } from '../game/missions';
+import {
+  DailyMissionsState,
+  MILESTONE_LADDER,
+  Mission,
+  MissionMetric,
+  VALID_MISSION_METRICS,
+  WeeklyMissionsState,
+} from '../game/missions';
+import { BoosterId } from '../game/economy';
 import {
   backfillProgressStats,
   EMPTY_PROGRESS_STATS,
@@ -53,6 +61,8 @@ export interface PersistedGameData {
   boosters: BoosterInventory;
   dailyLogin: DailyLoginState;
   dailyMissions: DailyMissionsState | null;
+  weeklyMissions: WeeklyMissionsState | null;
+  milestoneIndex: number;
   unlockedAchievementIds: string[];
   claimedAchievementIds: string[];
   unlockedCatIds: string[];
@@ -108,6 +118,8 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   boosters: { ...INITIAL_BOOSTERS },
   dailyLogin: { ...INITIAL_DAILY_LOGIN },
   dailyMissions: null,
+  weeklyMissions: null,
+  milestoneIndex: 0,
   unlockedAchievementIds: [],
   claimedAchievementIds: [],
   unlockedCatIds: ['mochi'],
@@ -239,6 +251,99 @@ function sanitizeDailyLogin(raw: unknown): DailyLoginState {
     recoverable,
     lastRecoveryDateKey,
   };
+}
+
+const VALID_BOOSTER_IDS: ReadonlySet<string> = new Set<BoosterId>([
+  'hint',
+  'superHint',
+  'revealCat',
+  'undoToken',
+  'mistakeShield',
+  'revealRegion',
+]);
+
+function sanitizeMissionList(raw: unknown, scope: 'daily' | 'weekly'): Mission[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Mission[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const m = item as Record<string, unknown>;
+    if (
+      typeof m.id !== 'string' ||
+      typeof m.metric !== 'string' ||
+      !VALID_MISSION_METRICS.has(m.metric) ||
+      typeof m.target !== 'number' ||
+      !Number.isFinite(m.target) ||
+      m.target <= 0
+    ) {
+      continue;
+    }
+    const target = Math.floor(m.target);
+    const progress =
+      typeof m.progress === 'number' && Number.isFinite(m.progress)
+        ? Math.max(0, Math.min(target, Math.floor(m.progress)))
+        : 0;
+    const rewardCoins =
+      typeof m.rewardCoins === 'number' && Number.isFinite(m.rewardCoins)
+        ? Math.max(0, Math.floor(m.rewardCoins))
+        : 0;
+    const rewardBooster =
+      typeof m.rewardBooster === 'string' && VALID_BOOSTER_IDS.has(m.rewardBooster)
+        ? (m.rewardBooster as BoosterId)
+        : undefined;
+    const seenWorldIds = Array.isArray(m.seenWorldIds)
+      ? Array.from(
+          new Set(
+            m.seenWorldIds.filter(
+              (n): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1
+            )
+          )
+        ).sort((a, b) => a - b)
+      : undefined;
+
+    out.push({
+      id: m.id,
+      scope,
+      metric: m.metric as MissionMetric,
+      target,
+      progress,
+      rewardCoins,
+      ...(rewardBooster ? { rewardBooster } : {}),
+      claimed: Boolean(m.claimed),
+      ...(seenWorldIds ? { seenWorldIds } : {}),
+    });
+  }
+  return out;
+}
+
+function sanitizeDailyMissions(raw: unknown): DailyMissionsState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.dateKey !== 'string' || !Array.isArray(r.missions)) return null;
+  const missions = sanitizeMissionList(r.missions, 'daily');
+  if (missions.length === 0) return null;
+  return {
+    dateKey: r.dateKey,
+    missions,
+    rerollUsed: Boolean(r.rerollUsed),
+  };
+}
+
+function sanitizeWeeklyMissions(raw: unknown): WeeklyMissionsState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.weekKey !== 'string' || !Array.isArray(r.missions)) return null;
+  const missions = sanitizeMissionList(r.missions, 'weekly');
+  if (missions.length === 0) return null;
+  return {
+    weekKey: r.weekKey,
+    missions,
+  };
+}
+
+function sanitizeMilestoneIndex(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0;
+  return Math.max(0, Math.min(MILESTONE_LADDER.length, Math.floor(raw)));
 }
 
 const MAX_CAMPAIGN_SAVES = 5;
@@ -685,13 +790,9 @@ export function loadPersistedState(): PersistedGameData {
           : INITIAL_FISH_COINS,
       boosters: sanitizeBoosters(parsed.boosters),
       dailyLogin: sanitizeDailyLogin(parsed.dailyLogin),
-      dailyMissions:
-        parsed.dailyMissions &&
-        typeof parsed.dailyMissions === 'object' &&
-        typeof parsed.dailyMissions.dateKey === 'string' &&
-        Array.isArray(parsed.dailyMissions.missions)
-          ? parsed.dailyMissions
-          : null,
+      dailyMissions: sanitizeDailyMissions(parsed.dailyMissions),
+      weeklyMissions: sanitizeWeeklyMissions(parsed.weeklyMissions),
+      milestoneIndex: sanitizeMilestoneIndex(parsed.milestoneIndex),
       unlockedAchievementIds: stringArray(parsed.unlockedAchievementIds, []),
       claimedAchievementIds: stringArray(parsed.claimedAchievementIds, []),
       unlockedCatIds,

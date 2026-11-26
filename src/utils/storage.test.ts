@@ -298,6 +298,44 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(data.dailyLogin.recoverable).toBeNull();
     expect(data.dailyLogin.lastRecoveryDateKey).toBeNull();
   });
+
+  it('migrates legacy dailyMissions with title/description to Mission[] and defaults weeklyMissions & milestoneIndex (#16)', async () => {
+    const { loadPersistedState } = await import('./storage');
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        dailyMissions: {
+          dateKey: '2026-11-25',
+          missions: [
+            {
+              id: '2026-11-25-m1-levels_completed',
+              metric: 'levels_completed',
+              title: 'Cozy Explorer',
+              description: 'Complete 2 puzzle levels',
+              target: 2,
+              progress: 1,
+              rewardCoins: 30,
+              claimed: false,
+            },
+          ],
+        },
+      })
+    );
+    const data = loadPersistedState();
+    expect(data.dailyMissions).not.toBeNull();
+    expect(data.dailyMissions!.rerollUsed).toBe(false);
+    expect(data.dailyMissions!.missions).toHaveLength(1);
+    const first = data.dailyMissions!.missions[0]!;
+    expect(first.scope).toBe('daily');
+    expect(first.progress).toBe(1);
+    expect(first.claimed).toBe(false);
+    expect('title' in first).toBe(false);
+    expect('description' in first).toBe(false);
+    expect(data.weeklyMissions).toBeNull();
+    expect(data.milestoneIndex).toBe(0);
+  });
 });
+
 
 
