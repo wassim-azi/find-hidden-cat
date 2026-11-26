@@ -1009,5 +1009,30 @@
     "openAria_one": "Ouvrir le coffre ({{count}} en attente)",
     "openAria_other": "Ouvrir un coffre ({{count}} en attente)",
     "openedTitle": "Coffre ouvert !"
+  },
+  "recommend": {
+    "practice_mode": "Passage difficile ? Le mode Entraînement n'a pas de cœurs — idéal pour apprendre.",
+    "technique_tip": "Envie d'une astuce rapide sur une technique pour laquelle tu as pris des indices ?",
+    "relaxed_daily": "Essaie le Chat du Jour en mode Détente.",
+    "golden_trial": "Tu es en forme ! L'Épreuve du Chat Doré t'attend.",
+    "no_hint_replay": "Retenter le niveau {{id}} sans indice ?",
+    "three_star_replay": "Le niveau {{id}} peut encore avoir 3 étoiles.",
+    "go": "C'est parti",
+    "dismiss": "Pas maintenant",
+    "practiceSetToast": "Mode Entraînement activé : pas de cœurs, apprends à ton rythme."
+  },
+  "techniqueTips": {
+    "rank1": "Si toutes les cases libres d'une zone sont sur une même ligne (ou colonne), les autres cases de cette ligne ne peuvent pas avoir de chat.",
+    "rank2": "Une case est impossible si un chat à cet endroit bloquerait toutes les places restantes d'une autre zone, ligne ou colonne.",
+    "rank3": "Si N zones tiennent seulement dans N lignes, aucune autre zone ne peut utiliser ces lignes.",
+    "rank4": "Essaie le « et si » : si un chat sur une case laisse une zone sans place, cette case est un X."
+  },
+  "dailyVariant": {
+    "title": "Choisis ton Chat du Jour",
+    "relaxed": "Détente — logique plus douce, 1 chat de départ",
+    "standard": "Standard — le défi du jour classique",
+    "tricky": "Corsé — pour les détectives audacieux",
+    "recommended": "Recommandé",
+    "sameReward": "Même récompense pour chaque option. Ton choix est gardé pour aujourd'hui."
   }
 }

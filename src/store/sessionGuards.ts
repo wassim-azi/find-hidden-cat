@@ -9,6 +9,7 @@ import { ActivePuzzleSave, GameMode, PuzzleDefinition } from '../game/gameTypes'
  *   layout changed in an app update, or the save was tampered with) — resuming it would
  *   leave the player on a board that can never be completed;
  * - a locked starter cat is missing;
+ * - it was played on another Daily difficulty variant (#24);
  * - it is a Classic session that already ran out of hearts (resuming would hand out
  *   free mistakes; Classic rules say the level restarts).
  */
@@ -18,6 +19,8 @@ export function isResumableSave(
 ): boolean {
   if (!save || save.levelId !== puzzle.id) return false;
   if (save.board.length !== puzzle.size) return false;
+  // A board from another Daily variant (#24) belongs to a different puzzle
+  if ((save.dailyVariant ?? null) !== (puzzle.dailyVariant ?? null)) return false;
   for (let r = 0; r < puzzle.size; r++) {
     const row = save.board[r];
     if (!row || row.length !== puzzle.size) return false;

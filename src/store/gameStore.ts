@@ -5,6 +5,7 @@ import {
   BoardGrid,
   CandidateMark,
   CellCoord,
+  DailyVariant,
   Difficulty,
   GameMode,
   HintResult,
@@ -135,6 +136,7 @@ import {
 } from '../game/progressStats';
 import { emitToListeners } from '../game/gameEvents';
 import { applySkillEvent, EMPTY_SKILL_PROFILE, SkillProfile } from '../game/skillProfile';
+import type { RecommendationKind } from '../game/recommendations';
 import { buildUnlockContext } from '../game/unlockContext';
 import { toDateKey } from '../services/reminderPlanner';
 import {
@@ -288,6 +290,8 @@ interface GameStoreState {
   chests: ChestState;
   perfectBonusLevels: number[];
   skillProfile: SkillProfile;
+  recommendationDismissed: Record<string, string>;
+  dailyVariant: { dateKey: string; variant: DailyVariant } | null;
 
   // Active Puzzle Session
   puzzle: PuzzleDefinition;
@@ -318,7 +322,7 @@ interface GameStoreState {
   // Navigation Actions
   goToScreen: (screen: ScreenName) => void;
   startLevel: (levelId: number, resumeIfSaved?: boolean) => void;
-  startDailyChallenge: () => void;
+  startDailyChallenge: (variant?: DailyVariant) => void;
   startGoldenCatTrial: () => void;
   continueGame: () => void;
   startNextLevel: () => void;
@@ -398,6 +402,7 @@ interface GameStoreState {
   ) => void;
   resetAllProgress: () => void;
   resetSkillProfile: () => void;
+  dismissRecommendation: (kind: RecommendationKind) => void;
 }
 
 let activeDragSession: DragPaintSession | null = null;
@@ -700,6 +705,7 @@ function canContinueLiveSession(state: GameStoreState, puzzle: PuzzleDefinition)
   return (
     state.puzzle.id === puzzle.id &&
     state.puzzle.dailyDateKey === puzzle.dailyDateKey &&
+    state.puzzle.dailyVariant === puzzle.dailyVariant &&
     !state.validation.isSolved &&
     !state.victorySummary &&
     !state.isCelebratingBoard &&
@@ -765,6 +771,7 @@ function buildSessionSave(state: GameStoreState): ActivePuzzleSave {
     mistakesCount: state.mistakesCount,
     hearts: state.hearts,
     gameMode: state.gameMode,
+    ...(state.puzzle.dailyVariant ? { dailyVariant: state.puzzle.dailyVariant } : {}),
   };
 }
 
@@ -873,6 +880,8 @@ function persistFromState(state: GameStoreState): void {
     chests: state.chests,
     perfectBonusLevels: state.perfectBonusLevels,
     skillProfile: state.skillProfile,
+    recommendationDismissed: state.recommendationDismissed,
+    dailyVariant: state.dailyVariant,
   });
 
   const nextIds = getCampaignSaveLevelIds();
@@ -938,6 +947,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   chests: persisted.chests,
   perfectBonusLevels: persisted.perfectBonusLevels,
   skillProfile: persisted.skillProfile,
+  recommendationDismissed: persisted.recommendationDismissed,
+  dailyVariant: persisted.dailyVariant,
 
   puzzle: initialPuzzle,
   board: initialSynced.board,
@@ -1070,13 +1081,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     persistFromState(get());
   },
 
-  startDailyChallenge: () => {
+  startDailyChallenge: (variant) => {
     clearCelebrationTimer();
     clearMistakeFlashTimer();
     activeDragSession = null;
     const state = get();
     const todayKey = getTodayDateKey();
-    const dailyPuzzle = getDailyPuzzle(todayKey);
+    // Once a variant is started for a date it is locked for the whole day (#24)
+    const lock =
+      state.dailyVariant?.dateKey === todayKey
+        ? state.dailyVariant
+        : { dateKey: todayKey, variant: variant ?? 'standard' };
+    if (lock !== state.dailyVariant) {
+      set({ dailyVariant: lock });
+    }
+    const dailyPuzzle = getDailyPuzzle(todayKey, lock.variant);
 
     soundManager.play('button', state.settings.soundEnabled);
     if (state.settings.musicEnabled) {
@@ -3404,6 +3423,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       chests: createInitialChestState(),
       perfectBonusLevels: [],
       skillProfile: EMPTY_SKILL_PROFILE,
+      recommendationDismissed: {},
+      dailyVariant: null,
       puzzle: level1,
       board: synced.board,
       manualXKeys: [],
@@ -3425,6 +3446,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       isMistakeShieldActive: false,
       settings: DEFAULT_SETTINGS,
     });
+  },
+
+  dismissRecommendation: (kind) => {
+    const state = get();
+    soundManager.play('button', state.settings.soundEnabled);
+    set({
+      recommendationDismissed: { ...state.recommendationDismissed, [kind]: getTodayDateKey() },
+    });
+    persistFromState(get());
   },
 
   resetSkillProfile: () => {

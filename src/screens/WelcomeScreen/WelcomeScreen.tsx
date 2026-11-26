@@ -24,6 +24,7 @@ import { MeowdokuLogo } from '../../components/Cat/MeowdokuLogo';
 import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { TactileButton } from '../../components/Buttons/TactileButton';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
+import { useDailyVariantPicker } from '../../components/Modals/DailyVariantSheet';
 
 interface WelcomeScreenProps {
   onOpenInstall?: () => void;
@@ -38,7 +39,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
   const dailyLogin = useGameStore((s) => s.dailyLogin);
   const reducedMotion = useGameStore((s) => s.settings.reducedMotion);
   const continueGame = useGameStore((s) => s.continueGame);
-  const startDailyChallenge = useGameStore((s) => s.startDailyChallenge);
+  const { requestDaily, sheet: dailyVariantSheet } = useDailyVariantPicker();
   const goToScreen = useGameStore((s) => s.goToScreen);
   const setTutorialOpen = useGameStore((s) => s.setTutorialOpen);
   const setSettingsOpen = useGameStore((s) => s.setSettingsOpen);
@@ -78,7 +79,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
   const formattedToday = formatLocalizedDate(todayKey, lang);
 
   return (
-    <main className="h-full w-full flex flex-col justify-between px-5 pt-4 pb-5 overflow-hidden">
+    <main className="h-full w-full flex flex-col justify-between px-5 pt-4 pb-5 overflow-hidden relative">
       {/* Top Bar: Coins + Optional Install + Daily Gift + Settings */}
       <div className="flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -178,7 +179,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
         <button
           id="btn-daily-challenge"
           type="button"
-          onClick={startDailyChallenge}
+          onClick={() => requestDaily()}
           className="mt-3.5 w-full max-w-[330px] meow-card rounded-[20px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 text-left cursor-pointer hover:border-[#F2CFA0] active:scale-[0.98] transition-all"
         >
           <div className="flex items-center gap-2.5 min-w-0">
@@ -261,6 +262,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenInstall }) =
           </TactileButton>
         </div>
       </div>
+
+      {dailyVariantSheet}
     </main>
   );
 };

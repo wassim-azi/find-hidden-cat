@@ -1,5 +1,6 @@
 import {
   ActivePuzzleSave,
+  DailyVariant,
   Difficulty,
   LevelProgress,
   LogicalTechnique,
@@ -53,6 +54,7 @@ import {
   TierStats,
 } from '../game/skillProfile';
 import { TECHNIQUE_RANK } from '../game/logicalSolver';
+import { RECOMMENDATION_KINDS } from '../game/recommendations';
 import { dateFromKey, toDateKey } from '../services/reminderPlanner';
 import { idbDelete, idbGet, idbPut, STORE_GAME_STATE } from './idbStorage';
 
@@ -102,6 +104,10 @@ export interface PersistedGameData {
   chests: ChestState;
   perfectBonusLevels: number[];
   skillProfile: SkillProfile;
+  /** Recommendation kind → dateKey it was dismissed (#24). */
+  recommendationDismissed: Record<string, string>;
+  /** The Daily variant locked for a date once started (#24). */
+  dailyVariant: { dateKey: string; variant: DailyVariant } | null;
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -168,6 +174,8 @@ export const DEFAULT_PERSISTED_DATA: PersistedGameData = {
   chests: createInitialChestState(),
   perfectBonusLevels: [],
   skillProfile: EMPTY_SKILL_PROFILE,
+  recommendationDismissed: {},
+  dailyVariant: null,
 };
 
 function isValidBoard(board: unknown): boolean {
@@ -615,6 +623,28 @@ function sanitizeSkillProfile(raw: unknown): SkillProfile {
   };
 }
 
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const VALID_RECOMMENDATION_KINDS: ReadonlySet<string> = new Set(RECOMMENDATION_KINDS);
+
+function sanitizeRecommendationDismissed(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [kind, dateKey] of Object.entries(raw as Record<string, unknown>)) {
+    if (VALID_RECOMMENDATION_KINDS.has(kind) && typeof dateKey === 'string' && DATE_KEY_RE.test(dateKey)) {
+      out[kind] = dateKey;
+    }
+  }
+  return out;
+}
+
+function sanitizeDailyVariantLock(raw: unknown): PersistedGameData['dailyVariant'] {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.dateKey !== 'string' || !DATE_KEY_RE.test(r.dateKey)) return null;
+  if (r.variant !== 'relaxed' && r.variant !== 'standard' && r.variant !== 'tricky') return null;
+  return { dateKey: r.dateKey, variant: r.variant };
+}
+
 const MAX_CAMPAIGN_SAVES = 5;
 
 function sanitizeActivePuzzle(raw: unknown, fallbackMode: PlayerSettings['gameMode']): ActivePuzzleSave | null {
@@ -650,6 +680,9 @@ function sanitizeActivePuzzle(raw: unknown, fallbackMode: PlayerSettings['gameMo
         ? ap.gameMode
         : fallbackMode,
     ...(savedAt !== undefined ? { savedAt } : {}),
+    ...(ap.dailyVariant === 'relaxed' || ap.dailyVariant === 'tricky'
+      ? { dailyVariant: ap.dailyVariant }
+      : {}),
   };
 }
 
@@ -1098,6 +1131,8 @@ export function loadPersistedState(): PersistedGameData {
       chests: sanitizeChests(parsed.chests),
       perfectBonusLevels: sanitizePerfectBonusLevels(parsed.perfectBonusLevels),
       skillProfile: sanitizeSkillProfile(parsed.skillProfile),
+      recommendationDismissed: sanitizeRecommendationDismissed(parsed.recommendationDismissed),
+      dailyVariant: sanitizeDailyVariantLock(parsed.dailyVariant),
     };
 
     // If migrated from v1, immediately write v2 copy so future loads are instant

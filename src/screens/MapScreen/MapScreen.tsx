@@ -25,6 +25,7 @@ import { CatIllustration } from '../../components/Cat/CatIllustration';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { LevelDetailsSheet } from '../../components/Modals/LevelDetailsSheet';
 import { GoalCard } from '../../components/ProgressIndicator/GoalCard';
+import { RecommendationCard } from '../../components/ProgressIndicator/RecommendationCard';
 
 const NODE_STEP_Y = 98;
 const WORLD_BANNER_EXTRA_H = 126;
@@ -279,6 +280,11 @@ export const MapScreen: React.FC = () => {
         >
           {t('common.levelShort', { id: unlockedLevelId })}
         </button>
+      </div>
+
+      {/* Adaptive suggestion (#24): dismissible, at most once per app session */}
+      <div className="px-3.5 pb-1.5 shrink-0 empty:hidden">
+        <RecommendationCard id="recommendation-card" />
       </div>
 
       {/* Scrollable Vertical Winding World Canvas */}

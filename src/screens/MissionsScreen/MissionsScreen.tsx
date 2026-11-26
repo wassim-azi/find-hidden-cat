@@ -40,6 +40,7 @@ import {
 import { formatRewardLabel } from '../../game/rewardLabels';
 import { CHEST_EVERY, CHEST_GUARANTEED } from '../../game/chests';
 import { ChestOddsSheet } from '../../components/Modals/ChestOddsSheet';
+import { useDailyVariantPicker } from '../../components/Modals/DailyVariantSheet';
 import { buildUnlockContext } from '../../game/unlockContext';
 import { HubHeader } from '../../components/Navigation/HubHeader';
 import { FishCoinIcon } from '../../components/Currency/FishCoinIcon';
@@ -108,7 +109,7 @@ export const MissionsScreen: React.FC = () => {
   const claimAchievementReward = useGameStore((s) => s.claimAchievementReward);
   const claimEventChest = useGameStore((s) => s.claimEventChest);
   const setDailyCalendarOpen = useGameStore((s) => s.setDailyCalendarOpen);
-  const startDailyChallenge = useGameStore((s) => s.startDailyChallenge);
+  const { requestDaily, sheet: dailyVariantSheet } = useDailyVariantPicker();
   const startGoldenCatTrial = useGameStore((s) => s.startGoldenCatTrial);
 
   const todayKey = getTodayDateKey();
@@ -543,7 +544,7 @@ export const MissionsScreen: React.FC = () => {
                       size="sm"
                       onClick={() =>
                         ev.id === 'daily_cat'
-                          ? startDailyChallenge()
+                          ? requestDaily()
                           : startGoldenCatTrial()
                       }
                       className="h-8.5 px-3 text-[11.5px] shrink-0"
@@ -695,6 +696,7 @@ export const MissionsScreen: React.FC = () => {
       </div>
 
       <ChestOddsSheet open={oddsOpen} onClose={() => setOddsOpen(false)} />
+      {dailyVariantSheet}
     </div>
   );
 };

@@ -1009,5 +1009,30 @@
     "openAria_one": "Open chest ({{count}} waiting)",
     "openAria_other": "Open chest ({{count}} waiting)",
     "openedTitle": "Chest opened!"
+  },
+  "recommend": {
+    "practice_mode": "Tough streak? Practice mode has no hearts — perfect for learning.",
+    "technique_tip": "Want a quick tip about a trick you've used hints for?",
+    "relaxed_daily": "Try today's Daily Kitty in Relaxed mode.",
+    "golden_trial": "You're on a roll! The Golden Cat Trial is waiting.",
+    "no_hint_replay": "Try Level {{id}} again without hints?",
+    "three_star_replay": "Level {{id}} can still get 3 stars.",
+    "go": "Let's go",
+    "dismiss": "Not now",
+    "practiceSetToast": "Practice mode is on: no hearts, learn at your own pace."
+  },
+  "techniqueTips": {
+    "rank1": "If all of a region's free tiles are in one row (or column), that row's other tiles can't hold a cat.",
+    "rank2": "A tile is impossible if a cat there would block every remaining spot of another region, row or column.",
+    "rank3": "If N regions fit only inside N rows, no other region can use those rows.",
+    "rank4": "Try \"what if\": if a cat on a tile would leave some region with no space, that tile is an X."
+  },
+  "dailyVariant": {
+    "title": "Choose today's Daily Kitty",
+    "relaxed": "Relaxed — gentler logic, 1 starter cat",
+    "standard": "Standard — the classic daily challenge",
+    "tricky": "Tricky — for bold detectives",
+    "recommended": "Recommended",
+    "sameReward": "Same reward for every option. Your choice is kept for today."
   }
 }

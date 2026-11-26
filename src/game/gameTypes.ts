@@ -14,6 +14,9 @@ export type ControlMode = 'tap-confirm' | 'double-tap' | 'long-press';
 
 export type GameMode = 'classic' | 'practice';
 
+/** Daily Kitty difficulty choice (#24). All variants share the day's dailyDateKey and reward. */
+export type DailyVariant = 'relaxed' | 'standard' | 'tricky';
+
 export type PencilSubMode = 'x' | 'candidate';
 
 export type RuleViolationType = 'region' | 'rowCol' | 'adjacent' | 'unsolvable';
@@ -70,6 +73,8 @@ export interface PuzzleDefinition {
   parTimeSec: number;
   /** Present when this puzzle is a Daily Challenge (YYYY-MM-DD) or Event */
   dailyDateKey?: string;
+  /** Daily difficulty variant (#24). Absent for the standard Daily and every other puzzle. */
+  dailyVariant?: Exclude<DailyVariant, 'standard'>;
   /** True if handcrafted/curated rather than procedurally generated */
   isCurated?: boolean;
   /** Optional precomputed logical difficulty analysis */
@@ -190,6 +195,8 @@ export interface ActivePuzzleSave {
   hearts?: number;
   gameMode?: GameMode;
   savedAt?: number;
+  /** Daily variant the board belongs to (#24); absent means standard. */
+  dailyVariant?: Exclude<DailyVariant, 'standard'>;
 }
 
 export interface PlayerAchievements {

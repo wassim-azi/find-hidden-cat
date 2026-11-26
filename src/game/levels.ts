@@ -1,4 +1,5 @@
 import {
+  DailyVariant,
   Difficulty,
   DifficultyAnalysis,
   DifficultyTier,
@@ -8,6 +9,10 @@ import {
 import { BAKED_LEVELS } from './levelsData';
 import { analyzePuzzleDifficulty } from './logicalSolver';
 import { generateValidatedPuzzle } from './puzzleGenerator';
+import { fnv1a } from './hash';
+
+export type { DailyVariant } from './gameTypes';
+export const DAILY_VARIANTS: readonly DailyVariant[] = ['relaxed', 'standard', 'tricky'];
 
 export const TOTAL_LEVELS = BAKED_LEVELS.length;
 
@@ -29,7 +34,7 @@ export function getTodayDateKey(): string {
 export function getPuzzleAnalysis(puzzle: PuzzleDefinition): DifficultyAnalysis {
   if (puzzle.analysis) return puzzle.analysis;
   const cacheKey = puzzle.dailyDateKey
-    ? `daily:${puzzle.dailyDateKey}`
+    ? `daily:${puzzle.dailyDateKey}:${puzzle.dailyVariant ?? 'standard'}`
     : `lvl:${puzzle.id}`;
   const cached = analysisCache.get(cacheKey);
   if (cached) return cached;
@@ -78,13 +83,10 @@ export function getAllLevelPuzzles(): readonly PuzzleDefinition[] {
 }
 
 /**
- * Generates and memoizes a deterministic unique-solution Daily Challenge puzzle
- * for a given YYYY-MM-DD calendar date.
+ * The original Daily Kitty generator call. MUST stay byte-identical so existing saves,
+ * completions and reminders remain valid (guarded by a committed snapshot test).
  */
-export function getDailyPuzzle(dateKey = getTodayDateKey()): PuzzleDefinition {
-  const cached = dailyCache.get(dateKey);
-  if (cached) return cached;
-
+function generateStandardDaily(dateKey: string): PuzzleDefinition {
   // Deterministic hash of dateKey
   let hash = 2166136261;
   for (let i = 0; i < dateKey.length; i++) {
@@ -102,12 +104,63 @@ export function getDailyPuzzle(dateKey = getTodayDateKey()): PuzzleDefinition {
     starterCatsCount: 0,
   });
 
-  const dailyPuzzle: PuzzleDefinition = {
+  return {
     ...puzzle,
     dailyDateKey: dateKey,
     analysis: puzzle.analysis ?? analyzePuzzleDifficulty(puzzle),
   };
+}
 
-  dailyCache.set(dateKey, dailyPuzzle);
+const VARIANT_OPTIONS: Record<
+  Exclude<DailyVariant, 'standard'>,
+  { difficulty: Difficulty; starterCatsCount: number }
+> = {
+  relaxed: { difficulty: 'easy', starterCatsCount: 1 },
+  tricky: { difficulty: 'hard', starterCatsCount: 0 },
+};
+
+function generateVariantDaily(
+  dateKey: string,
+  variant: Exclude<DailyVariant, 'standard'>
+): PuzzleDefinition | null {
+  try {
+    const opts = VARIANT_OPTIONS[variant];
+    const puzzle = generateValidatedPuzzle({
+      id: 0,
+      title: `Daily Kitty • ${dateKey.slice(5)}`,
+      difficulty: opts.difficulty,
+      size: 8,
+      seed: fnv1a(`${dateKey}:${variant}`) || 90210,
+      starterCatsCount: opts.starterCatsCount,
+    });
+    const analysis = puzzle.analysis ?? analyzePuzzleDifficulty(puzzle);
+    if (!analysis.solvableByHumanLogic) return null;
+    return { ...puzzle, dailyDateKey: dateKey, dailyVariant: variant, analysis };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Generates and memoizes a deterministic unique-solution Daily Challenge puzzle
+ * for a given YYYY-MM-DD calendar date and difficulty variant (#24).
+ *
+ * Every variant uses id 0 and the same dailyDateKey, so completion, rewards, saves and the
+ * reminder planner treat them as the one Daily of that day. A variant that fails to generate
+ * (or is not solvable by human logic) falls back to the standard puzzle.
+ */
+export function getDailyPuzzle(
+  dateKey = getTodayDateKey(),
+  variant: DailyVariant = 'standard'
+): PuzzleDefinition {
+  const cacheKey = `${dateKey}:${variant}`;
+  const cached = dailyCache.get(cacheKey);
+  if (cached) return cached;
+
+  const dailyPuzzle =
+    (variant !== 'standard' ? generateVariantDaily(dateKey, variant) : null) ??
+    (variant !== 'standard' ? getDailyPuzzle(dateKey, 'standard') : generateStandardDaily(dateKey));
+
+  dailyCache.set(cacheKey, dailyPuzzle);
   return dailyPuzzle;
 }

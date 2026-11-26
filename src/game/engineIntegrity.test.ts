@@ -4,7 +4,7 @@ import { areCellsTouching, evaluateCatPlacement, validateBoard } from './validat
 import { countSolutions, createInitialBoard, solvePuzzle, verifyPuzzleDefinition } from './puzzleEngine';
 import { analyzePuzzleDifficulty, findNextLogicalDeduction } from './logicalSolver';
 import { getProgressiveHint } from './hintEngine';
-import { getAllLevelPuzzles, getDailyPuzzle, getLevelPuzzle } from './levels';
+import { DAILY_VARIANTS, getAllLevelPuzzles, getDailyPuzzle, getLevelPuzzle } from './levels';
 import { getGoldenCatPuzzle } from './events';
 import { createSeededRng, generateValidatedPuzzle } from './puzzleGenerator';
 import i18n from '../i18n';
@@ -207,6 +207,35 @@ describe('Logical solvability (no forced guessing)', () => {
     for (const [dateKey, expected] of Object.entries(snapshot)) {
       expect(JSON.parse(JSON.stringify(getDailyPuzzle(dateKey)))).toEqual(expected);
     }
+  });
+
+    it('every Daily variant is unique, human-solvable, size 8 and fast for 30 dates (#24)', () => {
+    const start = Date.UTC(2027, 2, 1);
+    const timings: Record<string, number> = { relaxed: 0, standard: 0, tricky: 0 };
+    let slowest = 0;
+    for (let i = 0; i < 30; i++) {
+      const key = new Date(start + i * 86400000).toISOString().slice(0, 10);
+      for (const variant of DAILY_VARIANTS) {
+        const t0 = performance.now();
+        const p = getDailyPuzzle(key, variant);
+        const ms = performance.now() - t0;
+        timings[variant]! += ms;
+        slowest = Math.max(slowest, ms);
+        expect(ms, `${key} ${variant} took ${ms.toFixed(1)} ms`).toBeLessThan(250);
+        expect(p.size).toBe(8);
+        expect(p.id).toBe(0);
+        expect(p.dailyDateKey).toBe(key);
+        expect(countSolutions(p.size, p.regions, 2, p.initialCats)).toBe(1);
+        expect(verifyPuzzleDefinition(p).valid).toBe(true);
+        expect(p.analysis!.solvableByHumanLogic).toBe(true);
+        if (variant === 'relaxed' && p.dailyVariant === 'relaxed') {
+          expect(p.initialCats).toHaveLength(1);
+        }
+      }
+    }
+    console.info(
+      `[daily variants] avg ms — relaxed ${(timings.relaxed! / 30).toFixed(1)}, standard ${(timings.standard! / 30).toFixed(1)}, tricky ${(timings.tricky! / 30).toFixed(1)}; slowest ${slowest.toFixed(1)}`
+    );
   });
 
     it('generator only ever emits unique, logic-solvable puzzles', () => {

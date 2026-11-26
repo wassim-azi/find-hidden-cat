@@ -545,4 +545,37 @@ describe('IndexedDB recovery of evicted or corrupted saves', () => {
     expect(p.recent).toHaveLength(10);
     expect(p.recent[0]).toEqual({ at: 2, success: 1 });
   });
+
+  it('defaults recommendationDismissed / dailyVariant for legacy saves and sanitizes them (#24)', async () => {
+    const { loadPersistedState } = await import('./storage');
+
+    ls.set('meowdoku_state_v2', JSON.stringify(savedProgress));
+    const legacy = loadPersistedState();
+    expect(legacy.recommendationDismissed).toEqual({});
+    expect(legacy.dailyVariant).toBeNull();
+
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 'empty'));
+    ls.set(
+      'meowdoku_state_v2',
+      JSON.stringify({
+        ...savedProgress,
+        recommendationDismissed: { golden_trial: '2026-11-20', bogus_kind: '2026-11-20', practice_mode: 'yesterday' },
+        dailyVariant: { dateKey: '2026-11-26', variant: 'relaxed' },
+        activeSpecialPuzzles: {
+          '2026-11-26': { levelId: 0, board, elapsedSec: 3, hintsUsed: 0, dailyVariant: 'relaxed' },
+          '2026-11-25': { levelId: 0, board, elapsedSec: 3, hintsUsed: 0, dailyVariant: 'ultra' },
+        },
+      })
+    );
+    const loaded = loadPersistedState();
+    expect(loaded.recommendationDismissed).toEqual({ golden_trial: '2026-11-20' });
+    expect(loaded.dailyVariant).toEqual({ dateKey: '2026-11-26', variant: 'relaxed' });
+    expect(loaded.activeSpecialPuzzles['2026-11-26']?.dailyVariant).toBe('relaxed');
+    expect(loaded.activeSpecialPuzzles['2026-11-25']?.dailyVariant).toBeUndefined();
+
+    for (const bad of [{ dateKey: '2026-11-26', variant: 'easy' }, { dateKey: 'today', variant: 'tricky' }, 'relaxed']) {
+      ls.set('meowdoku_state_v2', JSON.stringify({ ...savedProgress, dailyVariant: bad }));
+      expect(loadPersistedState().dailyVariant).toBeNull();
+    }
+  });
 });
