@@ -4,8 +4,8 @@ import {
   Cat,
   Film,
   Grid,
+  Heart,
   Lightbulb,
-  RotateCcw,
   Shield,
   Sparkles,
 } from 'lucide-react';
@@ -19,7 +19,7 @@ const BOOSTER_ICONS: Record<BoosterId, React.ReactNode> = {
   hint: <Lightbulb className="w-5 h-5" />,
   superHint: <Sparkles className="w-5 h-5" />,
   revealCat: <Cat className="w-5 h-5" />,
-  undoToken: <RotateCcw className="w-5 h-5" />,
+  undoToken: <Heart className="w-5 h-5" />,
   mistakeShield: <Shield className="w-5 h-5" />,
   revealRegion: <Grid className="w-5 h-5" />,
 };

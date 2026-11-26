@@ -222,6 +222,8 @@
     "outOfHeartsAria": "Plus de cœurs disponibles",
     "outTitle": "Tes 3 cœurs sont épuisés !",
     "outDesc": "Même les meilleurs détectives félin se trompent ! Réessaie cette grille ou poursuis sereinement en mode Détente.",
+    "refillBtn_one": "Utiliser une recharge de cœur ({{count}} restante)",
+    "refillBtn_other": "Utiliser une recharge de cœur ({{count}} restantes)",
     "retryBtn": "Réessayer le niveau",
     "practiceBtn": "Continuer en mode Détente"
   },
@@ -622,9 +624,9 @@
         "desc": "Place immédiatement un chat 100 % valide sur la grille."
       },
       "undoToken": {
-        "name": "Retour malin",
-        "short": "Retour",
-        "desc": "Revient instantanément au dernier état sans erreur de ta grille."
+        "name": "Recharge de cœur",
+        "short": "Cœur",
+        "desc": "Rend 1 cœur en mode Classique. Les erreurs comptent toujours pour les étoiles."
       },
       "mistakeShield": {
         "name": "Bouclier d'erreur",
@@ -649,7 +651,7 @@
     "offers": {
       "free_hint": { "headline": "Besoin d'un coup de patte ?", "reward": "1 indice gratuit" },
       "bonus_coins": { "headline": "Envie de pièces poisson ?", "reward": "+30 pièces poisson" },
-      "extra_undo": { "headline": "Besoin d'un Retour malin ?", "reward": "1 jeton Retour malin" },
+      "extra_undo": { "headline": "Besoin d'une recharge de cœur ?", "reward": "1 Recharge de cœur" },
       "daily_bonus": { "headline": "Doubler le cadeau du jour ?", "reward": "Cadeau du jour ×2" },
       "booster_pack": { "headline": "Prêt pour les grilles corsées ?", "reward": "1 Bouclier d'erreur" },
       "challenge_retry": { "headline": "Envie d'un coup de pouce ?", "reward": "1 Super Indice gratuit" }
@@ -684,7 +686,9 @@
     "shieldAlreadyActive": "Un Bouclier d'erreur est déjà actif sur cette grille !",
     "shieldArmed": "Bouclier d'erreur activé ! Ta prochaine erreur est protégée.",
     "boardAlreadyClean": "Ta grille est déjà sans erreur !",
-    "smartRewindDone": "Retour malin effectué vers le dernier état propre !",
+    "heartRefilled": "Cœur rendu ! ❤️",
+    "heartsFull": "Tes cœurs sont déjà au complet.",
+    "heartRefillClassicOnly": "La recharge de cœur ne fonctionne qu'en mode Classique.",
     "regionCleared": "Cases pièges effacées dans la zone {{region}} !",
     "doubleTapBlockedX": "Efface d'abord la croix × avant de placer un chat ici !",
     "classicNextPuzzle": "Le mode Classique (3 ♥) démarrera au prochain puzzle — celui-ci reste en mode Détente.",

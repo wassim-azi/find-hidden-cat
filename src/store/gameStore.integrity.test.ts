@@ -269,3 +269,96 @@ describe('Cat Finder mission cannot be farmed (#5)', () => {
   });
 });
 
+describe('Heart Refill (undoToken) booster (#8)', () => {
+  beforeEach(() => {
+    S().resetAllProgress();
+    unlockAll();
+    S().startLevel(2, false);
+  });
+
+  it('restores 1 heart in Classic mode without erasing mistakesCount', () => {
+    const wrong = wrongCellFor(S().puzzle);
+    const tokensBefore = S().boosters.undoToken;
+    expect(tokensBefore).toBeGreaterThan(0);
+
+    S().attemptPlaceCat(wrong);
+    expect(S().hearts).toBe(2);
+    expect(S().mistakesCount).toBe(1);
+
+    expect(S().useBooster('undoToken')).toBe(true);
+    expect(S().hearts).toBe(3);
+    expect(S().boosters.undoToken).toBe(tokensBefore - 1);
+    expect(S().mistakesCount).toBe(1);
+  });
+
+  it('returns false and consumes nothing when hearts are already full', () => {
+    const tokensBefore = S().boosters.undoToken;
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+
+    S().requestUseBooster('undoToken');
+    expect(S().pendingBoosterConfirm).toBeNull();
+    expect(S().rewardedAdPlacement).toBeNull();
+
+    expect(S().useBooster('undoToken')).toBe(false);
+    expect(S().boosters.undoToken).toBe(tokensBefore);
+    expect(S().hearts).toBe(MAX_CLASSIC_HEARTS);
+  });
+
+  it('returns false and consumes nothing in Practice mode', () => {
+    S().updateSetting('gameMode', 'practice');
+    S().startLevel(2, false);
+    const tokensBefore = S().boosters.undoToken;
+
+    S().requestUseBooster('undoToken');
+    expect(S().pendingBoosterConfirm).toBeNull();
+    expect(S().rewardedAdPlacement).toBeNull();
+
+    expect(S().useBooster('undoToken')).toBe(false);
+    expect(S().boosters.undoToken).toBe(tokensBefore);
+  });
+
+  it('recovers from Out-of-Hearts keeping placed cats, elapsedSec, and mistakesCount', () => {
+    const { puzzle } = S();
+    const wrong = wrongCellFor(puzzle);
+    const good = puzzle.solution.find(
+      (s) => !puzzle.initialCats.some((ic) => coordsEqual(ic, s))
+    )!;
+    const tokensBefore = S().boosters.undoToken;
+
+    S().attemptPlaceCat(good);
+    useGameStore.setState({ elapsedSec: 42 });
+
+    for (let i = 0; i < MAX_CLASSIC_HEARTS; i++) S().attemptPlaceCat(wrong);
+    expect(S().outOfHearts).toBe(true);
+    expect(S().hearts).toBe(0);
+
+    expect(S().useHeartRefillFromOutOfHearts()).toBe(true);
+    expect(S().outOfHearts).toBe(false);
+    expect(S().hearts).toBe(1);
+    expect(S().boosters.undoToken).toBe(tokensBefore - 1);
+    expect(S().board[good.row]![good.col]).toBe('cat');
+    expect(S().elapsedSec).toBe(42);
+    expect(S().mistakesCount).toBe(3);
+
+    // Finishing after a refill still computes stars with the real mistakesCount (<= 2 stars)
+    solveCurrentPuzzle();
+    expect(S().victorySummary?.stars).toBeLessThanOrEqual(2);
+    expect(S().victorySummary?.mistakesCount).toBe(3);
+  });
+
+  it('rejects useHeartRefillFromOutOfHearts when player owns 0 tokens', () => {
+    const wrong = wrongCellFor(S().puzzle);
+    useGameStore.setState({
+      boosters: { ...S().boosters, undoToken: 0 },
+    });
+
+    for (let i = 0; i < MAX_CLASSIC_HEARTS; i++) S().attemptPlaceCat(wrong);
+    expect(S().outOfHearts).toBe(true);
+
+    expect(S().useHeartRefillFromOutOfHearts()).toBe(false);
+    expect(S().outOfHearts).toBe(true);
+    expect(S().hearts).toBe(0);
+  });
+});
+
+

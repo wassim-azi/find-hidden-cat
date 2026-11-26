@@ -7,6 +7,8 @@ import { CatIllustration } from '../Cat/CatIllustration';
 
 interface OutOfHeartsModalProps {
   open: boolean;
+  refillCount: number;
+  onUseHeartRefill: () => void;
   onRetry: () => void;
   onContinuePractice: () => void;
   onExitToMap: () => void;
@@ -14,6 +16,8 @@ interface OutOfHeartsModalProps {
 
 export const OutOfHeartsModal: React.FC<OutOfHeartsModalProps> = ({
   open,
+  refillCount,
+  onUseHeartRefill,
   onRetry,
   onContinuePractice,
   onExitToMap,
@@ -52,9 +56,22 @@ export const OutOfHeartsModal: React.FC<OutOfHeartsModalProps> = ({
         </p>
 
         <div className="w-full flex flex-col gap-2.5 mt-4">
+          {refillCount > 0 && (
+            <TactileButton
+              id="btn-hearts-refill"
+              variant="primary"
+              size="md"
+              fullWidth
+              onClick={onUseHeartRefill}
+            >
+              <Heart className="w-4 h-4 fill-current" />
+              {t('hearts.refillBtn', { count: refillCount })}
+            </TactileButton>
+          )}
+
           <TactileButton
             id="btn-hearts-retry"
-            variant="primary"
+            variant={refillCount > 0 ? 'secondary' : 'primary'}
             size="md"
             fullWidth
             onClick={onRetry}

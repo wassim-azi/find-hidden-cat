@@ -8,8 +8,8 @@ import {
   ChevronRight,
   Eraser,
   Grid,
+  Heart,
   Lightbulb,
-  RotateCcw,
   Shield,
   Sparkles,
   Star,
@@ -17,7 +17,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
-import { useGameStore } from '../../store/gameStore';
+import { canUseHeartRefill, useGameStore } from '../../store/gameStore';
 import { useGameTimer } from '../../hooks/useGameTimer';
 import { CellCoord, RuleViolationType, cellKey } from '../../game/gameTypes';
 import { isLockedCell } from '../../game/puzzleEngine';
@@ -68,7 +68,7 @@ const LIVE_BOOSTERS: readonly {
     id: 'undoToken',
     color: '#4384A6',
     bg: '#EAF5FB',
-    icon: <RotateCcw className="w-4 h-4" />,
+    icon: <Heart className="w-4 h-4" />,
   },
 ];
 
@@ -119,6 +119,9 @@ export const GameScreen: React.FC = () => {
   const togglePencilMode = useGameStore((s) => s.togglePencilMode);
   const setPencilSubMode = useGameStore((s) => s.setPencilSubMode);
   const continueInPracticeMode = useGameStore((s) => s.continueInPracticeMode);
+  const useHeartRefillFromOutOfHearts = useGameStore(
+    (s) => s.useHeartRefillFromOutOfHearts
+  );
   const undo = useGameStore((s) => s.undo);
   const redo = useGameStore((s) => s.redo);
   const requestHint = useGameStore((s) => s.requestHint);
@@ -275,17 +278,23 @@ export const GameScreen: React.FC = () => {
             >
               {LIVE_BOOSTERS.map((b) => {
                 const qty = boosters[b.id];
+                const isDisabled =
+                  b.id === 'undoToken' &&
+                  canUseHeartRefill({ gameMode, hearts, validation }) !== 'ok';
                 return (
                   <button
                     key={b.id}
                     id={`btn-use-booster-${b.id}`}
                     type="button"
+                    aria-disabled={isDisabled ? 'true' : undefined}
                     onClick={() => {
                       requestUseBooster(b.id);
                       setBoostersOpen(false);
                     }}
                     style={{ backgroundColor: b.bg, color: b.color }}
-                    className="relative flex flex-col items-center justify-center py-1.5 rounded-xl cursor-pointer active:scale-92 transition-transform"
+                    className={`relative flex flex-col items-center justify-center py-1.5 rounded-xl cursor-pointer active:scale-92 transition-transform ${
+                      isDisabled ? 'opacity-45' : ''
+                    }`}
                   >
                     {b.icon}
                     <span className="text-[9px] min-[360px]:text-[9.5px] font-black leading-none mt-1 truncate max-w-full px-0.5">
@@ -584,6 +593,8 @@ export const GameScreen: React.FC = () => {
 
       <OutOfHeartsModal
         open={outOfHearts}
+        refillCount={boosters.undoToken}
+        onUseHeartRefill={useHeartRefillFromOutOfHearts}
         onRetry={restartLevel}
         onContinuePractice={continueInPracticeMode}
         onExitToMap={handleGoMap}

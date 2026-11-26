@@ -63,9 +63,9 @@ export const REWARDED_AD_OFFERS: Record<RewardedAdPlacement, RewardedAdOffer> = 
   },
   extra_undo: {
     placement: 'extra_undo',
-    headline: 'Need a Smart Rewind?',
-    rewardLabel: '1 Smart Rewind Token',
-    coinAlternativeCost: 15,
+    headline: 'Need a Heart Refill?',
+    rewardLabel: '1 Heart Refill',
+    coinAlternativeCost: 25,
   },
   daily_bonus: {
     placement: 'daily_bonus',

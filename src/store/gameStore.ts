@@ -112,6 +112,25 @@ export type ScreenName =
   | 'profile'
   | 'game';
 
+export function canUseHeartRefill(s: {
+  gameMode: GameMode;
+  hearts: number;
+  validation: { isSolved: boolean };
+}): 'ok' | 'practice' | 'full' | 'solved' {
+  if (s.validation.isSolved) return 'solved';
+  if (s.gameMode !== 'classic') return 'practice';
+  if (s.hearts >= MAX_CLASSIC_HEARTS) return 'full';
+  return 'ok';
+}
+
+function heartRefillBlockedToastKey(
+  why: Exclude<ReturnType<typeof canUseHeartRefill>, 'ok'>
+): string {
+  if (why === 'practice') return 'toasts.heartRefillClassicOnly';
+  if (why === 'full') return 'toasts.heartsFull';
+  return 'toasts.boardAlreadyClean';
+}
+
 export interface MistakeFlash {
   cells: CellCoord[];
   message: string;
@@ -251,6 +270,7 @@ interface GameStoreState {
   confirmUseBooster: () => boolean;
   cancelUseBooster: () => void;
   useBooster: (boosterId: BoosterId) => boolean;
+  useHeartRefillFromOutOfHearts: () => boolean;
   applyActiveHint: () => void;
   dismissHint: () => void;
   restartLevel: () => void;
@@ -1855,6 +1875,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return;
     }
 
+    if (boosterId === 'undoToken') {
+      const why = canUseHeartRefill(state);
+      if (why !== 'ok') {
+        state.showToast(i18n.t(heartRefillBlockedToastKey(why)));
+        return;
+      }
+    }
+
     if (state.boosters[boosterId] <= 0) {
       const placementMap: Record<BoosterId, RewardedAdPlacement> = {
         hint: 'free_hint',
@@ -1889,6 +1917,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const state = get();
     if (state.isPaused || state.outOfHearts || state.victorySummary || state.isCelebratingBoard) {
       return false;
+    }
+
+    if (boosterId === 'undoToken') {
+      const why = canUseHeartRefill(state);
+      if (why !== 'ok') {
+        state.showToast(i18n.t(heartRefillBlockedToastKey(why)));
+        return false;
+      }
     }
 
     if (state.boosters[boosterId] <= 0) {
@@ -1932,39 +1968,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (boosterId === 'undoToken') {
-      let cleanIdx = -1;
-      for (let i = state.undoStack.length - 1; i >= 0; i--) {
-        if (validateBoard(state.puzzle, state.undoStack[i]!.board).isValid) {
-          cleanIdx = i;
-          break;
-        }
-      }
-      if (cleanIdx === -1) {
-        state.showToast(i18n.t('toasts.boardAlreadyClean'));
-        return false;
-      }
-      const targetSnap = state.undoStack[cleanIdx]!;
-      const synced = syncBoardMarks(
-        state.puzzle,
-        targetSnap.board,
-        targetSnap.manualXKeys,
-        state.settings.autoMarkX
-      );
-      soundManager.play('hint', state.settings.soundEnabled);
       set({
         boosters: consume(),
-        board: synced.board,
-        manualXKeys: synced.manualXKeys,
-        autoXKeys: synced.autoXKeys,
-        candidateMarks: { ...targetSnap.candidateMarks },
-        validation: validateBoard(state.puzzle, synced.board),
-        selectedCell: targetSnap.selectedCell,
-        undoStack: state.undoStack.slice(0, cleanIdx),
-        redoStack: [],
-        activeHint: null,
-        hintStage: 1,
+        hearts: state.hearts + 1,
       });
-      state.showToast(i18n.t('toasts.smartRewindDone'));
+      soundManager.play('hint', state.settings.soundEnabled);
+      triggerHaptic('select', state.settings.hapticsEnabled);
+      state.showToast(i18n.t('toasts.heartRefilled'));
       persistFromState(get());
       return true;
     }
@@ -2061,6 +2071,31 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     return false;
+  },
+
+  useHeartRefillFromOutOfHearts: () => {
+    const state = get();
+    if (
+      !state.outOfHearts ||
+      state.gameMode !== 'classic' ||
+      state.boosters.undoToken <= 0
+    ) {
+      return false;
+    }
+
+    set({
+      boosters: {
+        ...state.boosters,
+        undoToken: Math.max(0, state.boosters.undoToken - 1),
+      },
+      hearts: 1,
+      outOfHearts: false,
+    });
+    soundManager.play('hint', state.settings.soundEnabled);
+    triggerHaptic('select', state.settings.hapticsEnabled);
+    state.showToast(i18n.t('toasts.heartRefilled'));
+    persistFromState(get());
+    return true;
   },
 
   applyActiveHint: () => {

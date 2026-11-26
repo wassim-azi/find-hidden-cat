@@ -222,6 +222,8 @@
     "outOfHeartsAria": "Out of hearts",
     "outTitle": "All 3 Hearts Used!",
     "outDesc": "Every great detective hits a snag! Try this puzzle fresh or continue learning in relaxed Practice Mode.",
+    "refillBtn_one": "Use a Heart Refill ({{count}} left)",
+    "refillBtn_other": "Use a Heart Refill ({{count}} left)",
     "retryBtn": "Retry Level",
     "practiceBtn": "Continue in Practice Mode"
   },
@@ -622,9 +624,9 @@
         "desc": "Instantly finds and places one guaranteed valid cat on the board."
       },
       "undoToken": {
-        "name": "Smart Rewind",
-        "short": "Rewind",
-        "desc": "Rewinds back to your last clean, mistake-free board state."
+        "name": "Heart Refill",
+        "short": "Heart",
+        "desc": "Restores 1 heart in Classic mode. Mistakes still count for stars."
       },
       "mistakeShield": {
         "name": "Mistake Shield",
@@ -649,7 +651,7 @@
     "offers": {
       "free_hint": { "headline": "Need a little help?", "reward": "1 Free Hint" },
       "bonus_coins": { "headline": "Want extra Fish Coins?", "reward": "+30 Fish Coins" },
-      "extra_undo": { "headline": "Need a Smart Rewind?", "reward": "1 Smart Rewind Token" },
+      "extra_undo": { "headline": "Need a Heart Refill?", "reward": "1 Heart Refill" },
       "daily_bonus": { "headline": "Double Today's Treat?", "reward": "2× Daily Login Bonus" },
       "booster_pack": { "headline": "Stock Up for Tough Grids?", "reward": "1 Mistake Shield" },
       "challenge_retry": { "headline": "Try Again Fresh?", "reward": "1 Free Super Hint" }
@@ -683,8 +685,10 @@
     "shieldAbsorbed": "Mistake Shield absorbed the penalty!",
     "shieldAlreadyActive": "Mistake Shield is already active on this board!",
     "shieldArmed": "Mistake Shield armed! Next conflict has 0 penalty.",
-    "boardAlreadyClean": "Board is already clean — no rewind needed!",
-    "smartRewindDone": "Smart Rewind restored your last clean state!",
+    "boardAlreadyClean": "This puzzle is already complete!",
+    "heartRefilled": "Heart restored! ❤️",
+    "heartsFull": "Your hearts are already full.",
+    "heartRefillClassicOnly": "Heart Refill works in Classic mode only.",
     "regionCleared": "Cleared decoys in the {{region}} region!",
     "doubleTapBlockedX": "Clear the × mark first before placing a cat here!",
     "classicNextPuzzle": "Classic mode (3 ♥) starts with your next puzzle — this one stays in Practice.",
